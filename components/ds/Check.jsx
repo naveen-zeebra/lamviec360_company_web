@@ -1,9 +1,9 @@
 "use client";
-import { useRef } from "react";
+import { useId } from "react";
 
 export default function Check({ label, checked, onChange, id }) {
-  const ref = useRef("chk-" + Math.random().toString(36).slice(2, 9));
-  const cid = id || ref.current;
+  const generatedId = useId();
+  const cid = id || generatedId;
   return (
     <div className="flex items-start gap-3 text-sm text-muted">
       <input
