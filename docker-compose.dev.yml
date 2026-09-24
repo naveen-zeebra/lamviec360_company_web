@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  company_web:
+    image: naveenkumar1137/company_lamviec360:latest
+    container_name: lamviec360-company-web-dev
+    ports:
+      - "3002:3002"
+    restart: always

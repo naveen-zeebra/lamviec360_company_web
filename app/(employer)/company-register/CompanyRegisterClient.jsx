@@ -12,7 +12,7 @@ import Footer from "../../../components/layout/Footer";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import Check from "../../../components/ds/Check";
 import { COMPANIES } from "../../../lib/data";
-import { saveCompany } from "../../../lib/companyStore";
+import { saveCompany, setRegisteredAuth } from "../../../lib/companyStore";
 import * as companyAuth from "../../../lib/api/companyAuth";
 
 export default function CompanyRegisterClient() {
@@ -54,7 +54,7 @@ export default function CompanyRegisterClient() {
     onSubmit: async (values, { setSubmitting, setStatus }) => {
       setStatus(null);
       try {
-        await companyAuth.registerCompany({
+        const regRes = await companyAuth.registerCompany({
           company_name: values.co.trim(),
           contact_name: values.name.trim(),
           email: values.email.trim(),
@@ -62,14 +62,18 @@ export default function CompanyRegisterClient() {
           industry: values.ind || "Technology",
           size: values.size || "11-50",
         });
-        saveCompany({
+        const registeredUser = regRes?.data?.user || {
+          email: values.email.trim(),
+          full_name: values.name.trim(),
+        };
+        setRegisteredAuth(registeredUser, {
           name: values.co.trim(),
           email: values.email.trim(),
           industry: values.ind || "Technology",
           size: values.size || "11-50",
         });
         setToast(t(lang, "Sending a verification code…"));
-        setTimeout(() => router.push("/company-verify-email"), 700);
+        setTimeout(() => router.push(`/company-verify-email?email=${encodeURIComponent(values.email.trim())}`), 700);
       } catch (error) {
         setStatus(error.message || t(lang, "An account with this work email already exists."));
       } finally {

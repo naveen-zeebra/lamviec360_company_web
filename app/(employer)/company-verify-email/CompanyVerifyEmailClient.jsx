@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import Header from "../../../components/layout/Header";
@@ -10,20 +10,28 @@ import { Button } from "../../../components/ds";
 import OtpInput from "../../../components/ds/OtpInput";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
-import { getCompany, getAuth, verifyCompanyEmail } from "../../../lib/companyStore";
+import { getCompany, getAuth, verifyCompanyEmail, resendVerificationCode } from "../../../lib/companyStore";
 
 const RESEND_SECONDS = 45;
 
 export default function CompanyVerifyEmailClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryEmail = searchParams?.get("email") || "";
+
   const [email, setEmail] = useState("");
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [toast, setToast] = useToast();
 
   useEffect(() => {
-    setEmail(getAuth().email || getCompany().email || "");
-  }, []);
+    let storedEmail = "";
+    if (typeof window !== "undefined") {
+      storedEmail = localStorage.getItem("lv360_company_email") || "";
+    }
+    const target = queryEmail || storedEmail || getAuth().email || getCompany().email || "";
+    setEmail(target);
+  }, [queryEmail]);
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -45,7 +53,7 @@ export default function CompanyVerifyEmailClient() {
     onSubmit: async (values, { setSubmitting, setStatus }) => {
       setStatus(null);
       try {
-        await verifyCompanyEmail(email, values.code);
+        await verifyCompanyEmail(email, values.code.trim());
         setToast(t(lang, "Work email verified successfully!"));
         setTimeout(() => router.push("/company-pending-approval"), 800);
       } catch (error) {
@@ -56,9 +64,14 @@ export default function CompanyVerifyEmailClient() {
     },
   });
 
-  const resend = () => {
+  const resend = async () => {
     setSeconds(RESEND_SECONDS);
-    setToast(t(lang, "A new code has been sent (Use 123456 in dev mode)"));
+    try {
+      await resendVerificationCode(email);
+      setToast(t(lang, "A new verification code has been sent to your email"));
+    } catch (e) {
+      setToast(t(lang, e.message || "Failed to resend code"));
+    }
   };
 
   return (

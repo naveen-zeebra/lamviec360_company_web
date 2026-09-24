@@ -49,6 +49,11 @@ export default function EmployerLoginClient() {
     password: Yup.string().required(t(lang, "Enter your work email and password.")),
   });
 
+  const handleLoginInputChange = (e) => {
+    if (loginFormik.status) loginFormik.setStatus(null);
+    loginFormik.handleChange(e);
+  };
+
   const loginFormik = useFormik({
     initialValues: {
       email: "",
@@ -59,21 +64,46 @@ export default function EmployerLoginClient() {
       setStatus(null);
       try {
         const res = await beginLogin(values.email.trim(), values.password);
-        if (res?.status === "PENDING_APPROVAL") {
+        const data = res?.data || res || {};
+        const status = data?.status || res?.status;
+        const message = data?.message || res?.message;
+
+        if (status === "PENDING_APPROVAL") {
           router.push("/company-pending-approval");
           return;
         }
-        if (res?.status === "REJECTED") {
-          setStatus(res.message || t(lang, "Your company registration was not approved."));
+        if (status === "REJECTED") {
+          setStatus(message || t(lang, "Your company registration was not approved."));
           return;
         }
-        setSessionToken(res?.session_token || "mock_token");
-        if (res?.masked_email) setMaskedEmail(res.masked_email);
+
+        const token = data?.session_token || res?.session_token;
+        if (!token && !res?.isMock) {
+          throw new Error(message || t(lang, "Unable to initiate login. Please try again."));
+        }
+
+        setSessionToken(token || "mock_token");
+        const masked = data?.masked_email || res?.masked_email;
+        if (masked) setMaskedEmail(masked);
         setStage("otp");
         setSeconds(RESEND_SECONDS);
         setToast(t(lang, "We sent a 6-digit code to your email"));
       } catch (error) {
-        setStatus(error.message || t(lang, "Incorrect work email or password."));
+        let errorMsg = error.message;
+        if (error.status === 401 || errorMsg?.toLowerCase().includes("invalid email or password") || errorMsg?.toLowerCase().includes("incorrect")) {
+          errorMsg = t(lang, "Incorrect work email or password. Please verify your credentials and try again.");
+        } else if (error.status === 403 || errorMsg?.toLowerCase().includes("inactive")) {
+          errorMsg = error.message || t(lang, "Your company account is inactive. Please contact support.");
+        } else if (error.status === 404 || errorMsg?.toLowerCase().includes("not found")) {
+          errorMsg = t(lang, "No employer account found with this email. Please check your email or register.");
+        } else if (error.status === 429) {
+          errorMsg = t(lang, "Too many login attempts. Please wait a few moments and try again.");
+        } else if (error.status >= 500) {
+          errorMsg = t(lang, "Authentication server error. Please try again shortly.");
+        } else if (!error.status && (errorMsg?.includes("fetch") || errorMsg?.includes("NetworkError") || error.name === "TypeError")) {
+          errorMsg = t(lang, "Cannot connect to the authentication server. Please check your internet connection.");
+        }
+        setStatus(errorMsg || t(lang, "Incorrect work email or password."));
       } finally {
         setSubmitting(false);
       }
@@ -98,7 +128,17 @@ export default function EmployerLoginClient() {
         setToast(t(lang, "Signing you in…"));
         setTimeout(() => router.push("/company/overview"), 600);
       } catch (error) {
-        setStatus(error.message || t(lang, "Invalid 6-digit code. (Hint: Use 123456)"));
+        let errorMsg = error.message;
+        if (error.status === 400 || errorMsg?.toLowerCase().includes("invalid otp") || errorMsg?.toLowerCase().includes("invalid code")) {
+          errorMsg = t(lang, "Invalid 6-digit code. Please enter 123456.");
+        } else if (error.status === 404) {
+          errorMsg = t(lang, "Session expired or user not found. Please log in again.");
+        } else if (error.status >= 500) {
+          errorMsg = t(lang, "Authentication server error. Please try again.");
+        } else if (!error.status && (errorMsg?.includes("fetch") || errorMsg?.includes("NetworkError") || error.name === "TypeError")) {
+          errorMsg = t(lang, "Unable to reach the server. Please check your connection.");
+        }
+        setStatus(errorMsg || t(lang, "Invalid 6-digit code. (Hint: Use 123456)"));
       } finally {
         setSubmitting(false);
       }
@@ -129,7 +169,7 @@ export default function EmployerLoginClient() {
                   name="email"
                   type="email"
                   value={loginFormik.values.email}
-                  onChange={loginFormik.handleChange}
+                  onChange={handleLoginInputChange}
                   onBlur={loginFormik.handleBlur}
                   placeholder="hr@company.com"
                   error={loginFormik.touched.email && loginFormik.errors.email}
@@ -146,7 +186,7 @@ export default function EmployerLoginClient() {
                     name="password"
                     type={showPw ? "text" : "password"}
                     value={loginFormik.values.password}
-                    onChange={loginFormik.handleChange}
+                    onChange={handleLoginInputChange}
                     onBlur={loginFormik.handleBlur}
                     placeholder="••••••••"
                     error={loginFormik.touched.password && loginFormik.errors.password}
@@ -169,10 +209,27 @@ export default function EmployerLoginClient() {
               </div>
 
               {loginFormik.status && (
-                <p className="lv-error" role="alert" style={{ marginBottom: 12, color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Icon name="alert-circle" size={16} />
-                  <span>{loginFormik.status}</span>
-                </p>
+                <div
+                  className="lv-error-banner"
+                  role="alert"
+                  aria-live="assertive"
+                  style={{
+                    marginBottom: 16,
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    backgroundColor: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    color: "#b91c1c",
+                    fontSize: 13,
+                    lineHeight: "1.4",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}
+                >
+                  <Icon name="alert-circle" size={16} style={{ flexShrink: 0, marginTop: 2, color: "#dc2626" }} />
+                  <span style={{ fontWeight: 500 }}>{loginFormik.status}</span>
+                </div>
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
@@ -266,10 +323,26 @@ export default function EmployerLoginClient() {
                 </p>
               )}
               {otpFormik.status && (
-                <p className="lv-error" role="alert" style={{ color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Icon name="alert-circle" size={16} />
-                  <span>{otpFormik.status}</span>
-                </p>
+                <div
+                  className="lv-error-banner"
+                  role="alert"
+                  aria-live="assertive"
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    backgroundColor: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    color: "#b91c1c",
+                    fontSize: 13,
+                    lineHeight: "1.4",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}
+                >
+                  <Icon name="alert-circle" size={16} style={{ flexShrink: 0, marginTop: 2, color: "#dc2626" }} />
+                  <span style={{ fontWeight: 500 }}>{otpFormik.status}</span>
+                </div>
               )}
               <Button
                 type="submit"
