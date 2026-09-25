@@ -8,12 +8,13 @@ function pascal(name) {
     .join("");
 }
 
-export default function Icon({ name, size = 20, style }) {
+export default function Icon({ name, size = 20, style, className = "" }) {
   const Cmp = Icons[pascal(name)];
   const { fill, ...wrapperStyle } = style || {};
   return (
     <span
       aria-hidden="true"
+      className={className}
       style={{
         width: size,
         height: size,

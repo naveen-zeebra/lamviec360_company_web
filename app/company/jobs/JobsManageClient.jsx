@@ -14,6 +14,7 @@ import {
   listCandidates,
   setJobStatus,
   duplicateJob,
+  deleteJob,
   getQuota,
   JOB_STATUSES,
   can,
@@ -189,6 +190,19 @@ export default function JobsManageClient() {
                           <button role="menuitem" className={menuBtn} onClick={() => router.push(`/company/candidates?job=${j.id}`)}>
                             <Icon name="users" size={13} style={{ marginRight: 8 }} /> {t(lang, "View Applicants")}
                           </button>
+                          {editable && (
+                            <button
+                              role="menuitem"
+                              className={`${menuBtn} text-danger-fg hover:text-danger-fg`}
+                              onClick={() => {
+                                if (window.confirm(t(lang, "Are you sure you want to delete this job posting?"))) {
+                                  act(j.id, deleteJob, "Job deleted successfully");
+                                }
+                              }}
+                            >
+                              <Icon name="trash" size={13} style={{ marginRight: 8 }} /> {t(lang, "Delete Job")}
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>

@@ -64,7 +64,8 @@
   --color-info-fg: var(--color-blue-700);
 
   /* fonts */
-  --font-display: "Be Vietnam Pro", -apple-system, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", "Noto Sans SC", "Noto Sans JP", "Noto Sans KR", sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-body: var(--font-display);
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
@@ -135,8 +136,9 @@
 --color-info:var(--blue-500);--color-info-bg:var(--blue-50);--color-info-text:var(--blue-700);
 --focus-ring:0 0 0 3px var(--blue-100);
 
---font-display:'Be Vietnam Pro',-apple-system,'Segoe UI','Helvetica Neue',Arial,'Noto Sans','Noto Sans SC','Noto Sans JP','Noto Sans KR',sans-serif;
---font-body:'Be Vietnam Pro',-apple-system,'Segoe UI','Helvetica Neue',Arial,'Noto Sans','Noto Sans SC','Noto Sans JP','Noto Sans KR',sans-serif;
+--font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+--font-display:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+--font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
 --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
 --text-xs:12px;--text-sm:14px;--text-base:16px;--text-md:18px;--text-lg:20px;--text-xl:24px;
 --text-2xl:30px;--text-3xl:36px;--text-4xl:48px;--text-5xl:60px;
