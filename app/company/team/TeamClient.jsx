@@ -84,8 +84,9 @@ function Team() {
   );
 
   const copyInviteLink = (inv) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:4030";
-    const url = inv.activationUrl || (inv.inviteToken ? `${origin}/employee-activation?token=${inv.inviteToken}` : "");
+    const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3002";
+    const activationPath = inv.activationUrl || (inv.inviteToken ? `/employee-activation?token=${inv.inviteToken}` : "");
+    const url = activationPath.startsWith("http") ? activationPath : `${origin}${activationPath.startsWith("/") ? "" : "/"}${activationPath}`;
     if (url && typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(url);
       setToast(t(lang, "Invitation link copied to clipboard!"));
@@ -102,7 +103,7 @@ function Team() {
       return;
     }
     try {
-      const res = await addInvitation(inviteForm);
+      await addInvitation(inviteForm);
       refresh();
       setInviteOpen(false);
       setInviteForm({ email: "", role: "HR / Recruiter", message: "" });
@@ -113,12 +114,16 @@ function Team() {
     }
   };
 
-
-  const applyRoleChange = () => {
-    updateMemberRole(roleEdit.member.id, roleEdit.nextRole);
-    refresh();
-    setRoleEdit(null);
-    setToast(t(lang, "Role updated"));
+  const applyRoleChange = async () => {
+    if (!roleEdit) return;
+    try {
+      await updateMemberRole(roleEdit.member.id, roleEdit.nextRole);
+      refresh();
+      setRoleEdit(null);
+      setToast(t(lang, "Role updated"));
+    } catch (e) {
+      setToast(e.message || t(lang, "Failed to update role"));
+    }
   };
 
   if (!ready) {
@@ -205,7 +210,7 @@ function Team() {
                 <td className={td}>
                   <select
                     className={stageSelect}
-                    value={m.role}
+                    value={ROLES.includes(m.role) ? m.role : "Company Admin"}
                     disabled={m.role === "Company Admin" && summary.active > 0 && team.filter((x) => x.role === "Company Admin").length === 1}
                     onChange={(e) => setRoleEdit({ member: m, nextRole: e.target.value })}
                     aria-label={t(lang, "Role for") + " " + m.name}
@@ -230,10 +235,14 @@ function Team() {
                   ) : (
                     <button
                       className={linkBtn}
-                      onClick={() => {
-                        reactivateMember(m.id);
-                        refresh();
-                        setToast(t(lang, "Access restored"));
+                      onClick={async () => {
+                        try {
+                          await reactivateMember(m.id);
+                          refresh();
+                          setToast(t(lang, "Access restored"));
+                        } catch (e) {
+                          setToast(e.message || t(lang, "Failed to restore access"));
+                        }
                       }}
                     >
                       {t(lang, "Reactivate")}
@@ -350,7 +359,7 @@ function Team() {
               <Select label={t(lang, "Role")} value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))} options={ROLES.map((r) => ({ value: r, label: t(lang, r) }))} />
               <p className={HINT}>
                 <Icon name="info" size={16} style={{ color: "var(--color-brand)", marginTop: 2 }} />
-                <span>{t(lang, ROLE_SUMMARY[inviteForm.role])}</span>
+                <span>{t(lang, ROLE_SUMMARY[inviteForm.role] || "Permissions configured for this role.")}</span>
               </p>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-ink">
@@ -390,7 +399,7 @@ function Team() {
             </p>
             <p className={`${HINT} mt-3`}>
               <Icon name="shield" size={16} style={{ color: "var(--color-brand)", marginTop: 2 }} />
-              <span>{t(lang, ROLE_SUMMARY[roleEdit.nextRole])}</span>
+              <span>{t(lang, ROLE_SUMMARY[roleEdit.nextRole] || "Permissions configured for this role.")}</span>
             </p>
             <div className={ACTIONS}>
               <Button variant="secondary" onClick={() => setRoleEdit(null)}>
@@ -422,11 +431,15 @@ function Team() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => {
-                  revokeMember(revoke.id);
-                  refresh();
-                  setRevoke(null);
-                  setToast(t(lang, "Access revoked"));
+                onClick={async () => {
+                  try {
+                    await revokeMember(revoke.id);
+                    refresh();
+                    setRevoke(null);
+                    setToast(t(lang, "Access revoked"));
+                  } catch (e) {
+                    setToast(e.message || t(lang, "Failed to revoke access"));
+                  }
                 }}
               >
                 {t(lang, "Revoke access")}

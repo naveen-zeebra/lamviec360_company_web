@@ -283,7 +283,7 @@ export default function Header({ lang: propLang, setLang: propSetLang, app = "em
 
             {/* Pricing */}
             <Link
-              href="/employers#pricing"
+              href="/pricing"
               className={pathname === "/pricing" ? NAV_LINK_ACTIVE : NAV_LINK_BASE}
             >
               {isVi ? "Bảng giá" : "Pricing"}
@@ -575,7 +575,7 @@ export default function Header({ lang: propLang, setLang: propSetLang, app = "em
 
             {/* Pricing */}
             <Link
-              href="/employers#pricing"
+              href="/pricing"
               onClick={closeAll}
               className="border-t border-gray-100 py-2.5 text-base font-bold text-gray-800 hover:text-blue-600"
             >

@@ -22,7 +22,7 @@ const EMPTY = {
   salaryMin: "",
   salaryMax: "",
   negotiable: false,
-  jd: "",
+  description: "",
   skills: [],
   experience: "",
   education: "Bachelor's Degree",
@@ -30,6 +30,7 @@ const EMPTY = {
   vacancies: "1",
   documents: ["CV / Resume"],
   aiGenerated: false,
+  status: "published",
 };
 
 function buildAiDraft(title, skills, attempt) {
@@ -83,7 +84,12 @@ function JobForm({ mode, jobId }) {
         setNotFound(true);
         return;
       }
-      setForm({ ...EMPTY, ...j });
+      setForm({
+        ...EMPTY,
+        ...j,
+        description: j.description || j.jd || "",
+        status: (j.status || "published").toLowerCase(),
+      });
     }
   }, [mode, jobId]);
 
@@ -105,25 +111,34 @@ function JobForm({ mode, jobId }) {
     if (!form.title.trim()) e.title = t(lang, "Job title is required.");
     if (!form.department.trim()) e.department = t(lang, "Department is required.");
     if (!form.location.trim()) e.location = t(lang, "Location is required.");
-    if (!form.jd.trim()) e.jd = t(lang, "A job description is required.");
+    if (!form.description.trim()) e.description = t(lang, "A job description is required.");
     if (!form.deadline) e.deadline = t(lang, "An application deadline is required.");
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const persist = async (status) => {
+  const persist = async (targetStatus) => {
     if (!validate()) {
       setToast(t(lang, "Please fix the highlighted fields."));
       return;
     }
-    if (status === "Published" && quota && quota.remaining <= 0) {
+    const finalStatus = (targetStatus || form.status || "published").toLowerCase();
+    if (finalStatus === "published" && quota && quota.remaining <= 0) {
       setShowUpgrade(true);
       return;
     }
     try {
-      const saved = await saveJob(mode === "edit" ? { ...form, id: jobId } : form);
-      if (status && saved?.id) await setJobStatus(saved.id, status);
-      setToast(t(lang, status === "Published" ? "Job published" : "Draft saved"));
+      const jobData = {
+        ...form,
+        description: form.description,
+        status: finalStatus,
+        ...(mode === "edit" ? { id: jobId } : {}),
+      };
+      const saved = await saveJob(jobData);
+      if (finalStatus && saved?.id) {
+        await setJobStatus(saved.id, finalStatus);
+      }
+      setToast(t(lang, finalStatus === "published" ? "Job published" : "Draft saved"));
       setTimeout(() => router.push("/company/jobs"), 700);
     } catch (err) {
       setToast(t(lang, err.message || "Failed to save job"));
@@ -159,7 +174,7 @@ function JobForm({ mode, jobId }) {
 
   const confirmAiDraft = () => {
     aiCache.current = aiDraft;
-    set("jd", aiDraft);
+    set("description", aiDraft);
     set("aiGenerated", true);
     setAiOpen(false);
     setToast(t(lang, "AI draft added — please review before saving."));
@@ -240,15 +255,15 @@ function JobForm({ mode, jobId }) {
             </div>
             <textarea
               className="min-h-[220px] w-full resize-y border-none px-3.5 py-[11px] font-body text-base text-ink outline-none"
-              value={form.jd}
+              value={form.description}
               onChange={(e) => {
-                set("jd", e.target.value);
+                set("description", e.target.value);
                 if (form.aiGenerated) set("aiGenerated", false);
               }}
               placeholder={t(lang, "Describe the role, responsibilities and requirements…")}
             />
           </div>
-          {errors.jd && <span className="text-xs text-danger">{errors.jd}</span>}
+          {errors.description && <span className="text-xs text-danger">{errors.description}</span>}
         </div>
 
         <div className="mt-5">
@@ -276,6 +291,15 @@ function JobForm({ mode, jobId }) {
           <Select label={t(lang, "Education Level")} value={form.education} onChange={(e) => set("education", e.target.value)} options={EDU_LEVELS.map((x) => ({ value: x, label: t(lang, x) }))} />
           <Input label={t(lang, "Application Deadline")} type="date" value={form.deadline} onChange={(e) => set("deadline", e.target.value)} error={errors.deadline} />
           <Input label={t(lang, "Vacancies")} value={form.vacancies} onChange={(e) => set("vacancies", e.target.value.replace(/\D/g, ""))} placeholder="1" />
+          <Select
+            label={t(lang, "Status")}
+            value={form.status || "published"}
+            onChange={(e) => set("status", e.target.value)}
+            options={[
+              { value: "published", label: t(lang, "Published") },
+              { value: "draft", label: t(lang, "Draft") },
+            ]}
+          />
         </div>
 
         <div className="mt-5">
@@ -297,10 +321,10 @@ function JobForm({ mode, jobId }) {
         )}
 
         <div className={`${ACTIONS} mt-6`}>
-          <Button variant="secondary" onClick={() => persist(mode === "edit" ? null : "Draft")}>
+          <Button variant="secondary" onClick={() => persist("draft")}>
             {t(lang, "Save as Draft")}
           </Button>
-          <Button variant="primary" onClick={() => persist("Published")}>
+          <Button variant="primary" onClick={() => persist("published")}>
             {t(lang, "Publish Job")}
           </Button>
         </div>
@@ -376,7 +400,7 @@ function JobForm({ mode, jobId }) {
               {t(lang, "Freemium includes a limited number of active job postings. Upgrade to publish more, or save this job as a draft for now.")}
             </p>
             <div className={`${ACTIONS} mt-4`}>
-              <Button variant="secondary" onClick={() => { setShowUpgrade(false); persist(mode === "edit" ? null : "Draft"); }}>
+              <Button variant="secondary" onClick={() => { setShowUpgrade(false); persist("draft"); }}>
                 {t(lang, "Save as Draft")}
               </Button>
               <Link href="/company/billing">
