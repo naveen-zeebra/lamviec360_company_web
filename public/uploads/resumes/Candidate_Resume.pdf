@@ -1,0 +1,85 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2543 >>
+stream
+0.08 0.22 0.45 rg
+35 725 525 85 re f
+1 1 1 rg
+BT /F1 22 Tf 50 775 Td (Nguyen Van A) Tj ET
+0.85 0.93 1 rg
+BT /F1 12 Tf 50 752 Td (Senior Python / FastAPI Backend Engineer) Tj ET
+0.94 0.96 0.98 rg
+35 690 525 25 re f
+0.25 0.3 0.35 rg
+BT /F2 9 Tf 50 699 Td (Email: nguyen.vana@example.com   |   Phone: +84 901 234 567   |   Ho Chi Minh City, Vietnam) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 655 Td (EXECUTIVE SUMMARY) Tj ET
+0.08 0.22 0.45 rg 35 652 525 1.2 re f
+0.2 0.2 0.2 rg
+BT /F2 9.5 Tf 35 637 Td (Experienced Backend Engineer with 6+ years in distributed microservices architecture,) Tj ET
+BT /F2 9.5 Tf 35 623 Td (database optimization \(PostgreSQL, Redis\), Docker container orchestration, and cloud deployments.) Tj ET
+BT /F2 9.5 Tf 35 609 Td (Proven track record scaling API throughput and delivering robust enterprise solutions.) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 585 Td (CORE COMPETENCIES & TECHNICAL SKILLS) Tj ET
+0.08 0.22 0.45 rg 35 582 525 1.2 re f
+0.2 0.2 0.2 rg
+BT /F1 9.5 Tf 35 567 Td (Key Proficiencies: ) Tj ET
+BT /F2 9.5 Tf 135 567 Td (Python, FastAPI, PostgreSQL, Docker, Redis, Kubernetes, AWS, RESTful APIs, Git, CI/CD) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 543 Td (PROFESSIONAL WORK EXPERIENCE) Tj ET
+0.08 0.22 0.45 rg 35 540 525 1.2 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 35 525 Td (Senior Backend Engineer - FinTech Solutions Asia) Tj ET
+0.4 0.4 0.4 rg
+BT /F2 9 Tf 410 525 Td (2022 - Present) Tj ET
+0.25 0.25 0.25 rg
+BT /F2 9 Tf 50 510 Td (- Architected asynchronous FastAPI transaction pipelines handling 15M+ requests per day.) Tj ET
+BT /F2 9 Tf 50 497 Td (- Optimized relational database indices reducing p99 response times from 340ms to 42ms.) Tj ET
+BT /F2 9 Tf 50 484 Td (- Engineered automated observability with Prometheus and structured JSON telemetry logs.) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 35 463 Td (Software Engineer - CloudViet Global) Tj ET
+0.4 0.4 0.4 rg
+BT /F2 9 Tf 410 463 Td (2019 - 2022) Tj ET
+0.25 0.25 0.25 rg
+BT /F2 9 Tf 50 448 Td (- Built authentication microservices with OAuth2, JWT, and role-based access control \(RBAC\).) Tj ET
+BT /F2 9 Tf 50 435 Td (- Maintained 99.95% system uptime across multi-region AWS cloud infrastructure.) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 414 Td (EDUCATION & CREDENTIALS) Tj ET
+0.08 0.22 0.45 rg 35 411 525 1.2 re f
+0.1 0.1 0.1 rg
+BT /F1 9.5 Tf 35 396 Td (Bachelor of Science in Software Engineering) Tj ET
+0.4 0.4 0.4 rg
+BT /F2 9 Tf 410 396 Td (2015 - 2019) Tj ET
+0.3 0.3 0.3 rg
+BT /F2 9 Tf 35 382 Td (Vietnam National University - Ho Chi Minh City) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000002846 00000 n 
+0000002921 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2991
+%%EOF

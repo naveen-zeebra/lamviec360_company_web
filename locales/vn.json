@@ -928,5 +928,20 @@
   "No specific reason": "Không có lý do cụ thể",
   "Internal note (optional)": "Ghi chú nội bộ (không bắt buộc)",
   "Candidate rejected": "Đã từ chối ứng viên",
-  "Hidden by policy": "Ẩn theo chính sách"
+  "Hidden by policy": "Ẩn theo chính sách",
+  "Back": "Quay lại",
+  "Back to login": "Quay lại đăng nhập",
+  "Phone number": "Số điện thoại",
+  "Country Code": "Mã quốc gia",
+  "Business License / Certifications": "Giấy phép kinh doanh / Chứng chỉ doanh nghiệp",
+  "Certification / Credentials": "Chứng chỉ / Bằng cấp chuyên môn",
+  "Click to upload or drag & drop": "Nhấp để tải lên hoặc kéo & thả",
+  "PDF, PNG, JPG up to 10MB": "PDF, PNG, JPG tối đa 10MB",
+  "Optional": "Không bắt buộc",
+  "Attached (Optional)": "Đã đính kèm (Không bắt buộc)",
+  "Remove": "Xóa",
+  "Please enter a valid phone number": "Vui lòng nhập số điện thoại hợp lệ",
+  "File size must be under 10MB": "Kích thước tệp phải dưới 10MB",
+  "Tax ID / Business code": "Mã số thuế / Mã doanh nghiệp",
+  "Tax ID / Business code is required": "Mã số thuế / Mã doanh nghiệp là bắt buộc"
 }

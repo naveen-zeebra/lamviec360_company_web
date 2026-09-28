@@ -1,0 +1,85 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2576 >>
+stream
+0.08 0.22 0.45 rg
+35 725 525 85 re f
+1 1 1 rg
+BT /F1 22 Tf 50 775 Td (Le Van C) Tj ET
+0.85 0.93 1 rg
+BT /F1 12 Tf 50 752 Td (Senior UI/UX Designer & Product Lead) Tj ET
+0.94 0.96 0.98 rg
+35 690 525 25 re f
+0.25 0.3 0.35 rg
+BT /F2 9 Tf 50 699 Td (Email: levanc@example.com   |   Phone: +84 933 888 999   |   Da Nang, Vietnam) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 655 Td (EXECUTIVE SUMMARY) Tj ET
+0.08 0.22 0.45 rg 35 652 525 1.2 re f
+0.2 0.2 0.2 rg
+BT /F2 9.5 Tf 35 637 Td (Strategic Product Designer and UI/UX Specialist with 7+ years shaping complex enterprise applications,) Tj ET
+BT /F2 9.5 Tf 35 623 Td (design tokens, and user research. Passionate about translating complex business workflows into) Tj ET
+BT /F2 9.5 Tf 35 609 Td (delightful, intuitive, and conversion-optimized candidate experiences.) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 585 Td (CORE COMPETENCIES & TECHNICAL SKILLS) Tj ET
+0.08 0.22 0.45 rg 35 582 525 1.2 re f
+0.2 0.2 0.2 rg
+BT /F1 9.5 Tf 35 567 Td (Key Proficiencies: ) Tj ET
+BT /F2 9.5 Tf 135 567 Td (Figma, UI/UX Design, Design Systems, User Research, Wireframing, Prototyping, TailwindCSS, HTML/CSS, Agile) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 543 Td (PROFESSIONAL WORK EXPERIENCE) Tj ET
+0.08 0.22 0.45 rg 35 540 525 1.2 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 35 525 Td (Staff Product Designer - PixelCraft Studio) Tj ET
+0.4 0.4 0.4 rg
+BT /F2 9 Tf 410 525 Td (2020 - Present) Tj ET
+0.25 0.25 0.25 rg
+BT /F2 9 Tf 50 510 Td (- Designed multi-tenant recruitment workflow platform adopted by 500+ enterprise companies.) Tj ET
+BT /F2 9 Tf 50 497 Td (- Built and maintained unified design system comprising 120+ accessible Figma components.) Tj ET
+BT /F2 9 Tf 50 484 Td (- Conducted 60+ user interviews to identify candidate funnel friction points, improving conversion by 28%.) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 35 463 Td (Senior UI Designer - CreativeMinds Vietnam) Tj ET
+0.4 0.4 0.4 rg
+BT /F2 9 Tf 410 463 Td (2017 - 2020) Tj ET
+0.25 0.25 0.25 rg
+BT /F2 9 Tf 50 448 Td (- Crafted interactive prototypes, mobile-responsive layouts, and brand visual identities.) Tj ET
+BT /F2 9 Tf 50 435 Td (- Collaborated closely with engineering squads to ensure pixel-perfect CSS implementations.) Tj ET
+0.08 0.22 0.45 rg
+BT /F1 11 Tf 35 414 Td (EDUCATION & CREDENTIALS) Tj ET
+0.08 0.22 0.45 rg 35 411 525 1.2 re f
+0.1 0.1 0.1 rg
+BT /F1 9.5 Tf 35 396 Td (Bachelor of Arts in Interactive Media & Graphic Design) Tj ET
+0.4 0.4 0.4 rg
+BT /F2 9 Tf 410 396 Td (2013 - 2017) Tj ET
+0.3 0.3 0.3 rg
+BT /F2 9 Tf 35 382 Td (University of Architecture Ho Chi Minh City) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000002879 00000 n 
+0000002954 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3024
+%%EOF
