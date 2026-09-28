@@ -1799,6 +1799,47 @@ export default function CandidatesClient() {
                     </div>
                   </div>
 
+                  {/* Certifications & Professional Licenses */}
+                  {(resumeCandidate.certifications?.length > 0 || resumeCandidate.certification) && (
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-muted mb-2.5">
+                        {t(lang, "Certifications & Professional Licenses")}
+                      </h3>
+                      <div className="space-y-2">
+                        {(resumeCandidate.certifications?.length > 0
+                          ? resumeCandidate.certifications
+                          : [resumeCandidate.certification]
+                        ).filter(Boolean).map((cert, cIdx) => (
+                          <div key={cIdx} className="rounded-lg border border-line bg-card p-3.5 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-3">
+                              <span className="w-8 h-8 rounded-full bg-brand-subtle flex items-center justify-center text-brand font-bold text-sm shrink-0">
+                                🎖️
+                              </span>
+                              <div>
+                                <strong className="block text-sm text-ink">{cert.name}</strong>
+                                <span className="text-muted">
+                                  {cert.issuer} {cert.issueDate ? `· ${cert.issueDate}` : ""} {cert.credentialId ? `(ID: ${cert.credentialId})` : ""}
+                                </span>
+                              </div>
+                            </div>
+                            {cert.fileData ? (
+                              <a
+                                href={cert.fileData}
+                                download={cert.fileName || "Certification.pdf"}
+                                className="px-2.5 py-1 text-xs font-semibold rounded border border-line bg-surface hover:bg-sunken text-ink transition-colors flex items-center gap-1"
+                              >
+                                <Icon name="download" size={12} />
+                                <span>{t(lang, "View Certificate")}</span>
+                              </a>
+                            ) : (
+                              <Badge tone="info">{t(lang, "Certified")}</Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Cover Letter */}
                   {resumeCandidate.coverLetter && (
                     <div>
