@@ -64,9 +64,8 @@ function Switch({ on, onChange, label }) {
         className={`relative h-6 w-11 rounded-pill transition-colors ${on ? "bg-brand" : "bg-gray-300"}`}
       >
         <span
-          className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform ${
-            on ? "translate-x-[23px]" : "translate-x-[3px]"
-          }`}
+          className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform ${on ? "translate-x-[23px]" : "translate-x-[3px]"
+            }`}
         />
       </button>
     </div>
@@ -769,7 +768,7 @@ function Settings() {
 
 export default function CompanySettingsPage() {
   return (
-    <RequirePermission perm="settings.manage">
+    <RequirePermission action="settings.manage">
       <Settings />
     </RequirePermission>
   );
