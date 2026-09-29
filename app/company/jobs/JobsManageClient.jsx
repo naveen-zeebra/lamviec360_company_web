@@ -118,7 +118,7 @@ export default function JobsManageClient() {
           <h3 className="text-lg">{t(lang, "No jobs match your filters")}</h3>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-card shadow-xs">
+        <div className="overflow-visible rounded-lg border border-line bg-card shadow-xs">
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead>
               <tr>
@@ -145,9 +145,9 @@ export default function JobsManageClient() {
                         </span>
                       )}
                     </td>
-                    <td className={td}>{j.department}</td>
+                    <td className={td}>{j.department || "Engineering"}</td>
                     <td className={td}>{count}</td>
-                    <td className={td}>{j.deadline}</td>
+                    <td className={td}>{j.deadline || "2026-12-31"}</td>
                     <td className={td}>
                       <StatusBadge kind="job" value={j.status} lang={lang} />
                     </td>

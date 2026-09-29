@@ -53,7 +53,7 @@ export default function EmployeeActivationClient() {
     getInvitationByToken(token)
       .then((res) => {
         if (!isMounted) return;
-        setInvite(res);
+        setInvite(res?.data || res);
         setLoading(false);
       })
       .catch((err) => {

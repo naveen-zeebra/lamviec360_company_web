@@ -15,9 +15,11 @@ export default function RequirePermission({ action, children }) {
     setRole(getAuth().role);
   }, []);
 
+  console.log(role, "9999");
+
   if (role === null) return null;
 
-  if (!can(role, action)) {
+  if (can(role, action)) {
     return (
       <div className="mx-auto my-10 max-w-[520px] rounded-lg border border-dashed border-line bg-card px-6 py-14 text-center text-muted" role="alert">
         <Icon name="lock" size={28} style={{ color: "var(--color-faint)", margin: "0 auto 12px" }} />

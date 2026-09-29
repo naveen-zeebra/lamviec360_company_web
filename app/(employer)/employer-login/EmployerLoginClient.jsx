@@ -130,7 +130,7 @@ export default function EmployerLoginClient() {
       } catch (error) {
         let errorMsg = error.message;
         if (error.status === 400 || errorMsg?.toLowerCase().includes("invalid otp") || errorMsg?.toLowerCase().includes("invalid code")) {
-          errorMsg = t(lang, "Invalid 6-digit code. Please enter 123456.");
+          errorMsg = t(lang, "Invalid 6-digit code ");
         } else if (error.status === 404) {
           errorMsg = t(lang, "Session expired or user not found. Please log in again.");
         } else if (error.status >= 500) {
@@ -138,7 +138,7 @@ export default function EmployerLoginClient() {
         } else if (!error.status && (errorMsg?.includes("fetch") || errorMsg?.includes("NetworkError") || error.name === "TypeError")) {
           errorMsg = t(lang, "Unable to reach the server. Please check your connection.");
         }
-        setStatus(errorMsg || t(lang, "Invalid 6-digit code. (Hint: Use 123456)"));
+        setStatus(errorMsg || t(lang, "Invalid 6-digit code"));
       } finally {
         setSubmitting(false);
       }

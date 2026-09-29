@@ -63,7 +63,7 @@ export default function CompanyRegisterClient() {
     onSubmit: async (values, { setSubmitting, setStatus }) => {
       setStatus(null);
       try {
-        const fullPhone = values.phone ? `${countryCode} ${values.phone.trim()}` : "";
+        const fullPhone = values.phone ? (values.phone.trim().startsWith("+") ? values.phone.trim() : `+84 ${values.phone.trim()}`) : "";
         const regRes = await companyAuth.registerCompany({
           company_name: values.co.trim(),
           tax_id: values.taxId.trim(),
@@ -196,39 +196,22 @@ export default function CompanyRegisterClient() {
               </div>
             </div>
 
-            {/* Row 3: Phone (Country Code package) */}
+            {/* Row 3: Phone (Country Code) */}
             <div className="mb-4">
-              <label className="text-sm font-semibold text-ink block mb-1.5" htmlFor="phone">
-                {t(lang, "Phone number")}
-              </label>
-              <div className="flex gap-2 items-start">
-                <div className="relative w-[130px] shrink-0">
-                  <select
-                    id="country-code"
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    aria-label={t(lang, "Country code")}
-                    className="w-full appearance-none rounded-md border-[1.5px] border-line bg-card py-[11px] pl-2.5 pr-7 text-xs font-bold text-ink focus:border-line-brand focus:outline-none shadow-xs h-[48px] cursor-pointer"
-                  >
-                    {COUNTRY_CODES.map((c) => (
-                      <option key={`${c.iso}-${c.code}`} value={c.code}>
-                        {c.flag} {c.code} ({c.iso})
-                      </option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500">
-                    <Icon name="chevron-down" size={13} />
-                  </span>
+              <div className="flex gap-4 items-start">
+                <div className="w-[100px] shrink-0">
+                  <Input label={t(lang, "Code")} value="+84" disabled />
                 </div>
                 <div className="min-w-0 flex-1">
                   <Input
                     id="phone"
                     name="phone"
+                    label={t(lang, "Phone number")}
                     type="tel"
                     value={formik.values.phone}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
-                    placeholder="901 234 567"
+                    placeholder="090 123 4567"
                     error={formik.touched.phone && formik.errors.phone}
                   />
                 </div>
