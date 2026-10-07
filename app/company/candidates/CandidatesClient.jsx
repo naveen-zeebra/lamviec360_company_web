@@ -20,6 +20,7 @@ import {
   fetchCandidatesPaginated,
   fetchStageCounts,
   listRejectionTemplates,
+  scheduleCandidateInterview,
   PIPELINE_STAGES,
   can,
   syncCompanyWithBackend,
@@ -163,6 +164,23 @@ export default function CandidatesClient() {
   const [rejectReason, setRejectReason] = useState({ templateId: "", note: "" });
   const [resumeCandidate, setResumeCandidate] = useState(null);
   const [resumeModalTab, setResumeModalTab] = useState("pdf"); // 'pdf' | 'profile'
+
+  // Schedule Interview modal state
+  const [scheduleCandidate, setScheduleCandidate] = useState(null);
+  const [scheduleData, setScheduleData] = useState({
+    round: "First Round Technical & Product Interview",
+    mode: "video",
+    date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+    time: "14:00",
+    durationMin: 45,
+    location: "Google Meet",
+    meetingLink: "",
+    interviewerName: "Talent Acquisition Team",
+    interviewerRole: "Recruiter",
+    instructions: "Online video interview invitation from employer. Please join on time.",
+    instructionsVi: "Lời mời phỏng vấn trực tuyến từ nhà tuyển dụng. Vui lòng tham gia đúng giờ.",
+  });
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
   const [toast, setToast] = useToast();
 
   const manage = can(role, "candidates.manage");
@@ -259,10 +277,34 @@ export default function CandidatesClient() {
     return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
   };
 
+  const openScheduleModal = (candidate) => {
+    if (!candidate) return;
+    setScheduleCandidate(candidate);
+    const defaultDate = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    setScheduleData({
+      round: "First Round Technical & Product Interview",
+      mode: "video",
+      date: defaultDate,
+      time: "14:00",
+      durationMin: 45,
+      location: "Google Meet",
+      meetingLink: `https://meet.google.com/lv3-${candidate.id}`,
+      interviewerName: "Talent Acquisition Team",
+      interviewerRole: "Recruiter",
+      instructions: "Online video interview invitation from employer. Please join on time.",
+      instructionsVi: "Lời mời phỏng vấn trực tuyến từ nhà tuyển dụng. Vui lòng tham gia đúng giờ.",
+    });
+  };
+
   const move = async (id, stage) => {
     if (stage === "Rejected") {
       setRejectTarget(id);
       setRejectReason({ templateId: templates[0] ? templates[0].id : "", note: "" });
+      return;
+    }
+    if (stage === "Interview Scheduled") {
+      const candidate = candidates.find((c) => String(c.id) === String(id)) || getCandidate(id);
+      openScheduleModal(candidate);
       return;
     }
     // Optimistic update
@@ -272,6 +314,78 @@ export default function CandidatesClient() {
     await setCandidateStage(id, stage);
     setToast(`${t(lang, "Moved to")} ${t(lang, stage)}`);
     loadData();
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!scheduleCandidate) return;
+    setIsSubmittingSchedule(true);
+    try {
+      const scheduledAt = `${scheduleData.date} ${scheduleData.time}`;
+      const payload = {
+        round: scheduleData.round,
+        roundName: scheduleData.round,
+        at: scheduledAt,
+        scheduledAt: scheduledAt,
+        durationMin: Number(scheduleData.durationMin) || 45,
+        mode: scheduleData.mode,
+        location: scheduleData.location,
+        meetingLink: scheduleData.meetingLink,
+        locationOrLink: scheduleData.mode === "video" ? (scheduleData.meetingLink || scheduleData.location) : scheduleData.location,
+        interviewers: [{ name: scheduleData.interviewerName, role: scheduleData.interviewerRole }],
+        instructions: scheduleData.instructions,
+        instructionsVi: scheduleData.instructionsVi,
+      };
+
+      await scheduleCandidateInterview(scheduleCandidate.id, payload);
+
+      setCandidates((prev) =>
+        prev.map((c) => (String(c.id) === String(scheduleCandidate.id) ? { ...c, stage: "Interview Scheduled" } : c))
+      );
+
+      try {
+        const rawSeeker = typeof window !== "undefined" ? localStorage.getItem("lv360-seeker-store-v1") : null;
+        if (rawSeeker) {
+          const parsed = JSON.parse(rawSeeker);
+          if (Array.isArray(parsed.applications)) {
+            parsed.applications = parsed.applications.map((app) => {
+              if (String(app.id) === String(scheduleCandidate.id) || String(app.jobId) === String(scheduleCandidate.jobId)) {
+                return {
+                  ...app,
+                  stage: "Interview Scheduled",
+                  interview: {
+                    id: "IV-" + (app.id || Date.now()),
+                    status: "invited",
+                    at: scheduledAt,
+                    durationMin: Number(scheduleData.durationMin) || 45,
+                    mode: scheduleData.mode,
+                    meetingLink: scheduleData.meetingLink,
+                    location: scheduleData.location,
+                    round: scheduleData.round,
+                    roundVi: scheduleData.round,
+                    interviewers: [{ name: scheduleData.interviewerName, role: scheduleData.interviewerRole }],
+                    instructions: scheduleData.instructions,
+                    instructionsVi: scheduleData.instructionsVi,
+                  },
+                };
+              }
+              return app;
+            });
+            localStorage.setItem("lv360-seeker-store-v1", JSON.stringify(parsed));
+            window.dispatchEvent(new Event("lv360-store"));
+          }
+        }
+      } catch (err) {}
+
+      setToast(t(lang, "Interview scheduled successfully!"));
+      setScheduleCandidate(null);
+      loadData();
+    } catch (err) {
+      console.error("Failed to schedule interview:", err);
+      setToast(t(lang, "Failed to schedule interview. Please try again."));
+    } finally {
+      setIsSubmittingSchedule(false);
+    }
   };
 
   const confirmReject = async () => {
@@ -1206,7 +1320,16 @@ export default function CandidatesClient() {
                 </div>
 
                 {manage && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => openScheduleModal(open)}
+                      className="gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100"
+                    >
+                      <Icon name="calendar" size={13} />
+                      {t(lang, "Schedule Interview")}
+                    </Button>
                     {getNextStage(open.stage) && (
                       <Button
                         variant="primary"
@@ -1497,6 +1620,175 @@ export default function CandidatesClient() {
                 {t(lang, "Confirm Rejection")}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 9b. Schedule Interview Popup Modal ── */}
+      {scheduleCandidate && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl bg-card p-6 md:p-7 shadow-2xl space-y-5 my-auto max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-700 font-bold text-sm">
+                  📅
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-ink">{t(lang, "Schedule Candidate Interview")}</h3>
+                  <p className="text-xs text-muted">
+                    {t(lang, "Candidate")}: <strong className="text-ink">{scheduleCandidate.name}</strong> • {scheduleCandidate.jobTitle || "Job Application"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScheduleCandidate(null)}
+                className="rounded-lg p-1.5 text-muted hover:bg-sunken hover:text-ink transition-colors"
+              >
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+
+            {/* Form inputs */}
+            <form onSubmit={handleScheduleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-1">
+              {/* Interview Round / Title */}
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interview Title / Round Name")}</label>
+                <input
+                  type="text"
+                  required
+                  value={scheduleData.round}
+                  onChange={(e) => setScheduleData({ ...scheduleData, round: e.target.value })}
+                  placeholder="e.g. First Round Technical & Product Interview"
+                  className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
+                />
+              </div>
+
+              {/* Format / Mode */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interview Format")}</label>
+                  <select
+                    value={scheduleData.mode}
+                    onChange={(e) => setScheduleData({ ...scheduleData, mode: e.target.value })}
+                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
+                  >
+                    <option value="video">🎥 {t(lang, "Video Call (Online)")}</option>
+                    <option value="phone">📞 {t(lang, "Phone Call")}</option>
+                    <option value="on-site">📍 {t(lang, "On-site Interview")}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Duration (Minutes)")}</label>
+                  <select
+                    value={scheduleData.durationMin}
+                    onChange={(e) => setScheduleData({ ...scheduleData, durationMin: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
+                  >
+                    <option value={30}>30 {t(lang, "Minutes")}</option>
+                    <option value={45}>45 {t(lang, "Minutes")}</option>
+                    <option value={60}>60 {t(lang, "Minutes")}</option>
+                    <option value={90}>90 {t(lang, "Minutes")}</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Date")}</label>
+                  <input
+                    type="date"
+                    required
+                    value={scheduleData.date}
+                    onChange={(e) => setScheduleData({ ...scheduleData, date: e.target.value })}
+                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Time")}</label>
+                  <input
+                    type="time"
+                    required
+                    value={scheduleData.time}
+                    onChange={(e) => setScheduleData({ ...scheduleData, time: e.target.value })}
+                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Meeting Link or Location Address */}
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1.5">
+                  {scheduleData.mode === "video" ? t(lang, "Video Meeting Link") : t(lang, "Location / Office Address")}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={scheduleData.mode === "video" ? scheduleData.meetingLink : scheduleData.location}
+                  onChange={(e) =>
+                    scheduleData.mode === "video"
+                      ? setScheduleData({ ...scheduleData, meetingLink: e.target.value, location: "Google Meet" })
+                      : setScheduleData({ ...scheduleData, location: e.target.value })
+                  }
+                  placeholder={
+                    scheduleData.mode === "video"
+                      ? "e.g. https://meet.google.com/lv3-xxxx"
+                      : "e.g. Floor 8, VNG Campus, District 7, Ho Chi Minh City"
+                  }
+                  className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
+                />
+              </div>
+
+              {/* Interviewers */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interviewer Name")}</label>
+                  <input
+                    type="text"
+                    value={scheduleData.interviewerName}
+                    onChange={(e) => setScheduleData({ ...scheduleData, interviewerName: e.target.value })}
+                    placeholder="e.g. Talent Acquisition Team"
+                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interviewer Role")}</label>
+                  <input
+                    type="text"
+                    value={scheduleData.interviewerRole}
+                    onChange={(e) => setScheduleData({ ...scheduleData, interviewerRole: e.target.value })}
+                    placeholder="e.g. Recruiter / Engineering Lead"
+                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Instructions for Candidate")}</label>
+                <textarea
+                  rows={2}
+                  value={scheduleData.instructions}
+                  onChange={(e) => setScheduleData({ ...scheduleData, instructions: e.target.value })}
+                  placeholder={t(lang, "e.g. Online video interview invitation from employer. Please join on time.")}
+                  className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink focus:border-brand focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-line">
+                <Button variant="secondary" size="sm" type="button" onClick={() => setScheduleCandidate(null)}>
+                  {t(lang, "Cancel")}
+                </Button>
+                <Button variant="primary" size="sm" type="submit" disabled={isSubmittingSchedule}>
+                  <Icon name={isSubmittingSchedule ? "rotate-ccw" : "calendar"} size={14} className={isSubmittingSchedule ? "animate-spin" : ""} />
+                  {isSubmittingSchedule ? t(lang, "Scheduling...") : t(lang, "Confirm & Schedule Interview")}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
