@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Input, Select } from "../../../components/ds";
+import { Input, Select, PhoneInput } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import { useLang, t } from "../../../utils/lang";
 import Header from "../../../components/layout/Header";
@@ -34,7 +34,11 @@ export default function CompanyRegisterClient() {
     phone: Yup.string()
       .trim()
       .required(t(lang, "Phone number is required"))
-      .matches(/^[0-9\s\-()+]{7,15}$/, t(lang, "Please enter a valid phone number")),
+      .test("is-valid-phone", t(lang, "Please enter a valid phone number"), (val) => {
+        if (!val) return false;
+        const digits = String(val).replace(/\D/g, "");
+        return digits.length >= 7 && digits.length <= 15;
+      }),
     ind: Yup.string().required(t(lang, "Please select an industry")),
     size: Yup.string().required(t(lang, "Please select company size")),
     pw: Yup.string()
@@ -63,7 +67,7 @@ export default function CompanyRegisterClient() {
     onSubmit: async (values, { setSubmitting, setStatus }) => {
       setStatus(null);
       try {
-        const fullPhone = values.phone ? (values.phone.trim().startsWith("+") ? values.phone.trim() : `+84 ${values.phone.trim()}`) : "";
+        const fullPhone = values.phone ? values.phone.trim() : "";
         const regRes = await companyAuth.registerCompany({
           company_name: values.co.trim(),
           tax_id: values.taxId.trim(),
@@ -196,26 +200,20 @@ export default function CompanyRegisterClient() {
               </div>
             </div>
 
-            {/* Row 3: Phone (Country Code) */}
+            {/* Row 3: Phone (International Country Phone Input) */}
             <div className="mb-4">
-              <div className="flex gap-4 items-start">
-                <div className="w-[100px] shrink-0">
-                  <Input label={t(lang, "Code")} value="+84" disabled />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <Input
-                    id="phone"
-                    name="phone"
-                    label={t(lang, "Phone number")}
-                    type="tel"
-                    value={formik.values.phone}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    placeholder="090 123 4567"
-                    error={formik.touched.phone && formik.errors.phone}
-                  />
-                </div>
-              </div>
+              <PhoneInput
+                id="phone"
+                name="phone"
+                label={t(lang, "Phone number")}
+                defaultCountry="vn"
+                preferredCountries={["vn", "us", "sg", "jp", "kr", "gb", "au"]}
+                value={formik.values.phone}
+                onChange={(phone) => formik.setFieldValue("phone", phone)}
+                onBlur={() => formik.setFieldTouched("phone", true)}
+                error={formik.touched.phone && formik.errors.phone}
+                placeholder="090 123 4567"
+              />
             </div>
 
             {/* Row 4: Industry & Company size */}

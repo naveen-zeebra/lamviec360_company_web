@@ -9,4 +9,5 @@ export { default as Icon } from "./Icon";
 export { default as Reveal } from "./Reveal";
 export { default as Check } from "./Check";
 export { default as Field } from "./Field";
+export { default as PhoneInput } from "./PhoneInput";
 export { default as Toast, useToast } from "./Toast";
