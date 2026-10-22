@@ -910,6 +910,28 @@ export default function CandidatesClient() {
                                     ? maskValue(c.email, "email")
                                     : c.email || t(lang, "No email")}
                                 </span>
+                                {(c.job_availability || c.jobAvailability) && (
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                    (c.job_availability || c.jobAvailability) === "open_to_opportunities"
+                                      ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                      : (c.job_availability || c.jobAvailability) === "not_looking"
+                                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  }`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${
+                                      (c.job_availability || c.jobAvailability) === "open_to_opportunities"
+                                        ? "bg-amber-500"
+                                        : (c.job_availability || c.jobAvailability) === "not_looking"
+                                        ? "bg-rose-500"
+                                        : "bg-emerald-500"
+                                    }`} />
+                                    {(c.job_availability || c.jobAvailability) === "open_to_opportunities"
+                                      ? "Open to Opps"
+                                      : (c.job_availability || c.jobAvailability) === "not_looking"
+                                      ? "Not Looking"
+                                      : "Open to Work"}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1405,6 +1427,31 @@ export default function CandidatesClient() {
                   <div className="flex justify-between py-2">
                     <dt className="text-muted">{t(lang, "Education Level")}</dt>
                     <dd className="font-semibold text-ink">{t(lang, open.educationLevel || "Bachelor's Degree")}</dd>
+                  </div>
+                  <div className="flex justify-between py-2 items-center">
+                    <dt className="text-muted">{t(lang, "Job Availability")}</dt>
+                    <dd>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        (open.job_availability || open.jobAvailability) === "open_to_opportunities"
+                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                          : (open.job_availability || open.jobAvailability) === "not_looking"
+                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          (open.job_availability || open.jobAvailability) === "open_to_opportunities"
+                            ? "bg-amber-500"
+                            : (open.job_availability || open.jobAvailability) === "not_looking"
+                            ? "bg-rose-500"
+                            : "bg-emerald-500"
+                        }`} />
+                        {(open.job_availability || open.jobAvailability) === "open_to_opportunities"
+                          ? t(lang, "Open to Relevant Opportunities")
+                          : (open.job_availability || open.jobAvailability) === "not_looking"
+                          ? t(lang, "Not Looking")
+                          : t(lang, "Open to Work")}
+                      </span>
+                    </dd>
                   </div>
                   <div className="flex justify-between py-2">
                     <dt className="text-muted">{t(lang, "Applied Date")}</dt>
