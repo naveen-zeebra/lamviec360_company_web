@@ -964,5 +964,17 @@
   "Use short brand name": "Dùng tên viết tắt",
   "Data auto-filled in English": "Dữ liệu đã tự động điền bằng tiếng Anh",
   "Select company name format to apply": "Chọn định dạng tên công ty để áp dụng",
-  "Auto-filled": "Đã tự động điền"
+  "Auto-filled": "Đã tự động điền",
+  "Verification & Employment Documents": "Tài liệu xác thực & Bằng cấp",
+  "Contracts, relieving letters, payslips & certificates": "Hợp đồng cũ, quyết định thôi việc, bảng lương & chứng chỉ",
+  "Encrypted Candidate Documents": "Tài liệu ứng viên được mã hóa bảo mật",
+  "Verification documents (contracts, relieving letters, payslips, certificates) are encrypted. Access is granted from the Shortlisted stage onward.": "Tài liệu xác thực (hợp đồng, quyết định thôi việc, bảng lương, chứng chỉ) được mã hóa. Quyền truy cập sẽ được mở khi ứng viên đạt vòng Tuyển chọn trở đi.",
+  "Loading verified documents...": "Đang tải tài liệu xác thực...",
+  "No verification documents uploaded by candidate yet.": "Ứng viên chưa tải lên tài liệu xác thực nào.",
+  "Download decrypted document": "Tải xuống tài liệu đã giải mã",
+  "Document downloaded successfully": "Tải xuống tài liệu thành công",
+  "Failed to download document": "Không thể tải xuống tài liệu",
+  "Decrypting...": "Đang giải mã...",
+  "Unlocked": "Đã mở khóa",
+  "Locked": "Đang khóa"
 }

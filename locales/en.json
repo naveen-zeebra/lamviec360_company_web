@@ -714,5 +714,17 @@
   "No specific reason": "No specific reason",
   "Internal note (optional)": "Internal note (optional)",
   "Candidate rejected": "Candidate rejected",
-  "Hidden by policy": "Hidden by policy"
+  "Hidden by policy": "Hidden by policy",
+  "Verification & Employment Documents": "Verification & Employment Documents",
+  "Contracts, relieving letters, payslips & certificates": "Contracts, relieving letters, payslips & certificates",
+  "Encrypted Candidate Documents": "Encrypted Candidate Documents",
+  "Verification documents (contracts, relieving letters, payslips, certificates) are encrypted. Access is granted from the Shortlisted stage onward.": "Verification documents (contracts, relieving letters, payslips, certificates) are encrypted. Access is granted from the Shortlisted stage onward.",
+  "Loading verified documents...": "Loading verified documents...",
+  "No verification documents uploaded by candidate yet.": "No verification documents uploaded by candidate yet.",
+  "Download decrypted document": "Download decrypted document",
+  "Document downloaded successfully": "Document downloaded successfully",
+  "Failed to download document": "Failed to download document",
+  "Decrypting...": "Decrypting...",
+  "Unlocked": "Unlocked",
+  "Locked": "Locked"
 }

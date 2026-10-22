@@ -24,7 +24,10 @@ import {
   PIPELINE_STAGES,
   can,
   syncCompanyWithBackend,
+  getApplicantVerificationDocuments,
+  downloadApplicantVerificationDocument,
 } from "../../../lib/companyStore";
+import { formatBytes } from "../../../utils/format";
 
 const SHORTLIST_PLUS = ["Shortlisted", "Interview Scheduled", "Offer Sent", "Hired"];
 
@@ -156,6 +159,13 @@ export default function CandidatesClient() {
   const [openId, setOpenId] = useState(null);
   const [selected, setSelected] = useState([]);
   const [noteDraft, setNoteDraft] = useState("");
+  const [verificationDocs, setVerificationDocs] = useState([]);
+  const [loadingVerificationDocs, setLoadingVerificationDocs] = useState(false);
+  const [downloadingDocId, setDownloadingDocId] = useState(null);
+
+  const isShortlistedPlus = useCallback((stage) => {
+    return SHORTLIST_PLUS.some((s) => s.toLowerCase() === (stage || "").toLowerCase());
+  }, []);
 
   // Modals & Undo
   const [confirmBulk, setConfirmBulk] = useState(null);
@@ -193,6 +203,41 @@ export default function CandidatesClient() {
     }, 300);
     return () => clearTimeout(handler);
   }, [searchQuery]);
+
+  // Load applicant verification documents when candidate drawer is open and stage is Shortlisted+
+  useEffect(() => {
+    if (!openId) {
+      setVerificationDocs([]);
+      return;
+    }
+    const currentCand = candidates.find((c) => String(c.id) === String(openId));
+    if (currentCand && isShortlistedPlus(currentCand.stage)) {
+      setLoadingVerificationDocs(true);
+      getApplicantVerificationDocuments(openId)
+        .then((docs) => setVerificationDocs(docs || []))
+        .catch((err) => {
+          console.warn("Failed to load verification docs:", err);
+          setVerificationDocs([]);
+        })
+        .finally(() => setLoadingVerificationDocs(false));
+    } else {
+      setVerificationDocs([]);
+    }
+  }, [openId, candidates, isShortlistedPlus]);
+
+  const handleDownloadVerificationDoc = async (applicantId, doc) => {
+    if (!doc) return;
+    setDownloadingDocId(doc.id);
+    try {
+      await downloadApplicantVerificationDocument(applicantId, doc.id, doc.file_name || doc.title || "document");
+      setToast(t(lang, "Tải xuống tài liệu thành công") || "Document downloaded successfully");
+    } catch (err) {
+      console.error("Verification doc download error:", err);
+      setToast(err.message || t(lang, "Không thể tải xuống tài liệu") || "Failed to download document");
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
 
   // Initial load
   useEffect(() => {
@@ -1557,6 +1602,106 @@ export default function CandidatesClient() {
                     {t(lang, "Download")}
                   </a>
                 </div>
+              </div>
+
+              {/* Verification & Previous Employment Documents (Encrypted Storage) */}
+              <div className="rounded-xl border border-line bg-card p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                      <Icon name="shield" size={17} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-ink">
+                        {t(lang, "Verification & Employment Documents")}
+                      </h3>
+                      <span className="text-[11px] text-muted block">
+                        {t(lang, "Contracts, relieving letters, payslips & certificates")}
+                      </span>
+                    </div>
+                  </div>
+                  {isShortlistedPlus(open.stage) ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                      <Icon name="unlock" size={10} /> {t(lang, "Unlocked")}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                      <Icon name="lock" size={10} /> {t(lang, "Locked")}
+                    </span>
+                  )}
+                </div>
+
+                {!isShortlistedPlus(open.stage) ? (
+                  <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20 p-3.5 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <Icon name="lock" size={13} className="text-amber-600 dark:text-amber-400" />
+                      <span>{t(lang, "Encrypted Candidate Documents")}</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-amber-800/90 dark:text-amber-300/80">
+                      {t(
+                        lang,
+                        "Verification documents (contracts, relieving letters, payslips, certificates) are encrypted. Access is granted from the Shortlisted stage onward."
+                      )}
+                    </p>
+                  </div>
+                ) : loadingVerificationDocs ? (
+                  <div className="py-4 text-center text-xs text-muted">
+                    <Icon name="loader-2" size={18} className="animate-spin mx-auto mb-1 text-brand" />
+                    <span>{t(lang, "Loading verified documents...")}</span>
+                  </div>
+                ) : verificationDocs.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-line bg-sunken/40 p-3.5 text-center text-xs text-muted">
+                    <Icon name="file-text" size={20} className="mx-auto mb-1 text-faint" />
+                    <p>{t(lang, "No verification documents uploaded by candidate yet.")}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 pt-1">
+                    {verificationDocs.map((vdoc) => (
+                      <div
+                        key={vdoc.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-line bg-sunken/40 p-3 text-xs transition-colors hover:bg-card"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card border border-line text-muted">
+                            <Icon name="file" size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-ink truncate max-w-[200px]" title={vdoc.title || vdoc.file_name}>
+                                {vdoc.title || vdoc.file_name}
+                              </span>
+                              <span className="rounded bg-brand-subtle px-1.5 py-0.2 text-[10px] font-bold text-brand uppercase">
+                                {vdoc.category || "Document"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-muted block mt-0.5">
+                              {vdoc.file_name} · {formatBytes(vdoc.size_bytes || 0)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={downloadingDocId === vdoc.id}
+                          onClick={() => handleDownloadVerificationDoc(open.id, vdoc)}
+                          className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-bold text-ink hover:bg-sunken disabled:opacity-50 transition-colors shrink-0 shadow-xs"
+                          title={t(lang, "Download decrypted document")}
+                        >
+                          <Icon
+                            name={downloadingDocId === vdoc.id ? "loader-2" : "download"}
+                            size={12}
+                            className={downloadingDocId === vdoc.id ? "animate-spin" : ""}
+                          />
+                          <span>
+                            {downloadingDocId === vdoc.id
+                              ? t(lang, "Decrypting...")
+                              : t(lang, "Download")}
+                          </span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Rejection Details if Rejected */}
