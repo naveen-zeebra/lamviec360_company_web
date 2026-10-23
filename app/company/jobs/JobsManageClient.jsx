@@ -39,6 +39,7 @@ export default function JobsManageClient() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [menuFor, setMenuFor] = useState(null);
+  const [viewingJob, setViewingJob] = useState(null);
   const [toast, setToast] = useToast();
 
   const refresh = () => {
@@ -71,10 +72,14 @@ export default function JobsManageClient() {
   );
 
   const act = async (id, fn, msg) => {
-    await fn(id);
-    setMenuFor(null);
-    refresh();
-    setToast(msg);
+    try {
+      await fn(id);
+      setMenuFor(null);
+      refresh();
+      setToast(msg);
+    } catch (err) {
+      setToast(t(lang, err?.message || "Operation failed"));
+    }
   };
 
   if (!ready) {
@@ -136,18 +141,22 @@ export default function JobsManageClient() {
                 return (
                   <tr key={j.id}>
                     <td className={td}>
-                      <Link href={`/company/jobs/${j.id}`} className="font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setViewingJob(j)}
+                        className="text-left font-semibold text-ink hover:text-brand hover:underline"
+                      >
                         {j.title}
-                      </Link>
+                      </button>
                       {j.aiGenerated && (
                         <span className={aiTag}>
                           <Icon name="sparkles" size={10} /> {t(lang, "AI JD")}
                         </span>
                       )}
                     </td>
-                    <td className={td}>{j.department || "Engineering"}</td>
+                    <td className={td}>{j.department || "—"}</td>
                     <td className={td}>{count}</td>
-                    <td className={td}>{j.deadline || "2026-12-31"}</td>
+                    <td className={td}>{j.deadline || "—"}</td>
                     <td className={td}>
                       <StatusBadge kind="job" value={j.status} lang={lang} />
                     </td>
@@ -157,6 +166,16 @@ export default function JobsManageClient() {
                       </button>
                       {menuFor === j.id && (
                         <div className="absolute right-0 top-full z-50 min-w-[170px] rounded-md border border-line bg-card p-1.5 shadow-md" role="menu">
+                          <button
+                            role="menuitem"
+                            className={menuBtn}
+                            onClick={() => {
+                              setViewingJob(j);
+                              setMenuFor(null);
+                            }}
+                          >
+                            <Icon name="eye" size={13} style={{ marginRight: 8 }} /> {t(lang, "View Details")}
+                          </button>
                           {editable && (
                             <button role="menuitem" className={menuBtn} onClick={() => router.push(`/company/jobs/${j.id}`)}>
                               <Icon name="pencil" size={13} style={{ marginRight: 8 }} /> {t(lang, "Edit")}
@@ -213,6 +232,192 @@ export default function JobsManageClient() {
           </table>
         </div>
       )}
+
+      {viewingJob && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(21,23,27,0.5)] p-4"
+          onClick={() => setViewingJob(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-[700px] overflow-y-auto rounded-xl bg-card p-6 shadow-xl border border-line"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4 border-b border-line pb-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <h2 className="text-xl font-bold text-ink">{viewingJob.title}</h2>
+                  <StatusBadge kind="job" value={viewingJob.status} lang={lang} />
+                  {viewingJob.aiGenerated && (
+                    <span className={aiTag}>
+                      <Icon name="sparkles" size={10} /> {t(lang, "AI JD")}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                  {viewingJob.department && (
+                    <span className="flex items-center gap-1">
+                      <Icon name="briefcase" size={12} /> {viewingJob.department}
+                    </span>
+                  )}
+                  {viewingJob.location && (
+                    <span className="flex items-center gap-1">
+                      <Icon name="map-pin" size={12} /> {viewingJob.location}
+                    </span>
+                  )}
+                  {viewingJob.type && (
+                    <span className="flex items-center gap-1">
+                      <Icon name="clock" size={12} /> {viewingJob.type}
+                    </span>
+                  )}
+                  {viewingJob.experience && (
+                    <span className="flex items-center gap-1">
+                      <Icon name="award" size={12} /> {viewingJob.experience}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded p-1 text-muted hover:bg-sunken hover:text-ink"
+                onClick={() => setViewingJob(null)}
+              >
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg bg-sunken/60 p-3 mb-5 text-xs">
+              <div>
+                <div className="text-muted font-medium mb-0.5">{t(lang, "Salary")}</div>
+                <div className="font-semibold text-ink">{viewingJob.salary || "Negotiable"}</div>
+              </div>
+              <div>
+                <div className="text-muted font-medium mb-0.5">{t(lang, "Positions")}</div>
+                <div className="font-semibold text-ink">{viewingJob.positions || 1}</div>
+              </div>
+              <div>
+                <div className="text-muted font-medium mb-0.5">{t(lang, "Application Deadline")}</div>
+                <div className="font-semibold text-ink">{viewingJob.deadline || "—"}</div>
+              </div>
+              <div>
+                <div className="text-muted font-medium mb-0.5">{t(lang, "Applicants")}</div>
+                <div className="font-semibold text-ink">
+                  {candidates.filter((c) => c.jobId === viewingJob.id).length}
+                </div>
+              </div>
+            </div>
+
+            {viewingJob.skills && viewingJob.skills.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">
+                  {t(lang, "Required Skills")}
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {viewingJob.skills.map((s, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-full bg-brand-subtle px-2.5 py-0.5 text-xs font-medium text-brand"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {viewingJob.documents && viewingJob.documents.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">
+                  {t(lang, "Required Documents")}
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {viewingJob.documents.map((d, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-md border border-line bg-card px-2.5 py-1 text-xs text-muted"
+                    >
+                      📄 {d}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {viewingJob.description && (
+              <div className="mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">
+                  {t(lang, "Job Description")}
+                </h4>
+                <div className="rounded-lg border border-line bg-sunken/30 p-3.5 text-xs sm:text-sm text-ink whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
+                  {viewingJob.description}
+                </div>
+              </div>
+            )}
+
+            {viewingJob.requirements && (
+              <div className="mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">
+                  {t(lang, "Requirements")}
+                </h4>
+                <div className="rounded-lg border border-line bg-sunken/30 p-3.5 text-xs sm:text-sm text-ink whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                  {viewingJob.requirements}
+                </div>
+              </div>
+            )}
+
+            {viewingJob.benefits && (
+              <div className="mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">
+                  {t(lang, "Benefits")}
+                </h4>
+                <div className="rounded-lg border border-line bg-sunken/30 p-3.5 text-xs sm:text-sm text-ink whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                  {viewingJob.benefits}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+              <div>
+                {editable && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-danger-fg hover:underline"
+                    onClick={() => {
+                      if (window.confirm(t(lang, "Are you sure you want to delete this job posting?"))) {
+                        act(viewingJob.id, deleteJob, "Job deleted successfully");
+                        setViewingJob(null);
+                      }
+                    }}
+                  >
+                    <Icon name="trash" size={13} /> {t(lang, "Delete Job")}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setViewingJob(null)}>
+                  {t(lang, "Close")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/company/candidates?job=${viewingJob.id}`)}
+                >
+                  <Icon name="users" size={13} /> {t(lang, "View Applicants")}
+                </Button>
+                {editable && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => router.push(`/company/jobs/${viewingJob.id}`)}
+                  >
+                    <Icon name="pencil" size={13} /> {t(lang, "Edit Job")}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast msg={toast} />
     </>
   );

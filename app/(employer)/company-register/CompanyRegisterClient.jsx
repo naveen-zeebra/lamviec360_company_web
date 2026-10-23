@@ -139,7 +139,23 @@ export default function CompanyRegisterClient() {
             </p>
           </div>
 
-          <form onSubmit={formik.handleSubmit} noValidate>
+          <form onSubmit={formik.handleSubmit} noValidate autoComplete="off">
+            {/* Trap decoy inputs: absorbs aggressive browser credential autofill */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                opacity: 0,
+                height: 0,
+                width: 0,
+                zIndex: -1,
+                overflow: "hidden",
+                pointerEvents: "none",
+              }}
+            >
+              <input type="text" name="fake_username_trap" tabIndex={-1} autoComplete="off" />
+              <input type="password" name="fake_password_trap" tabIndex={-1} autoComplete="new-password" />
+            </div>
             {/* Row 1: Company name & Tax ID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="min-w-0">
@@ -148,6 +164,7 @@ export default function CompanyRegisterClient() {
                   name="co"
                   label={t(lang, "Company name")}
                   type="text"
+                  autoComplete="off"
                   value={formik.values.co}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -161,6 +178,7 @@ export default function CompanyRegisterClient() {
                   name="taxId"
                   label={t(lang, "Tax ID / Business code")}
                   type="text"
+                  autoComplete="off"
                   value={formik.values.taxId}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -178,6 +196,7 @@ export default function CompanyRegisterClient() {
                   name="name"
                   label={t(lang, "Contact person name")}
                   type="text"
+                  autoComplete="off"
                   value={formik.values.name}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -191,6 +210,7 @@ export default function CompanyRegisterClient() {
                   name="email"
                   label={t(lang, "Work email")}
                   type="email"
+                  autoComplete="off"
                   value={formik.values.email}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -208,6 +228,7 @@ export default function CompanyRegisterClient() {
                 label={t(lang, "Phone number")}
                 defaultCountry="vn"
                 preferredCountries={["vn", "us", "sg", "jp", "kr", "gb", "au"]}
+                autoComplete="off"
                 value={formik.values.phone}
                 onChange={(phone) => formik.setFieldValue("phone", phone)}
                 onBlur={() => formik.setFieldTouched("phone", true)}
@@ -254,6 +275,7 @@ export default function CompanyRegisterClient() {
                   name="pw"
                   label={t(lang, "Password")}
                   type={showPw ? "text" : "password"}
+                  autoComplete="new-password"
                   value={formik.values.pw}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -269,6 +291,7 @@ export default function CompanyRegisterClient() {
                   name="confirmPw"
                   label={t(lang, "Confirm password")}
                   type={showConfirmPw ? "text" : "password"}
+                  autoComplete="new-password"
                   value={formik.values.confirmPw}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}

@@ -289,11 +289,13 @@ function Settings() {
                 <Select
                   label={t(lang, "Industry")}
                   value={company.industry || "Technology"}
+                  placeholder="Select an industry"
                   onChange={(e) => setCompany({ ...company, industry: e.target.value })}
                   options={INDUSTRIES.map((x) => ({ value: x, label: t(lang, x) }))}
                 />
                 <Select
                   label={t(lang, "Company Size")}
+                  placeholder="Select a company size"
                   value={company.size || "11–50 employees"}
                   onChange={(e) => setCompany({ ...company, size: e.target.value })}
                   options={SIZES.map((x) => ({ value: x, label: x }))}

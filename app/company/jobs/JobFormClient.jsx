@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button, Input, Select } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Check from "../../../components/ds/Check";
+import Skeleton from "../../../components/ds/Skeleton";
 import Toast, { useToast } from "../../../components/ds/Toast";
+import StatusBadge from "../../../components/company/StatusBadge";
 import RequirePermission from "../../../components/company/RequirePermission";
 import { useLang, t } from "../../../utils/lang";
-import { getJob, saveJob, getQuota, setJobStatus } from "../../../lib/companyStore";
+import { getJob, saveJob, deleteJob, getQuota, setJobStatus } from "../../../lib/companyStore";
+import { getCompanyJobDetail } from "../../../lib/api/companyApi";
 
 const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Temporary"];
 const EDU_LEVELS = ["Not required", "High School", "Associate Degree", "Bachelor's Degree", "Master's Degree", "PhD"];
@@ -32,6 +35,34 @@ const EMPTY = {
   aiGenerated: false,
   status: "published",
 };
+
+function normalizeJobData(data) {
+  if (!data) return EMPTY;
+  return {
+    ...EMPTY,
+    ...data,
+    title: data.title || "",
+    department: data.department || "",
+    type: data.type || data.job_type || "Full-time",
+    location: data.location || data.city || "",
+    salaryMin: data.salaryMin !== undefined && data.salaryMin !== null ? String(data.salaryMin).split(".")[0] : (data.salary_min ? String(data.salary_min).split(".")[0] : ""),
+    salaryMax: data.salaryMax !== undefined && data.salaryMax !== null ? String(data.salaryMax) : (data.salary_max ? String(data.salary_max).split(".")[0] : ""),
+    negotiable: Boolean(data.negotiable || data.is_negotiable),
+    vacancies: data.vacancies !== undefined && data.vacancies !== null ? String(data.vacancies) : "1",
+    education: data.education || "Bachelor's Degree",
+    experience: data.experience || data.experience_level || "",
+    deadline: data.deadline ? String(data.deadline).slice(0, 10) : (data.expires_at ? String(data.expires_at).slice(0, 10) : ""),
+    skills: Array.isArray(data.skills)
+      ? data.skills
+      : (typeof data.required_skills === "string" ? data.required_skills.split(",").map((s) => s.trim()).filter(Boolean) : []),
+    documents: Array.isArray(data.documents)
+      ? data.documents
+      : (typeof data.documents === "string" ? data.documents.split(",").map((s) => s.trim()).filter(Boolean) : ["CV / Resume"]),
+    description: data.description || data.jd || "",
+    status: (data.status || "published").toLowerCase(),
+    aiGenerated: Boolean(data.aiGenerated || data.ai_generated),
+  };
+}
 
 function buildAiDraft(title, skills, attempt) {
   const skillLine = skills.length ? skills.join(", ") : "the core tools for this role";
@@ -62,9 +93,12 @@ function JobForm({ mode, jobId }) {
   const [form, setForm] = useState(EMPTY);
   const [skillDraft, setSkillDraft] = useState("");
   const [quota, setQuota] = useState(null);
+  const [isLoading, setIsLoading] = useState(mode === "edit");
+  const [viewMode, setViewMode] = useState("edit");
   const [notFound, setNotFound] = useState(false);
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // AI JD state
   const [aiOpen, setAiOpen] = useState(false);
@@ -78,18 +112,35 @@ function JobForm({ mode, jobId }) {
 
   useEffect(() => {
     setQuota(getQuota());
-    if (mode === "edit") {
-      const j = getJob(jobId);
-      if (!j) {
-        setNotFound(true);
-        return;
+    if (mode === "edit" && jobId) {
+      const localJob = getJob(jobId);
+      if (localJob) {
+        setForm(normalizeJobData(localJob));
+        setIsLoading(false);
       }
-      setForm({
-        ...EMPTY,
-        ...j,
-        description: j.description || j.jd || "",
-        status: (j.status || "published").toLowerCase(),
-      });
+
+      if (!String(jobId).startsWith("JOB-")) {
+        getCompanyJobDetail(jobId)
+          .then((res) => {
+            const data = res?.data || res;
+            if (data && data.id) {
+              setForm(normalizeJobData(data));
+              setNotFound(false);
+            } else if (!localJob) {
+              setNotFound(true);
+            }
+          })
+          .catch((err) => {
+            console.warn("Could not fetch fresh job from API:", err);
+            if (!localJob) setNotFound(true);
+          })
+          .finally(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
+        if (!localJob) setNotFound(true);
+      }
+    } else {
+      setIsLoading(false);
     }
   }, [mode, jobId]);
 
@@ -118,6 +169,7 @@ function JobForm({ mode, jobId }) {
   };
 
   const persist = async (targetStatus) => {
+    if (isSubmitting) return;
     if (!validate()) {
       setToast(t(lang, "Please fix the highlighted fields."));
       return;
@@ -127,6 +179,7 @@ function JobForm({ mode, jobId }) {
       setShowUpgrade(true);
       return;
     }
+    setIsSubmitting(true);
     try {
       const jobData = {
         ...form,
@@ -134,14 +187,12 @@ function JobForm({ mode, jobId }) {
         status: finalStatus,
         ...(mode === "edit" ? { id: jobId } : {}),
       };
-      const saved = await saveJob(jobData);
-      if (finalStatus && saved?.id) {
-        await setJobStatus(saved.id, finalStatus);
-      }
+      await saveJob(jobData);
       setToast(t(lang, finalStatus === "published" ? "Job published" : "Draft saved"));
       setTimeout(() => router.push("/company/jobs"), 700);
     } catch (err) {
       setToast(t(lang, err.message || "Failed to save job"));
+      setIsSubmitting(false);
     }
   };
 
@@ -180,6 +231,19 @@ function JobForm({ mode, jobId }) {
     setToast(t(lang, "AI draft added — please review before saving."));
   };
 
+  if (isLoading) {
+    return (
+      <div className={CARD}>
+        <div className="flex flex-col gap-4 py-8">
+          <Skeleton width={200} height={28} />
+          <Skeleton height={42} />
+          <Skeleton height={140} />
+          <Skeleton height={42} />
+        </div>
+      </div>
+    );
+  }
+
   if (notFound) {
     return (
       <div className="rounded-lg border border-dashed border-line bg-card px-6 py-14 text-center text-muted">
@@ -203,21 +267,138 @@ function JobForm({ mode, jobId }) {
         <span>{mode === "edit" ? t(lang, "Edit Job") : t(lang, "Post New Job")}</span>
       </div>
 
-      <div className="mb-6">
-        <h1 className="mb-1.5 text-2xl font-extrabold">{mode === "edit" ? t(lang, "Edit Job") : t(lang, "Post New Job")}</h1>
-        <p className="text-sm text-muted">
-          {quota && quota.limit !== Infinity
-            ? `${t(lang, "Posting quota")}: ${quota.remaining} ${t(lang, "of")} ${quota.limit} ${t(lang, "remaining")}`
-            : t(lang, "Unlimited postings on your plan.")}
-        </p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="mb-1.5 text-2xl font-extrabold">{mode === "edit" ? t(lang, "Edit Job") : t(lang, "Post New Job")}</h1>
+          <p className="text-sm text-muted">
+            {quota && quota.limit !== Infinity
+              ? `${t(lang, "Posting quota")}: ${quota.remaining} ${t(lang, "of")} ${quota.limit} ${t(lang, "remaining")}`
+              : t(lang, "Unlimited postings on your plan.")}
+          </p>
+        </div>
+        {mode === "edit" && (
+          <div className="flex items-center gap-2 rounded-lg border border-line bg-card p-1">
+            <button
+              type="button"
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${viewMode === "edit" ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}
+              onClick={() => setViewMode("edit")}
+            >
+              <Icon name="pencil" size={13} /> {t(lang, "Edit Form")}
+            </button>
+            <button
+              type="button"
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${viewMode === "preview" ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}
+              onClick={() => setViewMode("preview")}
+            >
+              <Icon name="eye" size={13} /> {t(lang, "Preview Job")}
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className={CARD}>
+      {viewMode === "preview" ? (
+        <div className={CARD}>
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-line pb-6">
+            <div>
+              <div className="mb-2 flex items-center gap-2.5">
+                <h2 className="text-2xl font-bold text-ink">{form.title || "Untitled Job"}</h2>
+                <StatusBadge kind="job" value={form.status} lang={lang} />
+                {form.aiGenerated && (
+                  <span className={AI_TAG}>
+                    <Icon name="sparkles" size={10} /> {t(lang, "AI JD")}
+                  </span>
+                )}
+              </div>
+              <p className="flex flex-wrap items-center gap-3 text-sm text-muted">
+                <span className="flex items-center gap-1">
+                  <Icon name="building-2" size={14} /> {form.department || "General"}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Icon name="map-pin" size={14} /> {form.location || "Vietnam"}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Icon name="briefcase" size={14} /> {form.type}
+                </span>
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setViewMode("edit")}>
+                <Icon name="pencil" size={14} style={{ marginRight: 6 }} /> {t(lang, "Back to Edit")}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg bg-sunken p-4 max-sm:grid-cols-1">
+            <div>
+              <span className="mb-1 block text-xs text-muted">{t(lang, "Salary")}</span>
+              <strong className="text-sm text-ink">
+                {form.negotiable
+                  ? t(lang, "Negotiable")
+                  : form.salaryMin && form.salaryMax
+                  ? `${form.salaryMin} - ${form.salaryMax} VND`
+                  : t(lang, "Negotiable")}
+              </strong>
+            </div>
+            <div>
+              <span className="mb-1 block text-xs text-muted">{t(lang, "Experience")}</span>
+              <strong className="text-sm text-ink">{form.experience ? `${form.experience} ${t(lang, "years")}` : "Not specified"}</strong>
+            </div>
+            <div>
+              <span className="mb-1 block text-xs text-muted">{t(lang, "Education Level")}</span>
+              <strong className="text-sm text-ink">{form.education || "Bachelor's Degree"}</strong>
+            </div>
+            <div>
+              <span className="mb-1 block text-xs text-muted">{t(lang, "Application Deadline")}</span>
+              <strong className="text-sm text-ink">{form.deadline || "—"}</strong>
+            </div>
+            <div>
+              <span className="mb-1 block text-xs text-muted">{t(lang, "Vacancies")}</span>
+              <strong className="text-sm text-ink">{form.vacancies || "1"}</strong>
+            </div>
+          </div>
+
+          {form.skills && form.skills.length > 0 && (
+            <div className="mb-6">
+              <h4 className="mb-2 text-sm font-semibold text-ink">{t(lang, "Required Skills")}</h4>
+              <div className="flex flex-wrap gap-2">
+                {form.skills.map((s) => (
+                  <span key={s} className="rounded-full bg-brand-subtle px-3 py-1 text-xs font-semibold text-brand">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {form.documents && form.documents.length > 0 && (
+            <div className="mb-6">
+              <h4 className="mb-2 text-sm font-semibold text-ink">{t(lang, "Required Documents")}</h4>
+              <div className="flex flex-wrap gap-2">
+                {form.documents.map((d) => (
+                  <span key={d} className="rounded-md border border-line bg-card px-2.5 py-1 text-xs text-ink">
+                    {d}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-ink">{t(lang, "Job Description")}</h4>
+            <div className="whitespace-pre-wrap rounded-lg border border-line bg-sunken p-4 text-sm leading-relaxed text-ink font-body">
+              {form.description || t(lang, "No description provided.")}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className={CARD}>
         <div className={FORM_GRID}>
-          <Input label={t(lang, "Job Title")} value={form.title} onChange={(e) => set("title", e.target.value)} error={errors.title} placeholder={t(lang, "Senior Backend Engineer")} />
-          <Input label={t(lang, "Department")} value={form.department} onChange={(e) => set("department", e.target.value)} error={errors.department} placeholder="Engineering" />
-          <Select label={t(lang, "Job Type")} value={form.type} onChange={(e) => set("type", e.target.value)} options={JOB_TYPES.map((x) => ({ value: x, label: t(lang, x) }))} />
-          <Input label={t(lang, "Location")} value={form.location} onChange={(e) => set("location", e.target.value)} error={errors.location} placeholder="Ho Chi Minh City" />
+          <Input label={t(lang, "Job Title")} value={form.title} onChange={(e) => set("title", e.target.value)} error={errors.title} placeholder={t(lang, "Enter job title")} />
+          <Input label={t(lang, "Department")} value={form.department} onChange={(e) => set("department", e.target.value)} error={errors.department} placeholder="Enter department name" />
+          <Select label={t(lang, "Job Type")} value={form.type} onChange={(e) => set("type", e.target.value)} options={JOB_TYPES.map((x) => ({ value: x, label: t(lang, x) }))} placeholder="Select Job Type" />
+          <Input label={t(lang, "Location")} value={form.location} onChange={(e) => set("location", e.target.value)} error={errors.location} placeholder="Enter job location" />
         </div>
 
         <div className="mt-4">
@@ -288,13 +469,14 @@ function JobForm({ mode, jobId }) {
 
         <div className={`${FORM_GRID} mt-5`}>
           <Input label={t(lang, "Experience (years)")} value={form.experience} onChange={(e) => set("experience", e.target.value.replace(/\D/g, ""))} placeholder="3" />
-          <Select label={t(lang, "Education Level")} value={form.education} onChange={(e) => set("education", e.target.value)} options={EDU_LEVELS.map((x) => ({ value: x, label: t(lang, x) }))} />
+          <Select label={t(lang, "Education Level")} value={form.education} onChange={(e) => set("education", e.target.value)} options={EDU_LEVELS.map((x) => ({ value: x, label: t(lang, x) }))} placeholder="Select options" />
           <Input label={t(lang, "Application Deadline")} type="date" value={form.deadline} onChange={(e) => set("deadline", e.target.value)} error={errors.deadline} />
           <Input label={t(lang, "Vacancies")} value={form.vacancies} onChange={(e) => set("vacancies", e.target.value.replace(/\D/g, ""))} placeholder="1" />
           <Select
             label={t(lang, "Status")}
             value={form.status || "published"}
             onChange={(e) => set("status", e.target.value)}
+            placeholder="Select status"
             options={[
               { value: "published", label: t(lang, "Published") },
               { value: "draft", label: t(lang, "Draft") },
@@ -320,15 +502,40 @@ function JobForm({ mode, jobId }) {
           </p>
         )}
 
-        <div className={`${ACTIONS} mt-6`}>
-          <Button variant="secondary" onClick={() => persist("draft")}>
-            {t(lang, "Save as Draft")}
-          </Button>
-          <Button variant="primary" onClick={() => persist("published")}>
-            {t(lang, "Publish Job")}
-          </Button>
+        <div className={`${ACTIONS} mt-6 flex flex-wrap items-center justify-between`}>
+          <div className="flex gap-3">
+            <Button variant="secondary" disabled={isSubmitting} onClick={() => persist("draft")}>
+              {t(lang, isSubmitting ? "Saving..." : "Save as Draft")}
+            </Button>
+            <Button variant="primary" disabled={isSubmitting} onClick={() => persist("published")}>
+              {t(lang, isSubmitting ? "Saving..." : "Publish Job")}
+            </Button>
+          </div>
+          {mode === "edit" && (
+            <Button
+              variant="danger"
+              disabled={isSubmitting}
+              onClick={async () => {
+                if (window.confirm(t(lang, "Are you sure you want to delete this job posting? This action cannot be undone."))) {
+                  try {
+                    setIsSubmitting(true);
+                    await deleteJob(jobId);
+                    setToast(t(lang, "Job deleted successfully"));
+                    setTimeout(() => router.push("/company/jobs"), 600);
+                  } catch (err) {
+                    setToast(t(lang, err?.message || "Failed to delete job"));
+                    setIsSubmitting(false);
+                  }
+                }
+              }}
+            >
+              <Icon name="trash" size={14} style={{ marginRight: 6 }} />
+              {t(lang, "Delete Job")}
+            </Button>
+          )}
         </div>
       </div>
+      )}
 
       {aiOpen && (
         <div className={OVERLAY} role="dialog" aria-modal="true" aria-label={t(lang, "AI Job Description")}>

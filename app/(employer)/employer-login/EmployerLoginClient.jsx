@@ -77,6 +77,13 @@ export default function EmployerLoginClient() {
           return;
         }
 
+        // Only Company Admin requires 2FA; other users (HR / Recruiter, Viewer, etc.) directly move to overview
+        if (res?.requires_2fa === false || data?.requires_2fa === false || status === "DIRECT_LOGIN" || res?.direct) {
+          setToast(t(lang, "Signing you in…"));
+          setTimeout(() => router.push("/company/overview"), 600);
+          return;
+        }
+
         const token = data?.session_token || res?.session_token;
         if (!token && !res?.isMock) {
           throw new Error(message || t(lang, "Unable to initiate login. Please try again."));
@@ -158,7 +165,7 @@ export default function EmployerLoginClient() {
       >
         {stage === "password" ? (
           <>
-            <h1>{t(lang, "Employer Login")}</h1>
+            {/* <h1>{t(lang, "Employer Login")}</h1> */}
             <form onSubmit={loginFormik.handleSubmit}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, display: "block" }}>
@@ -171,7 +178,7 @@ export default function EmployerLoginClient() {
                   value={loginFormik.values.email}
                   onChange={handleLoginInputChange}
                   onBlur={loginFormik.handleBlur}
-                  placeholder="hr@company.com"
+                  placeholder="Enter email address"
                   error={loginFormik.touched.email && loginFormik.errors.email}
                 />
               </div>
@@ -188,7 +195,7 @@ export default function EmployerLoginClient() {
                     value={loginFormik.values.password}
                     onChange={handleLoginInputChange}
                     onBlur={loginFormik.handleBlur}
-                    placeholder="••••••••"
+                    placeholder="Enter password"
                     error={loginFormik.touched.password && loginFormik.errors.password}
                   />
                   <div
@@ -264,41 +271,6 @@ export default function EmployerLoginClient() {
                 {loginFormik.isSubmitting ? t(lang, "Verifying credentials...") : t(lang, "Continue")}
               </button>
             </form>
-
-            <div className="lv-reg-divider" style={{ margin: "24px 0" }}>
-              Or
-            </div>
-
-            <button
-              type="button"
-              className="lv-reg-social"
-              style={{
-                width: "100%",
-                padding: "10px",
-                background: "#fff",
-                border: "1px solid #d1d5db",
-                borderRadius: "24px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                fontSize: 15,
-                fontWeight: 500,
-                cursor: "pointer",
-                color: "#374151",
-              }}
-              onClick={() => {
-                loginFormik.setValues({
-                  email: "lan.tran@abctech.vn",
-                  password: "password123",
-                });
-                loginFormik.setStatus(null);
-                setToast(t(lang, "Filled demo employer credentials. Click Continue."));
-              }}
-            >
-              <Icon name="chrome" size={18} style={{ color: "#4285F4" }} />
-              {t(lang, "Fill Demo Credentials (ABC Tech)")}
-            </button>
           </>
         ) : (
           <>
@@ -382,9 +354,7 @@ export default function EmployerLoginClient() {
                 </button>
               )}
             </div>
-            <p className="lv-auth-note" style={{ marginTop: 16 }}>
-              {t(lang, "Prototype only — enter any 6 digits.")}
-            </p>
+
           </>
         )}
       </NaukriShell>

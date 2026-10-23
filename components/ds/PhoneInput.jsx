@@ -85,6 +85,7 @@ export default function PhoneInput({
             id,
             name,
             placeholder,
+            autoComplete: "off",
             onFocus: (e) => {
               setFocused(true);
               onFocus?.(e);
