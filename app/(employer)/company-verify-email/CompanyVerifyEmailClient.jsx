@@ -137,7 +137,6 @@ export default function CompanyVerifyEmailClient() {
               </button>
             )}
           </div>
-          <p className="lv-auth-note">{t(lang, "Prototype only — enter any 6 digits.")}</p>
         </div>
       </main>
       <Footer lang={lang} setLang={setLang} app="employer" />

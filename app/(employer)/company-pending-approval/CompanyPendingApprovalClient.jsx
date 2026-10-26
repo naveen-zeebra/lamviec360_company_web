@@ -91,12 +91,7 @@ export default function CompanyPendingApprovalClient() {
                     {t(lang, "Back to sign in")}
                   </Button>
                 </Link>
-                <button
-                  onClick={simulateApproval}
-                  style={{ background: "none", border: "none", color: "var(--text-tertiary)", fontSize: "var(--text-xs)", cursor: "pointer" }}
-                >
-                  {t(lang, "Demo: simulate approval")}
-                </button>
+
               </>
             )}
           </div>
