@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -240,16 +241,17 @@ export default function EmployerLoginClient() {
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setToast(t(lang, "A reset link would be emailed to you"));
-                  }}
-                  style={{ fontSize: 12, color: "#4f46e5", fontWeight: 500 }}
+                <Link
+                  href={
+                    loginFormik.values.email
+                      ? `/forgot-password?email=${encodeURIComponent(loginFormik.values.email)}`
+                      : "/forgot-password"
+                  }
+                  style={{ fontSize: 13, color: "#4f46e5", fontWeight: 500 }}
+                  className="hover:underline"
                 >
                   {t(lang, "Forgot Password?")}
-                </a>
+                </Link>
               </div>
 
               <button

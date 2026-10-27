@@ -12,7 +12,7 @@ import {
   listJobs,
   listCandidates,
   listNotifications,
-  PIPELINE_STAGES,
+  getPipelineStages,
   can,
   syncCompanyWithBackend,
 } from "../../../lib/companyStore";
@@ -65,7 +65,8 @@ export default function OverviewClient() {
   const { auth, dash, jobs, candidates, notifications } = data;
   const role = auth.role;
   const remaining = dash.quota.remaining === Infinity ? "∞" : dash.quota.remaining;
-  const byStage = PIPELINE_STAGES.map((s) => ({ stage: s, count: candidates.filter((c) => c.stage === s).length }));
+  const activeStages = getPipelineStages();
+  const byStage = activeStages.map((s) => ({ stage: s, count: candidates.filter((c) => c.stage === s).length }));
   const recentJobs = jobs.filter((j) => j.status !== "Closed").slice(0, 4);
 
   return (
@@ -123,6 +124,28 @@ export default function OverviewClient() {
           )}
         </div>
       )}
+
+      {/* Super Admin Configurable Banner Slot (EMP-FR-005) */}
+      <div className="mb-8 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-blue-200 backdrop-blur-xs">
+            <Icon name="sparkles" size={12} />
+            <span>{t(lang, "LamViec360 Launch Benefit")}</span>
+          </div>
+          <h3 className="text-lg font-bold text-white">{t(lang, "Unlimited Free Job Postings for Verified Employers")}</h3>
+          <p className="text-xs text-blue-100/80 max-w-xl">
+            {t(lang, "Enjoy unlimited job openings throughout Phase 1 with AI resume parsing, candidate scoring, and structured interview pipelines.")}
+          </p>
+        </div>
+        {can(role, "jobs.manage") && (
+          <Link href="/company/jobs/new" className="shrink-0">
+            <Button variant="secondary" size="sm" className="bg-white text-blue-900 hover:bg-blue-50 font-bold border-0">
+              <Icon name="plus-circle" size={14} />
+              <span>{t(lang, "Post a Job Now")}</span>
+            </Button>
+          </Link>
+        )}
+      </div>
 
       <section className="mb-8">
         <div className={sectionHead}>

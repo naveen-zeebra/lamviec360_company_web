@@ -22,6 +22,7 @@ const EMPTY = {
   department: "",
   type: "Full-time",
   location: "",
+  salaryType: "Gross",
   salaryMin: "",
   salaryMax: "",
   negotiable: false,
@@ -32,9 +33,30 @@ const EMPTY = {
   deadline: "",
   vacancies: "1",
   documents: ["CV / Resume"],
+  attitudeType: "",
+  socialType: "",
+  personalityType: "",
+  overtimeWillingness: "",
+  projectWorkReqs: "",
   aiGenerated: false,
   status: "published",
 };
+
+function calculateCompletion(f) {
+  let score = 0;
+  if (f.title?.trim()) score++;
+  if (f.department?.trim()) score++;
+  if (f.location?.trim()) score++;
+  if (f.salaryMin || f.negotiable) score++;
+  if (f.description?.trim()) score++;
+  if (f.skills?.length > 0) score++;
+  if (f.deadline) score++;
+  if (f.vacancies) score++;
+  if (score >= 7) return 100;
+  if (score >= 5) return 75;
+  if (score >= 3) return 50;
+  return 25;
+}
 
 function normalizeJobData(data) {
   if (!data) return EMPTY;
@@ -45,6 +67,7 @@ function normalizeJobData(data) {
     department: data.department || "",
     type: data.type || data.job_type || "Full-time",
     location: data.location || data.city || "",
+    salaryType: data.salaryType || data.salary_type || "Gross",
     salaryMin: data.salaryMin !== undefined && data.salaryMin !== null ? String(data.salaryMin).split(".")[0] : (data.salary_min ? String(data.salary_min).split(".")[0] : ""),
     salaryMax: data.salaryMax !== undefined && data.salaryMax !== null ? String(data.salaryMax) : (data.salary_max ? String(data.salary_max).split(".")[0] : ""),
     negotiable: Boolean(data.negotiable || data.is_negotiable),
@@ -58,6 +81,11 @@ function normalizeJobData(data) {
     documents: Array.isArray(data.documents)
       ? data.documents
       : (typeof data.documents === "string" ? data.documents.split(",").map((s) => s.trim()).filter(Boolean) : ["CV / Resume"]),
+    attitudeType: data.attitudeType || data.attitude_type || "",
+    socialType: data.socialType || data.social_type || "",
+    personalityType: data.personalityType || data.personality_type || "",
+    overtimeWillingness: data.overtimeWillingness || data.overtime_willingness || "",
+    projectWorkReqs: data.projectWorkReqs || data.project_work_reqs || "",
     description: data.description || data.jd || "",
     status: (data.status || "published").toLowerCase(),
     aiGenerated: Boolean(data.aiGenerated || data.ai_generated),
@@ -296,6 +324,33 @@ function JobForm({ mode, jobId }) {
         )}
       </div>
 
+      {/* EMP-FR-015: JD Completion Progress Indicator */}
+      <div className="mb-5 rounded-xl border border-line bg-card p-4 shadow-xs">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+            <Icon name="check-circle" size={14} className="text-brand" />
+            {t(lang, "JD Completion Progress (EMP-FR-015)")}:
+          </span>
+          <span className="text-xs font-extrabold text-brand">{calculateCompletion(form)}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-pill bg-sunken">
+          <div
+            className="h-full rounded-pill transition-all duration-300"
+            style={{
+              width: `${calculateCompletion(form)}%`,
+              backgroundColor:
+                calculateCompletion(form) === 100
+                  ? "#10b981"
+                  : calculateCompletion(form) >= 75
+                  ? "#2563eb"
+                  : calculateCompletion(form) >= 50
+                  ? "#f59e0b"
+                  : "#ef4444",
+            }}
+          />
+        </div>
+      </div>
+
       {viewMode === "preview" ? (
         <div className={CARD}>
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-line pb-6">
@@ -402,7 +457,20 @@ function JobForm({ mode, jobId }) {
         </div>
 
         <div className="mt-4">
-          <label className={LABEL}>{t(lang, "Salary Range (VND)")}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className={LABEL}>{t(lang, "Salary Range (VND)")}</label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted">{t(lang, "Salary Type (BR-009)")}:</span>
+              <select
+                value={form.salaryType || "Gross"}
+                onChange={(e) => set("salaryType", e.target.value)}
+                className="rounded-md border border-line bg-card px-2 py-0.5 text-xs font-semibold text-ink"
+              >
+                <option value="Gross">{t(lang, "Gross")}</option>
+                <option value="Net">{t(lang, "Net")}</option>
+              </select>
+            </div>
+          </div>
           <div className={FORM_GRID}>
             <Input value={form.salaryMin} onChange={(e) => set("salaryMin", e.target.value.replace(/\D/g, ""))} placeholder={t(lang, "Min e.g. 20000000")} />
             <Input value={form.salaryMax} onChange={(e) => set("salaryMax", e.target.value.replace(/\D/g, ""))} placeholder={t(lang, "Max e.g. 35000000")} />
@@ -490,6 +558,48 @@ function JobForm({ mode, jobId }) {
             {DOC_OPTIONS.map((d) => (
               <Check key={d} label={t(lang, d)} checked={form.documents.includes(d)} onChange={() => toggleDoc(d)} />
             ))}
+          </div>
+        </div>
+
+        {/* EMP-FR-009: Candidate Selection Criteria */}
+        <div className="mt-5 rounded-lg border border-line bg-sunken/40 p-4">
+          <h4 className="mb-1 text-sm font-bold text-ink">{t(lang, "Candidate Selection Criteria (EMP-FR-009)")}</h4>
+          <p className="mb-3 text-xs text-muted">
+            {t(lang, "Define behavioral, personality and working arrangement criteria for candidate screening.")}
+          </p>
+          <div className={FORM_GRID}>
+            <Input
+              label={t(lang, "Attitude Type")}
+              value={form.attitudeType}
+              onChange={(e) => set("attitudeType", e.target.value)}
+              placeholder={t(lang, "e.g. Proactive, Inquisitive, Ownership")}
+            />
+            <Input
+              label={t(lang, "Social & Team Type")}
+              value={form.socialType}
+              onChange={(e) => set("socialType", e.target.value)}
+              placeholder={t(lang, "e.g. Collaborative, Independent")}
+            />
+            <Input
+              label={t(lang, "Personality Type")}
+              value={form.personalityType}
+              onChange={(e) => set("personalityType", e.target.value)}
+              placeholder={t(lang, "e.g. Analytical, Adaptable, Creative")}
+            />
+            <Input
+              label={t(lang, "Overtime Willingness")}
+              value={form.overtimeWillingness}
+              onChange={(e) => set("overtimeWillingness", e.target.value)}
+              placeholder={t(lang, "e.g. Flexible when project deadline approaches")}
+            />
+            <div className="col-span-2 max-md:col-span-1">
+              <Input
+                label={t(lang, "Project Work Requirements")}
+                value={form.projectWorkReqs}
+                onChange={(e) => set("projectWorkReqs", e.target.value)}
+                placeholder={t(lang, "e.g. Prior agile delivery experience, cross-functional project")}
+              />
+            </div>
           </div>
         </div>
 

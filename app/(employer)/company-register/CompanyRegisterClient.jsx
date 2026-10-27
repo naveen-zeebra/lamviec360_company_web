@@ -27,7 +27,18 @@ export default function CompanyRegisterClient() {
   // ── Step 1 Validation Schema: Company Profile ───────────────────────────────
   const step1Schema = Yup.object().shape({
     co: Yup.string().trim().required(t(lang, "Company name is required")),
-    taxId: Yup.string().trim().required(t(lang, "Tax ID / Business code is required")),
+    taxId: Yup.string()
+      .trim()
+      .required(t(lang, "Tax ID / Business code is required"))
+      .test(
+        "is-valid-mst",
+        t(lang, "Mã số thuế không hợp lệ (phải gồm 10 hoặc 13 chữ số)"),
+        (val) => {
+          if (!val) return false;
+          const clean = val.replace(/[-\s]/g, "");
+          return /^\d{10}$/.test(clean) || /^\d{13}$/.test(clean);
+        }
+      ),
     ind: Yup.string().required(t(lang, "Please select an industry")),
     size: Yup.string().required(t(lang, "Please select company size")),
     website: Yup.string()
@@ -628,10 +639,30 @@ export default function CompanyRegisterClient() {
 
                 {/* Error status banner */}
                 {formik.status && (
-                  <p className="lv-error text-red-600 text-sm flex gap-1.5 items-center bg-red-50 p-3 rounded-lg border border-red-200" role="alert">
-                    <Icon name="alert-circle" size={16} />
-                    <span>{formik.status}</span>
-                  </p>
+                  <div className="lv-error text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200" role="alert">
+                    <div className="flex gap-1.5 items-center">
+                      <Icon name="alert-circle" size={16} />
+                      <span>{formik.status}</span>
+                    </div>
+                    {/already exists|already registered/i.test(String(formik.status)) && (
+                      <div className="mt-2 pt-2 border-t border-red-200 flex items-center gap-3 text-xs">
+                        <Link href="/employer-login" className="font-semibold text-blue-600 hover:underline">
+                          {t(lang, "Log in")}
+                        </Link>
+                        <span className="text-gray-400">•</span>
+                        <Link
+                          href={
+                            formik.values.email
+                              ? `/forgot-password?email=${encodeURIComponent(formik.values.email)}`
+                              : "/forgot-password"
+                          }
+                          className="font-semibold text-blue-600 hover:underline"
+                        >
+                          {t(lang, "Forgot password? Reset it here")}
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Action buttons */}
@@ -668,6 +699,17 @@ export default function CompanyRegisterClient() {
             {t(lang, "Company already registered?")}{" "}
             <Link href="/employer-login" className="font-semibold text-blue-600 hover:underline">
               {t(lang, "Log in")}
+            </Link>
+            <span className="mx-2 text-gray-400">·</span>
+            <Link
+              href={
+                formik.values.email
+                  ? `/forgot-password?email=${encodeURIComponent(formik.values.email)}`
+                  : "/forgot-password"
+              }
+              className="font-semibold text-blue-600 hover:underline"
+            >
+              {t(lang, "Forgot password?")}
             </Link>
           </p>
         </div>

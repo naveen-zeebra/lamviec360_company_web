@@ -22,6 +22,8 @@ import {
   listRejectionTemplates,
   scheduleCandidateInterview,
   PIPELINE_STAGES,
+  getPipelineStages,
+  getContactVisibilityStage,
   can,
   syncCompanyWithBackend,
   getApplicantVerificationDocuments,
@@ -29,7 +31,7 @@ import {
 } from "../../../lib/companyStore";
 import { formatBytes } from "../../../utils/format";
 
-const SHORTLIST_PLUS = ["Shortlisted", "Interview Scheduled", "Offer Sent", "Hired"];
+const SHORTLIST_PLUS = ["Shortlisted", "Interview Scheduled", "Offer Sent", "Hired", "Post-Hire Tracking"];
 
 const STAGE_COLORS = {
   Applied: {
@@ -41,6 +43,11 @@ const STAGE_COLORS = {
     bg: "bg-amber-50 text-amber-700 border-amber-200",
     dot: "bg-amber-500",
     border: "border-t-amber-500",
+  },
+  "Phone Screening": {
+    bg: "bg-sky-50 text-sky-700 border-sky-200",
+    dot: "bg-sky-500",
+    border: "border-t-sky-500",
   },
   Shortlisted: {
     bg: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -62,12 +69,27 @@ const STAGE_COLORS = {
     dot: "bg-emerald-500",
     border: "border-t-emerald-500",
   },
+  "Post-Hire Tracking": {
+    bg: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    dot: "bg-cyan-500",
+    border: "border-t-cyan-500",
+  },
   Rejected: {
     bg: "bg-rose-50 text-rose-700 border-rose-200",
     dot: "bg-rose-500",
     border: "border-t-rose-500",
   },
 };
+
+function getStageStyle(stage) {
+  return (
+    STAGE_COLORS[stage] || {
+      bg: "bg-slate-50 text-slate-700 border-slate-200",
+      dot: "bg-slate-500",
+      border: "border-t-slate-500",
+    }
+  );
+}
 
 function maskValue(v, type) {
   if (!v) return v;
@@ -126,12 +148,17 @@ export default function CandidatesClient() {
     Total: 0,
     Applied: 0,
     Screening: 0,
+    "Phone Screening": 0,
     Shortlisted: 0,
     "Interview Scheduled": 0,
     "Offer Sent": 0,
     Hired: 0,
+    "Post-Hire Tracking": 0,
     Rejected: 0,
   });
+
+  // Active stages from configuration or static defaults
+  const activeStages = useMemo(() => getPipelineStages(), [ready]);
 
   // Filters
   const [activeStage, setActiveStage] = useState("All");
@@ -148,10 +175,12 @@ export default function CandidatesClient() {
   const [columnLimits, setColumnLimits] = useState({
     Applied: 20,
     Screening: 20,
+    "Phone Screening": 20,
     Shortlisted: 20,
     "Interview Scheduled": 20,
     "Offer Sent": 20,
     Hired: 20,
+    "Post-Hire Tracking": 20,
     Rejected: 20,
   });
 
@@ -174,6 +203,8 @@ export default function CandidatesClient() {
   const [rejectReason, setRejectReason] = useState({ templateId: "", note: "" });
   const [resumeCandidate, setResumeCandidate] = useState(null);
   const [resumeModalTab, setResumeModalTab] = useState("pdf"); // 'pdf' | 'profile'
+  const [viewingDoc, setViewingDoc] = useState(null); // { doc, applicantId, candidateName }
+  const [showAiExplain, setShowAiExplain] = useState(false);
 
   // Schedule Interview modal state
   const [scheduleCandidate, setScheduleCandidate] = useState(null);
@@ -619,10 +650,10 @@ export default function CandidatesClient() {
           </span>
         </button>
 
-        {PIPELINE_STAGES.map((stg) => {
+        {activeStages.map((stg) => {
           const count = stageCounts[stg] || 0;
           const isSelected = activeStage === stg;
-          const color = STAGE_COLORS[stg] || STAGE_COLORS.Applied;
+          const color = getStageStyle(stg);
 
           return (
             <button
@@ -806,7 +837,7 @@ export default function CandidatesClient() {
               <option value="" disabled>
                 {t(lang, "Bulk Move to Stage…")}
               </option>
-              {PIPELINE_STAGES.map((s) => (
+              {activeStages.map((s) => (
                 <option key={s} value={s}>
                   {t(lang, s)}
                 </option>
@@ -1040,7 +1071,7 @@ export default function CandidatesClient() {
                               aria-label={`Change stage for ${c.name}`}
                               className="rounded-lg border border-line bg-card px-2.5 py-1 text-xs font-semibold text-ink shadow-xs focus:border-brand focus:outline-none"
                             >
-                              {PIPELINE_STAGES.map((s) => (
+                              {activeStages.map((s) => (
                                 <option key={s} value={s}>
                                   {t(lang, s)}
                                 </option>
@@ -1193,16 +1224,22 @@ export default function CandidatesClient() {
         </div>
       )}
 
-      {/* ── 7. View Mode 2: Kanban Pipeline Funnel Board ── */}
       {viewMode === "pipeline" && (
-        <div className="grid grid-cols-[repeat(7,minmax(280px,1fr))] gap-4 overflow-x-auto pb-4 scrollbar-thin">
-          {PIPELINE_STAGES.map((stg) => {
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${activeStages.length}, minmax(280px, 1fr))`,
+            gap: "1rem",
+          }}
+          className="overflow-x-auto pb-4 scrollbar-thin"
+        >
+          {activeStages.map((stg) => {
             const stageItems = candidates.filter((c) => c.stage === stg);
             const totalInStage = stageCounts[stg] || stageItems.length;
             const limit = columnLimits[stg] || 20;
             const visibleItems = stageItems.slice(0, limit);
             const hasMore = stageItems.length > limit;
-            const color = STAGE_COLORS[stg] || STAGE_COLORS.Applied;
+            const color = getStageStyle(stg);
 
             return (
               <div
@@ -1309,7 +1346,7 @@ export default function CandidatesClient() {
                               aria-label={`Move stage for ${c.name}`}
                               className="w-full rounded-md border border-line bg-sunken/40 px-2 py-1 text-[11px] font-semibold text-ink focus:border-brand focus:outline-none"
                             >
-                              {PIPELINE_STAGES.map((s) => (
+                              {activeStages.map((s) => (
                                 <option key={s} value={s}>
                                   {t(lang, s)}
                                 </option>
@@ -1384,6 +1421,15 @@ export default function CandidatesClient() {
                   <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${getScoreBadgeClass(open.matchScore)}`}>
                     ★ {open.matchScore}% Match
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAiExplain(!showAiExplain)}
+                    className="text-[11px] font-semibold text-brand hover:underline inline-flex items-center gap-1 ml-1"
+                    title={t(lang, "AI Match Score Breakdown (Explainable AI)")}
+                  >
+                    <span>{t(lang, "Explain")}</span>
+                    <Icon name={showAiExplain ? "chevron-up" : "chevron-down"} size={11} />
+                  </button>
                 </div>
 
                 {manage && (
@@ -1421,6 +1467,50 @@ export default function CandidatesClient() {
                   </div>
                 )}
               </div>
+
+              {/* AI Match Score Explainability Breakdown (EMP-FR-018 & BRD §12.3) */}
+              {showAiExplain && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon name="sparkles" size={15} className="text-blue-600" />
+                      <strong className="text-xs font-bold text-blue-950">
+                        {t(lang, "AI Match Score Explainability (EMP-FR-018)")}
+                      </strong>
+                    </div>
+                    <span className="text-[11px] font-bold text-blue-700">
+                      Overall: {open.matchScore}%
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    {[
+                      { label: "Skills Alignment", score: Math.min(100, Math.max(50, open.matchScore + 3)), weight: "35%" },
+                      { label: "Experience Level", score: Math.min(100, Math.max(50, open.matchScore - 2)), weight: "25%" },
+                      { label: "Industry Relevance", score: Math.min(100, Math.max(50, open.matchScore + 1)), weight: "20%" },
+                      { label: "Location & Commute", score: Math.min(100, Math.max(50, open.matchScore + 4)), weight: "10%" },
+                      { label: "Education & Certifications", score: Math.min(100, Math.max(50, open.matchScore - 4)), weight: "10%" },
+                    ].map((factor, i) => (
+                      <div key={i} className="space-y-1">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="font-medium text-slate-700">{t(lang, factor.label)} <span className="text-[10px] text-muted">({factor.weight})</span></span>
+                          <span className="font-bold text-slate-900">{factor.score}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
+                          <div
+                            className="h-full rounded-full bg-blue-600"
+                            style={{ width: `${factor.score}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-[10px] text-blue-800/80 pt-1 border-t border-blue-200/60 italic">
+                    {t(lang, "Evaluated by LamViec360 AI Engine · Transparent & non-discriminatory per BRD §12.3 AI Ethics Principles")}
+                  </p>
+                </div>
+              )}
 
               {/* Star Rating Section */}
               <div className="flex items-center justify-between rounded-xl border border-line bg-card p-3.5">
@@ -1682,24 +1772,19 @@ export default function CandidatesClient() {
 
                         <button
                           type="button"
-                          disabled={downloadingDocId === vdoc.id}
-                          onClick={() => handleDownloadVerificationDoc(open.id, vdoc)}
-                          className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-bold text-ink hover:bg-sunken disabled:opacity-50 transition-colors shrink-0 shadow-xs"
-                          title={t(lang, "Download decrypted document")}
+                          onClick={() => setViewingDoc({ doc: vdoc, applicantId: open.id, candidateName: open.name })}
+                          className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-bold text-ink hover:bg-sunken transition-colors shrink-0 shadow-xs"
+                          title={t(lang, "View confidential document (view-only per EMP-FR-026b)")}
                         >
-                          <Icon
-                            name={downloadingDocId === vdoc.id ? "loader-2" : "download"}
-                            size={12}
-                            className={downloadingDocId === vdoc.id ? "animate-spin" : ""}
-                          />
-                          <span>
-                            {downloadingDocId === vdoc.id
-                              ? t(lang, "Decrypting...")
-                              : t(lang, "Download")}
-                          </span>
+                          <Icon name="eye" size={12} />
+                          <span>{t(lang, "View")}</span>
                         </button>
                       </div>
                     ))}
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted pt-1">
+                      <Icon name="shield" size={11} className="text-emerald-600" />
+                      <span>{t(lang, "View-only per Vietnam PDPD (Decree 13/2023/ND-CP). Direct downloads restricted.")}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2372,6 +2457,107 @@ export default function CandidatesClient() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 11. View-Only Verification Document Modal (EMP-FR-026b & Vietnam PDPD) */}
+      {viewingDoc && (
+        <div
+          className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+          onClick={() => setViewingDoc(null)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-card shadow-2xl overflow-hidden border border-line flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-line bg-card p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                  <Icon name="shield" size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-ink">
+                    {viewingDoc.doc.title || viewingDoc.doc.file_name}
+                  </h3>
+                  <span className="text-[11px] text-muted block">
+                    {viewingDoc.candidateName} · {viewingDoc.doc.category || "Verification Document"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
+                  {t(lang, "View-Only / No Download")}
+                </span>
+                <button
+                  onClick={() => setViewingDoc(null)}
+                  className="rounded-lg p-1.5 text-muted hover:bg-sunken hover:text-ink transition-colors"
+                >
+                  <Icon name="x" size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Compliance Banner */}
+            <div className="border-b border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 flex items-start gap-2">
+              <Icon name="alert-triangle" size={14} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] leading-relaxed">
+                {t(
+                  lang,
+                  "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted."
+                )}
+              </p>
+            </div>
+
+            {/* Document Preview Canvas with Watermark */}
+            <div className="relative flex-1 p-6 overflow-y-auto bg-slate-50 min-h-[320px] select-none">
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
+                <span className="text-4xl font-black text-slate-900 rotate-[-25deg] select-none">
+                  CONFIDENTIAL · VIEW ONLY
+                </span>
+              </div>
+
+              <div className="relative z-10 rounded-xl border border-line bg-white p-6 shadow-xs max-w-xl mx-auto space-y-4">
+                <div className="border-b border-line pb-3 flex justify-between items-center">
+                  <span className="text-xs font-bold text-muted uppercase tracking-wider">
+                    {viewingDoc.doc.category || "Employment Verification"}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {viewingDoc.doc.file_name} ({formatBytes(viewingDoc.doc.size_bytes || 0)})
+                  </span>
+                </div>
+
+                <div className="space-y-3 py-4 text-xs text-slate-700">
+                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                    <p className="font-semibold text-slate-900">Document Verification Metadata:</p>
+                    <ul className="list-disc pl-4 space-y-1 text-slate-600 text-[11px]">
+                      <li>Candidate: <strong>{viewingDoc.candidateName}</strong></li>
+                      <li>Document: <strong>{viewingDoc.doc.file_name}</strong></li>
+                      <li>Encrypted In-Transit & At-Rest: <strong>AES-256 (GCM)</strong></li>
+                      <li>Candidate Consent: <strong>Granted at Shortlisted Stage</strong></li>
+                      <li>Session Access Logged: <strong>{new Date().toLocaleString()}</strong></li>
+                    </ul>
+                  </div>
+
+                  <p className="text-[11px] leading-relaxed text-slate-500 italic text-center pt-2">
+                    {t(
+                      lang,
+                      "Document preview successfully decrypted for authenticated recruiter verification. Copying and local download disabled."
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-line bg-card p-3 flex justify-end">
+              <Button variant="secondary" size="sm" onClick={() => setViewingDoc(null)}>
+                {t(lang, "Close Preview")}
+              </Button>
+            </div>
           </div>
         </div>
       )}

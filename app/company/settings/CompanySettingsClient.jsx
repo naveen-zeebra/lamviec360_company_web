@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Select } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
@@ -20,6 +20,10 @@ import {
   updateRejectionTemplate,
   deleteRejectionTemplate,
   syncCompanyWithBackend,
+  getAllConfiguredStages,
+  saveConfiguredStages,
+  resetPipelineStagesToDefault,
+  resolveCompanyLogoUrl,
 } from "../../../lib/companyStore";
 
 const TABS = ["Company Profile", "Security", "Notifications", "Pipeline", "Privacy & Data", "Account"];
@@ -52,20 +56,25 @@ const TOGGLE_ROW = "flex items-center justify-between border-b border-line py-3.
 const AI_TAG = "inline-flex items-center gap-1 rounded-pill px-2 py-[3px] text-[11px] font-bold tracking-[0.02em]";
 
 function Switch({ on, onChange, label }) {
+  const isChecked = Boolean(on);
   return (
     <div className={TOGGLE_ROW}>
       <span>{label}</span>
       <button
         type="button"
         role="switch"
-        aria-checked={on}
+        aria-checked={isChecked}
         aria-label={label}
-        onClick={() => onChange(!on)}
-        className={`relative h-6 w-11 rounded-pill transition-colors ${on ? "bg-brand" : "bg-gray-300"}`}
+        onClick={() => onChange(!isChecked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+          isChecked ? "bg-blue-600" : "bg-gray-300"
+        }`}
       >
         <span
-          className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform ${on ? "translate-x-[23px]" : "translate-x-[3px]"
-            }`}
+          aria-hidden="true"
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+            isChecked ? "translate-x-5" : "translate-x-0"
+          }`}
         />
       </button>
     </div>
@@ -87,13 +96,121 @@ function Settings() {
   const [templates, setTemplates] = useState([]);
   const [tplDraft, setTplDraft] = useState({ title: "", body: "" });
   const [editingTpl, setEditingTpl] = useState(null);
+  const [stages, setStages] = useState([]);
+  const [newStageName, setNewStageName] = useState("");
   const [toast, setToast] = useToast();
+  const [logoError, setLogoError] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setToast(t(lang, "Logo size must be under 2MB"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const result = uploadEvent.target?.result;
+      if (result) {
+        setCompany((prev) => ({ ...prev, logo: result }));
+        setLogoError(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setCompany((prev) => ({ ...prev, logo: "" }));
+    setLogoError(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const loadData = () => {
     setCompany(getCompany());
+    setLogoError(false);
     setSettings(getSettings());
     setAuth(getAuth());
     setTemplates(listRejectionTemplates());
+    setStages(getAllConfiguredStages());
+  };
+
+  const handleToggleStage = async (id) => {
+    const nextStages = stages.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s));
+    setStages(nextStages);
+    try {
+      await saveConfiguredStages(nextStages);
+      setToast(t(lang, "Pipeline stages updated"));
+    } catch (e) {
+      setToast(t(lang, "Failed to update stages"));
+    }
+  };
+
+  const handleMoveStage = async (idx, dir) => {
+    const targetIdx = dir === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= stages.length) return;
+    const nextStages = [...stages];
+    const [moved] = nextStages.splice(idx, 1);
+    nextStages.splice(targetIdx, 0, moved);
+    setStages(nextStages);
+    try {
+      await saveConfiguredStages(nextStages);
+      setToast(t(lang, "Pipeline order updated"));
+    } catch (e) {
+      setToast(t(lang, "Failed to update order"));
+    }
+  };
+
+  const handleAddCustomStage = async () => {
+    const clean = newStageName.trim();
+    if (!clean) return;
+    if (stages.some((s) => s.label.toLowerCase() === clean.toLowerCase())) {
+      setToast(t(lang, "A stage with this name already exists."));
+      return;
+    }
+    const newStage = {
+      id: "custom_" + Date.now(),
+      label: clean,
+      description: "Custom stage",
+      required: false,
+      enabled: true,
+      custom: true,
+    };
+    const rejIdx = stages.findIndex((s) => s.id === "rejected");
+    const nextStages = rejIdx >= 0 ? [...stages.slice(0, rejIdx), newStage, ...stages.slice(rejIdx)] : [...stages, newStage];
+    setStages(nextStages);
+    setNewStageName("");
+    try {
+      await saveConfiguredStages(nextStages);
+      setToast(t(lang, "New stage added to pipeline"));
+    } catch (e) {
+      setToast(t(lang, "Failed to add stage"));
+    }
+  };
+
+  const handleDeleteCustomStage = async (id) => {
+    const nextStages = stages.filter((s) => s.id !== id);
+    setStages(nextStages);
+    try {
+      await saveConfiguredStages(nextStages);
+      setToast(t(lang, "Stage removed"));
+    } catch (e) {
+      setToast(t(lang, "Failed to remove stage"));
+    }
+  };
+
+  const handleResetStages = async () => {
+    if (window.confirm(t(lang, "Reset all pipeline stages to the standard default setup?"))) {
+      try {
+        const def = await resetPipelineStagesToDefault();
+        setStages(def);
+        setToast(t(lang, "Pipeline reset to standard stages"));
+      } catch (e) {
+        setToast(t(lang, "Failed to reset stages"));
+      }
+    }
   };
 
   useEffect(() => {
@@ -106,7 +223,11 @@ function Settings() {
   const handleSaveCompany = async () => {
     setSavingProfile(true);
     try {
-      await saveCompany(company);
+      const updated = await saveCompany(company);
+      if (updated) {
+        setCompany(updated);
+        setLogoError(false);
+      }
       setToast(t(lang, "Company profile saved successfully!"));
     } catch (e) {
       setToast(t(lang, e.message || "Failed to save profile."));
@@ -225,14 +346,15 @@ function Settings() {
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
-                {company.logo ? (
+                {company.logo && !logoError ? (
                   <img
-                    src={company.logo}
-                    alt={company.name}
-                    className="h-12 w-12 rounded-md object-contain border border-line bg-white p-1"
+                    src={resolveCompanyLogoUrl(company.logo)}
+                    alt={company.name || "Company Logo"}
+                    className="h-12 w-12 rounded-md object-contain border border-line bg-white p-1 shadow-2xs"
+                    onError={() => setLogoError(true)}
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-brand text-lg font-bold text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-brand text-lg font-bold text-white shadow-2xs">
                     {(company.name || "C").slice(0, 2).toUpperCase()}
                   </div>
                 )}
@@ -348,6 +470,59 @@ function Settings() {
               <h3 className="text-sm font-bold uppercase tracking-wider text-faint">
                 {t(lang, "3. Online Presence & Media")}
               </h3>
+
+              {/* Company Logo Upload & Preview Card */}
+              <div className="rounded-xl border border-line bg-surface/50 p-4">
+                <label className="block text-xs font-semibold text-ink mb-2">
+                  {t(lang, "Company Logo")}
+                </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-white shadow-2xs">
+                    {company.logo && !logoError ? (
+                      <img
+                        src={resolveCompanyLogoUrl(company.logo)}
+                        alt={company.name || "Company Logo"}
+                        className="h-full w-full object-contain p-1"
+                        onError={() => setLogoError(true)}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-faint">
+                        <Icon name="building-2" size={24} />
+                        <span className="text-[10px] mt-0.5 font-medium">{t(lang, "Logo")}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-card text-xs font-semibold text-ink hover:bg-surface hover:text-brand shadow-2xs cursor-pointer transition-all">
+                        <Icon name="upload" size={13} />
+                        <span>{company.logo ? t(lang, "Change logo") : t(lang, "Upload logo")}</span>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      {company.logo && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogo}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-danger hover:bg-danger-bg transition-all cursor-pointer"
+                        >
+                          <Icon name="trash-2" size={13} />
+                          <span>{t(lang, "Remove")}</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-xs text-faint">
+                      {t(lang, "PNG, JPG, SVG or WEBP up to 2MB. Recommended dimensions: 400x400px.")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className={FORM_GRID}>
                 <Input
                   label={t(lang, "Official Website")}
@@ -368,10 +543,13 @@ function Settings() {
                   placeholder="https://facebook.com/..."
                 />
                 <Input
-                  label={t(lang, "Company Logo Image URL")}
+                  label={t(lang, "Company Logo Image URL (or file path)")}
                   value={company.logo || ""}
-                  onChange={(e) => setCompany({ ...company, logo: e.target.value })}
-                  placeholder="https://example.com/logo.png"
+                  onChange={(e) => {
+                    setCompany({ ...company, logo: e.target.value });
+                    setLogoError(false);
+                  }}
+                  placeholder="https://example.com/logo.png or /uploads/logos/..."
                 />
               </div>
             </div>
@@ -404,6 +582,47 @@ function Settings() {
                   onChange={(e) => setCompany({ ...company, benefits: e.target.value })}
                   placeholder="e.g. 13th month salary, Premium healthcare package, Flexible remote work, Macbook Pro, Annual team retreat"
                 />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 border-t border-line pt-5">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-faint">
+                {t(lang, "5. Platform Showcase & Public Visibility")}
+              </h3>
+              <div className={TOGGLE_ROW}>
+                <div>
+                  <strong className="block text-sm font-bold">
+                    {t(lang, "Feature Company Profile on Homepage")}
+                  </strong>
+                  <span className="text-xs text-faint">
+                    {t(
+                      lang,
+                      "Opt-in to showcase your organization brand, culture, and active job vacancies on the LamViec360 candidate homepage."
+                    )}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={company.featuredOnHomepage !== false}
+                  aria-label={t(lang, "Feature Company Profile on Homepage")}
+                  onClick={() =>
+                    setCompany((prev) => ({
+                      ...prev,
+                      featuredOnHomepage: prev.featuredOnHomepage === false ? true : false,
+                    }))
+                  }
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    company.featuredOnHomepage !== false ? "bg-blue-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      company.featuredOnHomepage !== false ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 
@@ -528,7 +747,157 @@ function Settings() {
         {/* TAB 4: PIPELINE */}
         {tab === "Pipeline" && (
           <div className="flex flex-col gap-6">
+            {/* Screen e12: Stage Config */}
             <div>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                <div>
+                  <h3 className="text-base font-bold text-ink">{t(lang, "Recruitment Pipeline Stages (Screen e12)")}</h3>
+                  <p className="text-sm text-muted">
+                    {t(lang, "Standard static stages form the foundation. Company Admin can toggle optional stages, reorder, or add custom stages.")}
+                  </p>
+                </div>
+                <Button variant="secondary" size="sm" onClick={handleResetStages}>
+                  <Icon name="rotate-ccw" size={13} style={{ marginRight: 6 }} />
+                  {t(lang, "Reset to Standard Stages")}
+                </Button>
+              </div>
+
+              {/* Stage list */}
+              <div className="flex flex-col gap-2 mt-3 mb-4">
+                {stages.map((stg, idx) => {
+                  const isCore = stg.required;
+                  const isCustom = stg.custom;
+                  return (
+                    <div
+                      key={stg.id}
+                      className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${
+                        stg.enabled ? "border-line bg-card" : "border-line/60 bg-sunken/40 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sunken text-xs font-bold text-muted">
+                          {idx + 1}
+                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <strong className="text-sm font-bold text-ink">{t(lang, stg.label)}</strong>
+                            {isCore ? (
+                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+                                {t(lang, "Static Core")}
+                              </span>
+                            ) : isCustom ? (
+                              <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
+                                {t(lang, "Custom Stage")}
+                              </span>
+                            ) : (
+                              <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">
+                                {t(lang, "Standard Optional")}
+                              </span>
+                            )}
+                          </div>
+                          {stg.description && (
+                            <span className="text-xs text-muted mt-0.5">{t(lang, stg.description)}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Order buttons */}
+                        <div className="flex items-center">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveStage(idx, "up")}
+                            className="p-1 text-muted hover:text-ink disabled:opacity-30 rounded hover:bg-sunken"
+                            aria-label="Move stage up"
+                          >
+                            <Icon name="arrow-up" size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === stages.length - 1}
+                            onClick={() => handleMoveStage(idx, "down")}
+                            className="p-1 text-muted hover:text-ink disabled:opacity-30 rounded hover:bg-sunken"
+                            aria-label="Move stage down"
+                          >
+                            <Icon name="arrow-down" size={14} />
+                          </button>
+                        </div>
+
+                        {/* Enable toggle or delete */}
+                        {isCore ? (
+                          <span className="text-xs font-semibold text-muted px-2 py-1 bg-sunken rounded">
+                            {t(lang, "Always Active")}
+                          </span>
+                        ) : isCustom ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomStage(stg.id)}
+                            className="p-1.5 text-danger-fg hover:bg-danger-bg rounded"
+                            title={t(lang, "Delete custom stage")}
+                          >
+                            <Icon name="trash" size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStage(stg.id)}
+                            className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                              stg.enabled
+                                ? "bg-brand text-on-brand hover:opacity-90"
+                                : "bg-sunken text-muted hover:text-ink"
+                            }`}
+                          >
+                            {stg.enabled ? t(lang, "Active") : t(lang, "Disabled")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add custom stage */}
+              <div className="flex gap-2 p-3 rounded-lg border border-dashed border-line bg-sunken/30">
+                <Input
+                  value={newStageName}
+                  onChange={(e) => setNewStageName(e.target.value)}
+                  placeholder={t(lang, "Enter new custom stage name (e.g. Assessment / Take-home test)")}
+                  className="flex-1 text-xs"
+                />
+                <Button variant="secondary" size="sm" onClick={handleAddCustomStage}>
+                  <Icon name="plus" size={14} style={{ marginRight: 4 }} />
+                  {t(lang, "Add Stage")}
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-t border-line pt-5">
+              <h3 className="mb-1 text-base font-bold">{t(lang, "Contact Visibility Gate (BR-014)")}</h3>
+              <p className="mb-3 text-sm text-muted">
+                {t(lang, "Configure the minimum pipeline stage required to view candidate phone number and email (Default: Screening onward, per BRD BR-301-07).")}
+              </p>
+              <div className="max-w-md">
+                <Select
+                  value={settings.pipeline?.contactVisibilityStage || "Screening"}
+                  onChange={(e) =>
+                    persistSettings({
+                      pipeline: { ...settings.pipeline, contactVisibilityStage: e.target.value },
+                    })
+                  }
+                  options={[
+                    { value: "Applied", label: t(lang, "Applied (Always visible)") },
+                    { value: "Screening", label: t(lang, "Screening (Default - Vietnam standard)") },
+                    { value: "Phone Screening", label: t(lang, "Phone Screening") },
+                    { value: "Shortlisted", label: t(lang, "Shortlisted") },
+                    { value: "Interview Scheduled", label: t(lang, "Interview Scheduled") },
+                    { value: "Never", label: t(lang, "Never (Fully masked)") },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-line pt-5">
               <h3 className="mb-1 text-base font-bold">{t(lang, "Automated Pipeline Rules")}</h3>
               <p className="mb-4 text-sm text-muted">{t(lang, "Configure default behaviors for candidate pipeline.")}</p>
               <div className="flex flex-col">
