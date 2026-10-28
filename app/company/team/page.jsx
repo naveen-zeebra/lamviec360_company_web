@@ -1,10 +1,10 @@
-import TeamClient from "./TeamClient";
+import TeamMembersClient from "./TeamMembersClient";
 
 export const metadata = {
-  title: "Team Management | Company Workspace",
+  title: "Team Members | Company Workspace",
   description: "Invite team members, assign roles and manage access.",
 };
 
 export default function Page() {
-  return <TeamClient />;
+  return <TeamMembersClient />;
 }

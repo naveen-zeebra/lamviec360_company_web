@@ -1475,7 +1475,7 @@ export default function CandidatesClient() {
                     <div className="flex items-center gap-2">
                       <Icon name="sparkles" size={15} className="text-blue-600" />
                       <strong className="text-xs font-bold text-blue-950">
-                        {t(lang, "AI Match Score Explainability (EMP-FR-018)")}
+                        {t(lang, "AI Match Score Breakdown")}
                       </strong>
                     </div>
                     <span className="text-[11px] font-bold text-blue-700">
@@ -1774,7 +1774,7 @@ export default function CandidatesClient() {
                           type="button"
                           onClick={() => setViewingDoc({ doc: vdoc, applicantId: open.id, candidateName: open.name })}
                           className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-bold text-ink hover:bg-sunken transition-colors shrink-0 shadow-xs"
-                          title={t(lang, "View confidential document (view-only per EMP-FR-026b)")}
+                          title={t(lang, "View confidential document (view-only)")}
                         >
                           <Icon name="eye" size={12} />
                           <span>{t(lang, "View")}</span>

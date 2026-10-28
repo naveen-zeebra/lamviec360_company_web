@@ -16,9 +16,19 @@ import {
 
 const NAV = [
   { href: "/company/overview", icon: "layout-dashboard", labelKey: "Overview", perm: "overview.view" },
+  { href: "/company/profile", icon: "building-2", labelKey: "Company Profile", perm: "settings.manage" },
   { href: "/company/jobs", icon: "briefcase", labelKey: "Job Management", perm: "overview.view" },
   { href: "/company/candidates", icon: "users", labelKey: "Candidate Pipeline", perm: "candidates.view" },
-  { href: "/company/team", icon: "user-cog", labelKey: "Team Management", perm: "team.manage" },
+  {
+    href: "/company/team",
+    icon: "user-cog",
+    labelKey: "Team Management",
+    perm: "team.manage",
+    children: [
+      { href: "/company/team", labelKey: "Team Members", icon: "users" },
+      { href: "/company/roles", labelKey: "Roles & Permissions", icon: "shield" },
+    ],
+  },
   { href: "/company/billing", icon: "credit-card", labelKey: "Subscription & Billing", perm: "billing.manage" },
   { href: "/company/settings", icon: "settings", labelKey: "Settings", perm: "settings.manage" },
 ];
@@ -53,6 +63,15 @@ export default function CompanyShell({ children }) {
   // 2. mobileNavOpen: Mobile/tablet slide-out drawer (open / closed)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [collapsedFlyout, setCollapsedFlyout] = useState(null);
+  const isTeamActive = pathname.startsWith("/company/team") || pathname.startsWith("/company/roles");
+  const [teamExpanded, setTeamExpanded] = useState(isTeamActive);
+
+  useEffect(() => {
+    if (isTeamActive) {
+      setTeamExpanded(true);
+    }
+  }, [pathname, isTeamActive]);
 
   // Initialize and persist desktop sidebar collapsed preference
   useEffect(() => {
@@ -65,6 +84,7 @@ export default function CompanyShell({ children }) {
   }, []);
 
   const toggleSidebar = () => {
+    setCollapsedFlyout(null);
     setSidebarCollapsed((prev) => {
       const next = !prev;
       if (typeof window !== "undefined") {
@@ -84,6 +104,7 @@ export default function CompanyShell({ children }) {
     setLogoFailed(false);
     setMenuOpen(false);
     setMobileNavOpen(false);
+    setCollapsedFlyout(null);
   }, [pathname]);
 
   useEffect(() => {
@@ -131,14 +152,23 @@ export default function CompanyShell({ children }) {
         }`}
       >
         {/* Sidebar Header: Logo & Toggle Control */}
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div
+          className={`mb-4 flex items-center ${
+            sidebarCollapsed
+              ? "min-[901px]:justify-center justify-between gap-2"
+              : "justify-between gap-2"
+          }`}
+        >
           <Link
             href="/company/overview"
             className="flex items-center gap-2 overflow-hidden no-underline"
             aria-label={t(lang, "LàmViệc360 — Workspace")}
           >
             {sidebarCollapsed ? (
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand text-white font-black text-sm tracking-tighter">
+              <div
+                className="flex h-9 w-9 items-center justify-center rounded-md bg-brand text-white font-black text-sm tracking-tighter shadow-xs hover:opacity-90 transition-opacity"
+                title={t(lang, "LàmViệc360 — Workspace")}
+              >
                 360
               </div>
             ) : (
@@ -150,16 +180,18 @@ export default function CompanyShell({ children }) {
             )}
           </Link>
 
-          {/* Desktop Collapse / Expand Toggle Button */}
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="hidden min-[901px]:flex h-7 w-7 items-center justify-center rounded-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-            title={sidebarCollapsed ? t(lang, "Expand sidebar") : t(lang, "Collapse sidebar")}
-            aria-label={sidebarCollapsed ? t(lang, "Expand sidebar") : t(lang, "Collapse sidebar")}
-          >
-            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
-          </button>
+          {/* Desktop Collapse Toggle Button (Shown ONLY when sidebar is expanded to avoid crowding 72px collapsed mode) */}
+          {!sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="hidden min-[901px]:flex h-7 w-7 items-center justify-center rounded-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+              title={t(lang, "Collapse sidebar")}
+              aria-label={t(lang, "Collapse sidebar")}
+            >
+              <Icon name="chevron-left" size={16} />
+            </button>
+          )}
 
           {/* Mobile Close Button */}
           <button
@@ -215,9 +247,85 @@ export default function CompanyShell({ children }) {
         {/* Navigation Items */}
         <nav className="flex flex-1 flex-col gap-1" aria-label={t(lang, "Workspace navigation")}>
           {visibleNav.map((n) => {
-            const active = pathname === n.href || pathname.startsWith(n.href + "/");
+            const hasChildren = Array.isArray(n.children) && n.children.length > 0;
+            const isChildActive = hasChildren && (pathname === "/company/team" || pathname === "/company/roles");
+            const active = pathname === n.href || pathname.startsWith(n.href + "/") || isChildActive;
             const navActiveStyle = "bg-brand text-white";
             const navIdleStyle = "text-white/70 hover:bg-white/10 hover:text-white hover:no-underline";
+
+            if (hasChildren) {
+              return (
+                <div key={n.href} className="relative flex flex-col">
+                  <button
+                    type="button"
+                    title={sidebarCollapsed ? t(lang, n.labelKey) : undefined}
+                    onClick={(e) => {
+                      if (sidebarCollapsed && !mobileNavOpen) {
+                        if (collapsedFlyout?.item?.href === n.href) {
+                          setCollapsedFlyout(null);
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setCollapsedFlyout({ item: n, top: Math.max(16, rect.top) });
+                        }
+                      } else {
+                        setTeamExpanded((prev) => !prev);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      if (sidebarCollapsed && !mobileNavOpen) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setCollapsedFlyout({ item: n, top: Math.max(16, rect.top) });
+                      }
+                    }}
+                    className={`flex items-center justify-between rounded-sm text-sm font-medium transition-colors cursor-pointer w-full text-left ${
+                      sidebarCollapsed
+                        ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
+                        : "gap-[11px] px-[11px] py-2.5"
+                    } ${active ? navActiveStyle : navIdleStyle}`}
+                    aria-expanded={sidebarCollapsed ? Boolean(collapsedFlyout) : teamExpanded}
+                  >
+                    <div className="flex items-center gap-[11px] min-w-0">
+                      <Icon name={n.icon} size={18} />
+                      {(!sidebarCollapsed || mobileNavOpen) && (
+                        <span className="truncate">{t(lang, n.labelKey)}</span>
+                      )}
+                    </div>
+                    {(!sidebarCollapsed || mobileNavOpen) && (
+                      <Icon
+                        name={teamExpanded ? "chevron-down" : "chevron-right"}
+                        size={14}
+                        className="opacity-70 transition-transform shrink-0"
+                      />
+                    )}
+                  </button>
+
+                  {/* Submenu for Expanded Sidebar & Mobile Drawer */}
+                  {teamExpanded && (!sidebarCollapsed || mobileNavOpen) && (
+                    <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-white/20 pl-2">
+                      {n.children.map((child) => {
+                        const childActive = pathname === child.href;
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            prefetch={true}
+                            onClick={() => setMobileNavOpen(false)}
+                            className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-xs font-medium transition-colors no-underline ${
+                              childActive
+                                ? "bg-white/25 text-white font-bold"
+                                : "text-white/70 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            <Icon name={child.icon} size={14} />
+                            <span>{t(lang, child.labelKey)}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <Link
@@ -225,13 +333,19 @@ export default function CompanyShell({ children }) {
                 href={n.href}
                 prefetch={true}
                 title={sidebarCollapsed ? t(lang, n.labelKey) : undefined}
+                onMouseEnter={() => {
+                  if (sidebarCollapsed) setCollapsedFlyout(null);
+                }}
                 className={`flex items-center rounded-sm text-sm font-medium transition-colors no-underline ${
                   sidebarCollapsed
                     ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
                     : "gap-[11px] px-[11px] py-2.5"
                 } ${active ? navActiveStyle : navIdleStyle}`}
                 aria-current={active ? "page" : undefined}
-                onClick={() => setMobileNavOpen(false)}
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  setCollapsedFlyout(null);
+                }}
               >
                 <Icon name={n.icon} size={18} />
                 {(!sidebarCollapsed || mobileNavOpen) && (
@@ -260,6 +374,59 @@ export default function CompanyShell({ children }) {
           </Link>
         </div>
       </aside>
+
+      {/* Floating Popover Submenu for Desktop Collapsed Mode (Outside <aside> to avoid overflow clipping) */}
+      {sidebarCollapsed && !mobileNavOpen && collapsedFlyout && (
+        <>
+          {/* Backdrop to close on click outside */}
+          <div
+            className="fixed inset-0 z-[190]"
+            onClick={() => setCollapsedFlyout(null)}
+            aria-hidden="true"
+          />
+          <div
+            style={{ top: `${collapsedFlyout.top}px`, left: "76px" }}
+            className="fixed z-[200] min-w-[210px] rounded-lg border border-slate-700/80 bg-[#0c192c] p-1.5 shadow-2xl text-white animate-in fade-in zoom-in-95 duration-150"
+            role="menu"
+            onMouseLeave={() => setCollapsedFlyout(null)}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">
+                {t(lang, collapsedFlyout.item.labelKey)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCollapsedFlyout(null)}
+                className="h-5 w-5 flex items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
+                aria-label="Close"
+              >
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {collapsedFlyout.item.children.map((child) => {
+                const childActive = pathname === child.href;
+                return (
+                  <Link
+                    key={child.href}
+                    href={child.href}
+                    prefetch={true}
+                    onClick={() => setCollapsedFlyout(null)}
+                    className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-xs font-medium transition-colors no-underline ${
+                      childActive
+                        ? "bg-brand text-white font-semibold shadow-xs"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <Icon name={child.icon} size={15} />
+                    <span>{t(lang, child.labelKey)}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Main Content Area (Dynamically adjusts margin on desktop) */}
       <div
@@ -354,10 +521,16 @@ export default function CompanyShell({ children }) {
               </button>
 
               {menuOpen && (
-                <div
-                  className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[240px] rounded-md border border-line bg-card p-1.5 shadow-md animate-in fade-in zoom-in-95 duration-100"
-                  role="menu"
-                >
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[240px] rounded-md border border-line bg-card p-1.5 shadow-md animate-in fade-in zoom-in-95 duration-100"
+                    role="menu"
+                  >
                   <div className="border-b border-line px-2.5 py-2 flex items-center gap-2.5">
                     {showLogo ? (
                       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-white p-0.5 shadow-2xs">
@@ -399,6 +572,19 @@ export default function CompanyShell({ children }) {
                       className={menuItem}
                       onClick={() => {
                         setMenuOpen(false);
+                        router.push("/company/profile");
+                      }}
+                    >
+                      <Icon name="building-2" size={14} style={{ marginRight: 8 }} /> {t(lang, "Company Profile")}
+                    </button>
+                  )}
+                  {can(role, "settings.manage") && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={menuItem}
+                      onClick={() => {
+                        setMenuOpen(false);
                         router.push("/company/settings");
                       }}
                     >
@@ -417,6 +603,7 @@ export default function CompanyShell({ children }) {
                     <Icon name="log-out" size={14} style={{ marginRight: 8 }} /> {t(lang, "Logout")}
                   </button>
                 </div>
+                </>
               )}
             </div>
           </div>

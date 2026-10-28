@@ -269,9 +269,14 @@ export default function JobsManageClient() {
                       <Icon name="clock" size={12} /> {viewingJob.type}
                     </span>
                   )}
-                  {viewingJob.experience && (
+                  {(viewingJob.experience !== undefined && viewingJob.experience !== null && viewingJob.experience !== "") && (
                     <span className="flex items-center gap-1">
-                      <Icon name="award" size={12} /> {viewingJob.experience}
+                      <Icon name="award" size={12} />
+                      {String(viewingJob.experience).trim() === "0"
+                        ? "Fresher"
+                        : /^\d+$/.test(String(viewingJob.experience))
+                        ? `${viewingJob.experience} yrs`
+                        : viewingJob.experience}
                     </span>
                   )}
                 </div>
@@ -283,6 +288,44 @@ export default function JobsManageClient() {
               >
                 <Icon name="x" size={18} />
               </button>
+            </div>
+
+            {/* EMP-FR-014: Social Sharing Links for Job Detail */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-sunken/40 p-3">
+              <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                <Icon name="share-2" size={14} className="text-brand" /> {t(lang, "Share this job")}:
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent("http://localhost:3001/job-detail/" + (viewingJob.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + viewingJob.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-semibold text-[#0a66c2] hover:bg-blue-50 no-underline transition-colors"
+                >
+                  <Icon name="linkedin" size={13} /> LinkedIn
+                </a>
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("http://localhost:3001/job-detail/" + (viewingJob.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + viewingJob.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-semibold text-[#1877f2] hover:bg-blue-50 no-underline transition-colors"
+                >
+                  <Icon name="facebook" size={13} /> Facebook
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const u = "http://localhost:3001/job-detail/" + (viewingJob.title || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + viewingJob.id;
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(u);
+                      setToast(t(lang, "Public job link copied to clipboard!"));
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-semibold text-ink hover:bg-sunken cursor-pointer transition-colors"
+                >
+                  <Icon name="copy" size={13} /> {t(lang, "Copy Link")}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg bg-sunken/60 p-3 mb-5 text-xs">
