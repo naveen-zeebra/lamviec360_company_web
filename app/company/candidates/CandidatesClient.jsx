@@ -33,53 +33,32 @@ import { formatBytes } from "../../../utils/format";
 
 const SHORTLIST_PLUS = ["Shortlisted", "Interview Scheduled", "Offer Sent", "Hired", "Post-Hire Tracking"];
 
-const STAGE_COLORS = {
-  Applied: {
-    bg: "bg-blue-50 text-blue-700 border-blue-200",
-    dot: "bg-blue-500",
-    border: "border-t-blue-500",
-  },
-  Screening: {
-    bg: "bg-amber-50 text-amber-700 border-amber-200",
-    dot: "bg-amber-500",
-    border: "border-t-amber-500",
-  },
-  "Phone Screening": {
-    bg: "bg-sky-50 text-sky-700 border-sky-200",
-    dot: "bg-sky-500",
-    border: "border-t-sky-500",
-  },
-  Shortlisted: {
-    bg: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    dot: "bg-indigo-500",
-    border: "border-t-indigo-500",
-  },
-  "Interview Scheduled": {
-    bg: "bg-purple-50 text-purple-700 border-purple-200",
-    dot: "bg-purple-500",
-    border: "border-t-purple-500",
-  },
-  "Offer Sent": {
-    bg: "bg-teal-50 text-teal-700 border-teal-200",
-    dot: "bg-teal-500",
-    border: "border-t-teal-500",
-  },
-  Hired: {
-    bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    dot: "bg-emerald-500",
-    border: "border-t-emerald-500",
-  },
-  "Post-Hire Tracking": {
-    bg: "bg-cyan-50 text-cyan-700 border-cyan-200",
-    dot: "bg-cyan-500",
-    border: "border-t-cyan-500",
-  },
-  Rejected: {
-    bg: "bg-rose-50 text-rose-700 border-rose-200",
-    dot: "bg-rose-500",
-    border: "border-t-rose-500",
-  },
-};
+export const PIPELINE_STAGES_CONFIG = [
+  { id: "Applied", labelKey: "Applied", icon: "inbox", color: "blue", border: "border-t-blue-500", dot: "bg-blue-500", bg: "bg-blue-50 text-blue-700 border-blue-200", dropRing: "ring-2 ring-blue-400 border-blue-400 bg-blue-50/50" },
+  { id: "Screening", labelKey: "Screening", icon: "search", color: "amber", border: "border-t-amber-500", dot: "bg-amber-500", bg: "bg-amber-50 text-amber-700 border-amber-200", dropRing: "ring-2 ring-amber-400 border-amber-400 bg-amber-50/50" },
+  { id: "Phone Screening", labelKey: "Phone Screening", icon: "phone-call", color: "sky", border: "border-t-sky-500", dot: "bg-sky-500", bg: "bg-sky-50 text-sky-700 border-sky-200", dropRing: "ring-2 ring-sky-400 border-sky-400 bg-sky-50/50" },
+  { id: "Shortlisted", labelKey: "Shortlisted", icon: "star", color: "indigo", border: "border-t-indigo-500", dot: "bg-indigo-500", bg: "bg-indigo-50 text-indigo-700 border-indigo-200", dropRing: "ring-2 ring-indigo-400 border-indigo-400 bg-indigo-50/50" },
+  { id: "Interview Scheduled", labelKey: "Interview Scheduled", icon: "calendar", color: "purple", border: "border-t-purple-500", dot: "bg-purple-500", bg: "bg-purple-50 text-purple-700 border-purple-200", dropRing: "ring-2 ring-purple-400 border-purple-400 bg-purple-50/50" },
+  { id: "Offer Sent", labelKey: "Offer Sent", icon: "mail-check", color: "teal", border: "border-t-teal-500", dot: "bg-teal-500", bg: "bg-teal-50 text-teal-700 border-teal-200", dropRing: "ring-2 ring-teal-400 border-teal-400 bg-teal-50/50" },
+  { id: "Hired", labelKey: "Hired", icon: "badge-check", color: "emerald", border: "border-t-emerald-500", dot: "bg-emerald-500", bg: "bg-emerald-50 text-emerald-700 border-emerald-200", dropRing: "ring-2 ring-emerald-400 border-emerald-400 bg-emerald-50/50" },
+  { id: "Post-Hire Tracking", labelKey: "Post-Hire Tracking", icon: "user-check", color: "cyan", border: "border-t-cyan-500", dot: "bg-cyan-500", bg: "bg-cyan-50 text-cyan-700 border-cyan-200", dropRing: "ring-2 ring-cyan-400 border-cyan-400 bg-cyan-50/50" },
+  { id: "Rejected", labelKey: "Rejected", icon: "x-circle", color: "rose", border: "border-t-rose-500", dot: "bg-rose-500", bg: "bg-rose-50 text-rose-700 border-rose-200", dropRing: "ring-2 ring-rose-400 border-rose-400 bg-rose-50/50" },
+];
+
+export const FIXED_PIPELINE_STAGES = PIPELINE_STAGES_CONFIG.map((s) => s.id);
+
+const STAGE_COLORS = Object.fromEntries(
+  PIPELINE_STAGES_CONFIG.map((s) => [
+    s.id,
+    {
+      bg: s.bg,
+      dot: s.dot,
+      border: s.border,
+      icon: s.icon,
+      dropRing: s.dropRing,
+    },
+  ])
+);
 
 function getStageStyle(stage) {
   return (
@@ -87,6 +66,8 @@ function getStageStyle(stage) {
       bg: "bg-slate-50 text-slate-700 border-slate-200",
       dot: "bg-slate-500",
       border: "border-t-slate-500",
+      icon: "inbox",
+      dropRing: "ring-2 ring-slate-400 border-slate-400 bg-slate-50/50",
     }
   );
 }
@@ -157,8 +138,73 @@ export default function CandidatesClient() {
     Rejected: 0,
   });
 
-  // Active stages from configuration or static defaults
-  const activeStages = useMemo(() => getPipelineStages(), [ready]);
+  // Fixed 9 recruitment pipeline stages per LV360-FSD-004 EMP-FR-016
+  const activeStages = FIXED_PIPELINE_STAGES;
+
+  // Drag and Drop state
+  const [draggingCandidateId, setDraggingCandidateId] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
+
+  const handleDragStart = (e, candidate) => {
+    if (!manage) return;
+    setDraggingCandidateId(candidate.id);
+    e.dataTransfer.setData("text/plain", String(candidate.id));
+    try {
+      e.dataTransfer.setData(
+        "application/json",
+        JSON.stringify({ id: candidate.id, sourceStage: candidate.stage })
+      );
+    } catch (_) { }
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setDraggingCandidateId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e, stageId) => {
+    if (!manage) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverColumn !== stageId) {
+      setDragOverColumn(stageId);
+    }
+  };
+
+  const handleDragLeave = (e, stageId) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    if (dragOverColumn === stageId) {
+      setDragOverColumn(null);
+    }
+  };
+
+  const handleDrop = async (e, targetStage) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    let candidateId = draggingCandidateId;
+    let sourceStage = null;
+    try {
+      const raw = e.dataTransfer.getData("application/json");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        candidateId = parsed.id || candidateId;
+        sourceStage = parsed.sourceStage;
+      }
+    } catch (_) { }
+    if (!candidateId) {
+      candidateId = e.dataTransfer.getData("text/plain");
+    }
+    setDraggingCandidateId(null);
+    if (!candidateId) return;
+
+    const candidate = candidates.find((c) => String(c.id) === String(candidateId)) || getCandidate(candidateId);
+    if (!candidate) return;
+    sourceStage = sourceStage || candidate.stage;
+    if (sourceStage === targetStage) return;
+
+    move(candidateId, targetStage, sourceStage);
+  };
 
   // Filters
   const [activeStage, setActiveStage] = useState("All");
@@ -346,9 +392,9 @@ export default function CandidatesClient() {
   const open = openId ? candidates.find((c) => String(c.id) === String(openId)) || getCandidate(openId) : null;
   const jobOf = (id) => jobs.find((j) => String(j.id) === String(id));
 
-  // Stage advancement helpers
+  // Stage advancement helpers (Follows all 9 fixed stages in LV360-FSD-004)
   const getNextStage = (curr) => {
-    const order = ["Applied", "Screening", "Shortlisted", "Interview Scheduled", "Offer Sent", "Hired"];
+    const order = FIXED_PIPELINE_STAGES.filter((s) => s !== "Rejected");
     const idx = order.indexOf(curr);
     return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
   };
@@ -372,23 +418,47 @@ export default function CandidatesClient() {
     });
   };
 
-  const move = async (id, stage) => {
+  const move = async (id, stage, prevStage) => {
+    const candidate = candidates.find((c) => String(c.id) === String(id)) || getCandidate(id);
+    const sourceStage = prevStage || candidate?.stage;
+
     if (stage === "Rejected") {
       setRejectTarget(id);
       setRejectReason({ templateId: templates[0] ? templates[0].id : "", note: "" });
       return;
     }
     if (stage === "Interview Scheduled") {
-      const candidate = candidates.find((c) => String(c.id) === String(id)) || getCandidate(id);
       openScheduleModal(candidate);
       return;
     }
+
+    // Set 5-minute Undo Window per EMP-FR-019b
+    if (sourceStage && sourceStage !== stage) {
+      setUndo({
+        single: true,
+        id,
+        name: candidate?.name || t(lang, "Candidate"),
+        prev: sourceStage,
+        stage,
+      });
+    }
+
     // Optimistic update
     setCandidates((prev) =>
       prev.map((c) => (String(c.id) === String(id) ? { ...c, stage } : c))
     );
-    await setCandidateStage(id, stage);
-    setToast(`${t(lang, "Moved to")} ${t(lang, stage)}`);
+    try {
+      await setCandidateStage(id, stage);
+      setToast(`${t(lang, "Moved to")} ${t(lang, stage)}`);
+    } catch (err) {
+      console.warn("Failed to set candidate stage:", err);
+      if (sourceStage) {
+        setCandidates((prev) =>
+          prev.map((c) => (String(c.id) === String(id) ? { ...c, stage: sourceStage } : c))
+        );
+      }
+      setToast(t(lang, "Failed to move stage"));
+    }
     loadData();
   };
 
@@ -451,7 +521,7 @@ export default function CandidatesClient() {
             window.dispatchEvent(new Event("lv360-store"));
           }
         }
-      } catch (err) {}
+      } catch (err) { }
 
       setToast(t(lang, "Interview scheduled successfully!"));
       setScheduleCandidate(null);
@@ -511,11 +581,20 @@ export default function CandidatesClient() {
 
   const doUndo = async () => {
     if (!undo) return;
-    for (const [id, stage] of Object.entries(undo.prev)) {
-      await setCandidateStage(id, stage);
+    try {
+      if (undo.single && undo.id && undo.prev) {
+        await setCandidateStage(undo.id, undo.prev);
+        setToast(t(lang, "Stage movement reversed"));
+      } else if (undo.prev && typeof undo.prev === "object") {
+        for (const [id, stage] of Object.entries(undo.prev)) {
+          await setCandidateStage(id, stage);
+        }
+        setToast(t(lang, "Bulk action reversed"));
+      }
+    } catch (err) {
+      console.error("Undo error:", err);
     }
     setUndo(null);
-    setToast(t(lang, "Bulk action reversed"));
     loadData();
   };
 
@@ -528,10 +607,66 @@ export default function CandidatesClient() {
 
   const getCandidatePdfUrl = (candidate) => {
     if (!candidate) return "/uploads/resumes/Candidate_Resume.pdf";
-    if (candidate.resumeUrl && candidate.resumeUrl.endsWith(".pdf")) return candidate.resumeUrl;
-    if (candidate.resume_url && candidate.resume_url.endsWith(".pdf")) return candidate.resume_url;
+    const rawUrl = candidate.resumeUrl || candidate.resume_url;
+    if (rawUrl && typeof rawUrl === "string") {
+      const trimmed = rawUrl.trim();
+      // External absolute link
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        return trimmed;
+      }
+      // Path served by backend or frontend public uploads
+      if (trimmed.startsWith("/uploads/")) {
+        return trimmed;
+      }
+      // Bare filename or relative path ending with .pdf
+      if (trimmed.toLowerCase().endsWith(".pdf")) {
+        const fname = trimmed.split("/").pop();
+        return `/uploads/resumes/${fname}`;
+      }
+      return trimmed;
+    }
+    // Fallback if candidate has no resume URL
+    const cleanName = candidate.name ? candidate.name.trim().replace(/\s+/g, "_") : "";
+    const KNOWN_NAMES = ["Nguyen_Van_A", "Tran_Thi_B", "Le_Van_C"];
+    if (KNOWN_NAMES.includes(cleanName)) {
+      return `/uploads/resumes/${cleanName}_CV.pdf`;
+    }
+    return "/uploads/resumes/Candidate_Resume.pdf";
+  };
+
+  const getResumeFileInfo = (candidate) => {
+    if (!candidate) {
+      return {
+        fileType: "none",
+        isIframeRenderable: false,
+        fileName: "Candidate_Resume.pdf",
+        fileUrl: "/uploads/resumes/Candidate_Resume.pdf",
+      };
+    }
+    const raw = (candidate.resumeUrl || candidate.resume_url || candidate.resumeFileName || "").toLowerCase();
+    const isDocx = raw.endsWith(".docx") || raw.endsWith(".doc");
+    const isPdf = raw.endsWith(".pdf") || (!isDocx && Boolean(candidate.resumeUrl || candidate.resume_url));
     const cleanName = candidate.name ? candidate.name.trim().replace(/\s+/g, "_") : "Candidate";
-    return `/uploads/resumes/${cleanName}_CV.pdf`;
+    const fileName = candidate.resumeFileName || (isDocx ? `${cleanName}_CV.docx` : `${cleanName}_CV.pdf`);
+    const fileUrl = isDocx ? (candidate.resumeUrl || candidate.resume_url || "#") : getCandidatePdfUrl(candidate);
+
+    return {
+      fileType: isDocx ? "docx" : (isPdf ? "pdf" : "profile"),
+      isIframeRenderable: isPdf && !isDocx,
+      fileName,
+      fileUrl,
+    };
+  };
+
+  const openResumeModal = (candidate, preferredTab = null) => {
+    if (!candidate) return;
+    const fileInfo = getResumeFileInfo(candidate);
+    let targetTab = preferredTab;
+    if (!targetTab) {
+      targetTab = fileInfo.isIframeRenderable ? "pdf" : "profile";
+    }
+    setResumeModalTab(targetTab);
+    setResumeCandidate(candidate);
   };
 
   const templateTitle = (id) => (templates.find((x) => x.id === id) || {}).title || "";
@@ -573,7 +708,7 @@ export default function CandidatesClient() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-black tracking-tight text-ink md:text-3xl">
-              {t(lang, "Candidate Pipeline & ATS")}
+              {t(lang, "Candidate Pipeline")}
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -590,11 +725,10 @@ export default function CandidatesClient() {
           <div className="inline-flex rounded-lg border border-line bg-card p-1 shadow-xs">
             <button
               onClick={() => setViewMode("table")}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "table"
-                  ? "bg-brand text-white shadow-xs"
-                  : "text-muted hover:text-ink hover:bg-sunken"
-              }`}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${viewMode === "table"
+                ? "bg-brand text-white shadow-xs"
+                : "text-muted hover:text-ink hover:bg-sunken"
+                }`}
               title="High-density list view for 1,000+ candidates"
             >
               <Icon name="list" size={14} />
@@ -602,11 +736,10 @@ export default function CandidatesClient() {
             </button>
             <button
               onClick={() => setViewMode("pipeline")}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "pipeline"
-                  ? "bg-brand text-white shadow-xs"
-                  : "text-muted hover:text-ink hover:bg-sunken"
-              }`}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${viewMode === "pipeline"
+                ? "bg-brand text-white shadow-xs"
+                : "text-muted hover:text-ink hover:bg-sunken"
+                }`}
               title="Kanban stage columns"
             >
               <Icon name="columns" size={14} />
@@ -634,17 +767,15 @@ export default function CandidatesClient() {
             setActiveStage("All");
             setPage(1);
           }}
-          className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
-            activeStage === "All"
-              ? "border-brand bg-brand text-white shadow-xs"
-              : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
-          }`}
+          className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${activeStage === "All"
+            ? "border-brand bg-brand text-white shadow-xs"
+            : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
+            }`}
         >
           <span>{t(lang, "All Stages")}</span>
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
-              activeStage === "All" ? "bg-white/20 text-white" : "bg-sunken text-ink"
-            }`}
+            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${activeStage === "All" ? "bg-white/20 text-white" : "bg-sunken text-ink"
+              }`}
           >
             {stageCounts.Total.toLocaleString()}
           </span>
@@ -662,18 +793,16 @@ export default function CandidatesClient() {
                 setActiveStage(stg);
                 setPage(1);
               }}
-              className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
-                isSelected
-                  ? "border-brand bg-brand text-white shadow-xs"
-                  : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
-              }`}
+              className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${isSelected
+                ? "border-brand bg-brand text-white shadow-xs"
+                : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
+                }`}
             >
               <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-white" : color.dot}`} />
               <span>{t(lang, stg)}</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
-                  isSelected ? "bg-white/20 text-white" : color.bg
-                }`}
+                className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${isSelected ? "bg-white/20 text-white" : color.bg
+                  }`}
               >
                 {count.toLocaleString()}
               </span>
@@ -715,7 +844,6 @@ export default function CandidatesClient() {
                 setJobFilter(e.target.value);
                 setPage(1);
               }}
-              placeholder={t(lang, "All Active Jobs")}
               options={[
                 { value: "", label: t(lang, "All Active Jobs") },
                 ...jobs.map((j) => ({
@@ -866,17 +994,28 @@ export default function CandidatesClient() {
         </div>
       )}
 
-      {/* ── 5. Undo Banner (5-minute safety window) ── */}
+      {/* ── 5. Undo Banner (5-minute safety window per EMP-FR-019b) ── */}
       {undo && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm text-amber-900">
-          <div className="flex items-center gap-3">
-            <Icon name="rotate-ccw" size={18} className="text-amber-600" />
-            <span className="text-sm">
-              <strong>{undo.ids.length}</strong> {t(lang, "candidates moved to")} <strong>{undo.stage}</strong>.{" "}
-              {t(lang, "You have 5 minutes to revert this change.")}
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm text-amber-900 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 shrink-0">
+              <Icon name="rotate-ccw" size={16} />
+            </span>
+            <span className="text-xs sm:text-sm">
+              {undo.single ? (
+                <>
+                  <strong>{undo.name}</strong> {t(lang, "moved to")} <strong>{t(lang, undo.stage)}</strong>.{" "}
+                </>
+              ) : (
+                <>
+                  <strong>{undo.ids?.length || 0}</strong> {t(lang, "candidates moved to")} <strong>{t(lang, undo.stage)}</strong>.{" "}
+                </>
+              )}
+              <span className="text-amber-700/80">{t(lang, "You have 5 minutes to revert this change.")}</span>
             </span>
           </div>
-          <Button variant="secondary" size="sm" onClick={doUndo} className="border-amber-300 font-bold">
+          <Button variant="secondary" size="sm" onClick={doUndo} className="border-amber-300 font-bold bg-white text-amber-900 hover:bg-amber-100 shrink-0">
+            <Icon name="rotate-ccw" size={13} />
             {t(lang, "Undo Action")}
           </Button>
         </div>
@@ -905,7 +1044,6 @@ export default function CandidatesClient() {
                   <th className="px-4 py-3.5 text-center">{t(lang, "AI Match")}</th>
                   <th className="px-4 py-3.5">{t(lang, "Experience & Skills")}</th>
                   <th className="px-4 py-3.5">{t(lang, "Stage / Status")}</th>
-                  <th className="px-4 py-3.5 text-center">{t(lang, "Rating")}</th>
                   <th className="px-4 py-3.5 text-right">{t(lang, "Actions")}</th>
                 </tr>
               </thead>
@@ -947,9 +1085,8 @@ export default function CandidatesClient() {
                     return (
                       <tr
                         key={c.id}
-                        className={`group transition-colors hover:bg-sunken/30 ${
-                          isRowSelected ? "bg-blue-50/50" : ""
-                        }`}
+                        className={`group transition-colors hover:bg-sunken/30 ${isRowSelected ? "bg-blue-50/50" : ""
+                          }`}
                       >
                         {/* Checkbox */}
                         <td className="px-4 py-3 text-center">
@@ -983,29 +1120,27 @@ export default function CandidatesClient() {
                                   {!contactVisible(c)
                                     ? t(lang, "Protected")
                                     : privacy.maskEmail
-                                    ? maskValue(c.email, "email")
-                                    : c.email || t(lang, "No email")}
+                                      ? maskValue(c.email, "email")
+                                      : c.email || t(lang, "No email")}
                                 </span>
                                 {(c.job_availability || c.jobAvailability) && (
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                                    (c.job_availability || c.jobAvailability) === "open_to_opportunities"
-                                      ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                      : (c.job_availability || c.jobAvailability) === "not_looking"
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${(c.job_availability || c.jobAvailability) === "open_to_opportunities"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                    : (c.job_availability || c.jobAvailability) === "not_looking"
                                       ? "bg-rose-50 text-rose-700 border border-rose-200"
                                       : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  }`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${
-                                      (c.job_availability || c.jobAvailability) === "open_to_opportunities"
-                                        ? "bg-amber-500"
-                                        : (c.job_availability || c.jobAvailability) === "not_looking"
+                                    }`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${(c.job_availability || c.jobAvailability) === "open_to_opportunities"
+                                      ? "bg-amber-500"
+                                      : (c.job_availability || c.jobAvailability) === "not_looking"
                                         ? "bg-rose-500"
                                         : "bg-emerald-500"
-                                    }`} />
+                                      }`} />
                                     {(c.job_availability || c.jobAvailability) === "open_to_opportunities"
                                       ? "Open to Opps"
                                       : (c.job_availability || c.jobAvailability) === "not_looking"
-                                      ? "Not Looking"
-                                      : "Open to Work"}
+                                        ? "Not Looking"
+                                        : "Open to Work"}
                                   </span>
                                 )}
                               </div>
@@ -1082,24 +1217,6 @@ export default function CandidatesClient() {
                           )}
                         </td>
 
-                        {/* Interactive 5-Star Rating */}
-                        <td className="px-4 py-3 text-center">
-                          <div className="inline-flex items-center gap-0.5">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <button
-                                key={star}
-                                disabled={!manage}
-                                onClick={() => handleRating(c.id, star)}
-                                aria-label={`Rate ${star} stars`}
-                                className={`p-0.5 transition-transform hover:scale-125 ${
-                                  (c.rating || 0) >= star ? "text-amber-400" : "text-gray-200"
-                                }`}
-                              >
-                                ★
-                              </button>
-                            ))}
-                          </div>
-                        </td>
 
                         {/* Actions */}
                         <td className="px-4 py-3 text-right">
@@ -1107,12 +1224,9 @@ export default function CandidatesClient() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                setResumeModalTab("pdf");
-                                setResumeCandidate(c);
-                              }}
+                              onClick={() => openResumeModal(c)}
                               className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
-                              title={t(lang, "Show Uploaded PDF Resume")}
+                              title={t(lang, "Show Uploaded PDF / Candidate CV")}
                             >
                               <Icon name="file-text" size={14} />
                             </Button>
@@ -1196,11 +1310,10 @@ export default function CandidatesClient() {
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
-                        className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
-                          page === pageNum
-                            ? "bg-brand text-white shadow-xs"
-                            : "text-muted hover:bg-sunken hover:text-ink"
-                        }`}
+                        className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${page === pageNum
+                          ? "bg-brand text-white shadow-xs"
+                          : "text-muted hover:bg-sunken hover:text-ink"
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -1225,157 +1338,234 @@ export default function CandidatesClient() {
       )}
 
       {viewMode === "pipeline" && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${activeStages.length}, minmax(280px, 1fr))`,
-            gap: "1rem",
-          }}
-          className="overflow-x-auto pb-4 scrollbar-thin"
-        >
-          {activeStages.map((stg) => {
-            const stageItems = candidates.filter((c) => c.stage === stg);
-            const totalInStage = stageCounts[stg] || stageItems.length;
-            const limit = columnLimits[stg] || 20;
-            const visibleItems = stageItems.slice(0, limit);
-            const hasMore = stageItems.length > limit;
-            const color = getStageStyle(stg);
+        <div className="flex flex-col gap-3">
+          {/* Kanban Info Bar */}
+          <div className="flex items-center justify-between text-xs text-muted px-1">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 font-bold text-ink">
+                <Icon name="columns" size={14} className="text-brand" />
+                {t(lang, "Recruitment Pipeline Board")}
+              </span>
+              <span className="text-line-strong">·</span>
+              <span>{t(lang, "Drag cards across stages or use quick actions")}</span>
+            </div>
+            {manage && (
+              <span className="inline-flex items-center gap-1 text-[11px] bg-brand-subtle text-brand px-2.5 py-0.5 rounded-full font-bold">
+                <Icon name="grip-vertical" size={12} />
+                {t(lang, "Drag & Drop Enabled")}
+              </span>
+            )}
+          </div>
 
-            return (
-              <div
-                key={stg}
-                className={`flex min-w-[280px] flex-col gap-3 rounded-xl border border-line bg-sunken/40 p-3.5 border-t-4 ${color.border}`}
-              >
-                {/* Column Header */}
-                <div className="flex items-center justify-between pb-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2.5 w-2.5 rounded-full ${color.dot}`} />
-                    <h3 className="text-xs font-black uppercase tracking-wider text-ink">{t(lang, stg)}</h3>
-                  </div>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-black ${color.bg}`}>
-                    {totalInStage.toLocaleString()}
-                  </span>
-                </div>
+          {/* Kanban Columns Grid / Horizontal Scroll */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${PIPELINE_STAGES_CONFIG.length}, minmax(300px, 1fr))`,
+              gap: "1rem",
+            }}
+            className="overflow-x-auto pb-6 pt-1 scrollbar-thin"
+          >
+            {PIPELINE_STAGES_CONFIG.map((colConfig) => {
+              const stg = colConfig.id;
+              const stageItems = candidates.filter((c) => c.stage === stg);
+              const totalInStage = stageCounts[stg] ?? stageItems.length;
+              const limit = columnLimits[stg] || 20;
+              const visibleItems = stageItems.slice(0, limit);
+              const hasMore = stageItems.length > limit;
+              const isDragOver = dragOverColumn === stg;
 
-                {/* Column Cards Container */}
-                <div className="flex flex-col gap-2.5 min-h-[120px]">
-                  {visibleItems.length === 0 ? (
-                    <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-line/80 py-8 text-center text-xs text-muted">
-                      <span>{t(lang, "No candidates in this stage")}</span>
+              return (
+                <div
+                  key={stg}
+                  onDragOver={(e) => handleDragOver(e, stg)}
+                  onDragLeave={(e) => handleDragLeave(e, stg)}
+                  onDrop={(e) => handleDrop(e, stg)}
+                  className={`flex min-w-[300px] flex-col rounded-xl border bg-sunken/40 p-3 transition-all ${colConfig.border
+                    } border-t-4 ${isDragOver
+                      ? colConfig.dropRing + " shadow-lg"
+                      : "border-line shadow-2xs"
+                    }`}
+                >
+                  {/* Column Header */}
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-line/60">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-md ${colConfig.bg} shrink-0`}>
+                        <Icon name={colConfig.icon} size={13} />
+                      </span>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-ink truncate" title={t(lang, colConfig.labelKey)}>
+                        {t(lang, colConfig.labelKey)}
+                      </h3>
                     </div>
-                  ) : (
-                    visibleItems.map((c) => (
-                      <div
-                        key={c.id}
-                        className="group relative rounded-lg border border-line bg-card p-3.5 shadow-xs transition-all hover:border-brand/50 hover:shadow-md"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <button
-                            onClick={() => {
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-black shrink-0 ${colConfig.bg}`}>
+                      {totalInStage.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Drop Placeholder if dragging over this column */}
+                  {isDragOver && (
+                    <div className="mb-2.5 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-brand/60 bg-white/90 py-3 text-xs font-bold text-brand animate-pulse shadow-sm">
+                      <Icon name="arrow-down-circle" size={15} />
+                      <span>{t(lang, "Drop candidate here")}</span>
+                    </div>
+                  )}
+
+                  {/* Column Cards Container */}
+                  <div className="flex flex-col gap-2.5 min-h-[160px] flex-1">
+                    {visibleItems.length === 0 && !isDragOver ? (
+                      <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-line/80 py-10 text-center text-xs text-muted/70 bg-card/40">
+                        <Icon name={colConfig.icon} size={20} className="mb-1.5 opacity-30 text-ink" />
+                        <span className="font-semibold">{t(lang, "No candidates in this stage")}</span>
+                        {manage && <span className="text-[10px] text-muted/60 mt-0.5">{t(lang, "Drag cards here to update")}</span>}
+                      </div>
+                    ) : (
+                      visibleItems.map((c) => {
+                        const isBeingDragged = draggingCandidateId === c.id;
+                        return (
+                          <div
+                            key={c.id}
+                            draggable={manage}
+                            onDragStart={(e) => handleDragStart(e, c)}
+                            onDragEnd={handleDragEnd}
+                            onClick={(e) => {
+                              if (e.target.closest("button, select, input, a")) return;
                               setOpenId(c.id);
                               setNoteDraft("");
                             }}
-                            className="flex items-center gap-2.5 text-left font-body"
+                            className={`group relative flex flex-col gap-2.5 rounded-xl border bg-card p-3.5 transition-all select-none ${isBeingDragged
+                              ? "opacity-30 border-dashed border-brand shadow-none scale-95 ring-2 ring-brand/30 cursor-grabbing"
+                              : "border-line shadow-2xs hover:border-brand/40 hover:shadow-md cursor-grab active:cursor-grabbing"
+                              }`}
                           >
-                            <Avatar name={c.name} size={32} />
-                            <div className="min-w-0">
-                              <strong className="block truncate text-xs font-bold text-ink group-hover:text-brand">
-                                {c.name}
-                              </strong>
-                              <span className="block max-w-[150px] truncate text-[11px] text-muted">
-                                {c.jobTitle || jobOf(c.jobId)?.title}
+                            {/* Card Header: Drag Grip + Avatar + Name + Checkbox */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                {manage && (
+                                  <span
+                                    title={t(lang, "Drag to move stage")}
+                                    className="cursor-grab active:cursor-grabbing text-muted/30 group-hover:text-ink/60 mt-0.5 transition-colors shrink-0"
+                                  >
+                                    <Icon name="grip-vertical" size={15} />
+                                  </span>
+                                )}
+                                <Avatar name={c.name} size={32} />
+                                <div className="min-w-0">
+                                  <strong className="block truncate text-xs font-bold text-ink group-hover:text-brand transition-colors">
+                                    {c.name}
+                                  </strong>
+                                  <span className="block max-w-[150px] truncate text-[11px] text-muted">
+                                    {c.jobTitle || jobOf(c.jobId)?.title}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                {c.source && (
+                                  <span className="rounded-full bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-muted" title={t(lang, "Source")}>
+                                    {c.source}
+                                  </span>
+                                )}
+                                {manage && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selected.includes(c.id)}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      toggleSelect(c.id);
+                                    }}
+                                    aria-label={`Select ${c.name}`}
+                                    className="h-3.5 w-3.5 rounded border-line text-brand accent-blue-600 cursor-pointer"
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Card Badges: AI Score + Experience */}
+                            <div className="flex items-center justify-between text-[11px] pt-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenId(c.id);
+                                  setShowAiExplain(true);
+                                }}
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold hover:opacity-85 transition-opacity ${getScoreBadgeClass(c.matchScore)}`}
+                                title={t(lang, "AI Match Score. Click to view breakdown.")}
+                              >
+                                <Icon name="sparkles" size={10} />
+                                <span>{c.matchScore}%</span>
+                              </button>
+                              <span className="text-muted font-medium bg-sunken/60 px-2 py-0.5 rounded-md">
+                                {c.experienceYears} {t(lang, "yrs exp")}
                               </span>
                             </div>
-                          </button>
 
-                          {manage && (
-                            <input
-                              type="checkbox"
-                              checked={selected.includes(c.id)}
-                              onChange={() => toggleSelect(c.id)}
-                              aria-label={`Select ${c.name}`}
-                              className="mt-1 h-3.5 w-3.5 rounded border-line text-brand accent-blue-600"
-                            />
-                          )}
-                        </div>
+                            {/* Interview indicator if scheduled */}
+                            {c.stage === "Interview Scheduled" && (
+                              <div className="flex items-center gap-1.5 rounded-md bg-purple-50 border border-purple-200/80 px-2 py-1 text-[11px] font-semibold text-purple-700">
+                                <Icon name="calendar" size={12} className="shrink-0" />
+                                <span className="truncate">{c.interview?.at || c.interviewDate || t(lang, "Interview set")}</span>
+                              </div>
+                            )}
 
-                        {/* Card Meta Badges */}
-                        <div className="mt-3 flex items-center justify-between text-[11px]">
-                          <span className={`rounded-full px-2 py-0.5 font-bold ${getScoreBadgeClass(c.matchScore)}`}>
-                            ★ {c.matchScore}%
-                          </span>
-                          <span className="text-muted font-medium">{c.experienceYears} yrs exp</span>
-                        </div>
+                            {/* Footer: View PDF & Stage Selector */}
+                            <div className="mt-1 flex items-center justify-between gap-2 border-t border-line/60 pt-2 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openResumeModal(c);
+                                }}
+                                className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                                title={t(lang, "Show Uploaded PDF / Candidate CV")}
+                              >
+                                <Icon name="file-text" size={12} />
+                                <span>{getResumeFileInfo(c).fileType === "docx" ? t(lang, "View CV (Doc)") : t(lang, "View PDF")}</span>
+                              </button>
 
-                        {/* Resume / CV Quick Access */}
-                        <div className="mt-2.5 flex items-center justify-between border-t border-line/60 pt-2 text-[11px]">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setResumeModalTab("pdf");
-                              setResumeCandidate(c);
-                            }}
-                            className="inline-flex items-center gap-1.5 font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                            title={t(lang, "Show Uploaded PDF Resume")}
-                          >
-                            <Icon name="file-text" size={13} />
-                            <span>{t(lang, "View PDF")}</span>
-                          </button>
-                          {(c.resumeUrl || c.resume_url) && (
-                            <a
-                              href={c.resumeUrl || c.resume_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-muted hover:text-ink transition-colors font-semibold"
-                              title={t(lang, "Download file attachment")}
-                            >
-                              <Icon name="download" size={12} />
-                              <span>{t(lang, "PDF")}</span>
-                            </a>
-                          )}
-                        </div>
-
-                        {/* Quick Move Dropdown */}
-                        {manage && (
-                          <div className="mt-3 pt-2.5 border-t border-line/60">
-                            <select
-                              value={c.stage}
-                              onChange={(e) => move(c.id, e.target.value)}
-                              aria-label={`Move stage for ${c.name}`}
-                              className="w-full rounded-md border border-line bg-sunken/40 px-2 py-1 text-[11px] font-semibold text-ink focus:border-brand focus:outline-none"
-                            >
-                              {activeStages.map((s) => (
-                                <option key={s} value={s}>
-                                  {t(lang, s)}
-                                </option>
-                              ))}
-                            </select>
+                              {manage && (
+                                <select
+                                  value={c.stage}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    move(c.id, e.target.value, c.stage);
+                                  }}
+                                  aria-label={`Move stage for ${c.name}`}
+                                  className="rounded-md border border-line bg-sunken/60 px-1.5 py-0.5 text-[10px] font-semibold text-ink focus:border-brand focus:outline-none cursor-pointer max-w-[130px] truncate"
+                                >
+                                  {FIXED_PIPELINE_STAGES.map((s) => (
+                                    <option key={s} value={s}>
+                                      {t(lang, s)}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ))
-                  )}
+                        );
+                      })
+                    )}
 
-                  {/* Load more in column */}
-                  {hasMore && (
-                    <button
-                      onClick={() =>
-                        setColumnLimits((prev) => ({
-                          ...prev,
-                          [stg]: (prev[stg] || 20) + 20,
-                        }))
-                      }
-                      className="w-full rounded-lg border border-line bg-card py-2 text-center text-xs font-bold text-brand hover:bg-sunken transition-colors"
-                    >
-                      +{stageItems.length - limit} {t(lang, "more")}
-                    </button>
-                  )}
+                    {/* Load more in column */}
+                    {hasMore && (
+                      <button
+                        onClick={() =>
+                          setColumnLimits((prev) => ({
+                            ...prev,
+                            [stg]: (prev[stg] || 20) + 20,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-line bg-card py-2 text-center text-xs font-bold text-brand hover:bg-sunken transition-colors shadow-2xs"
+                      >
+                        +{stageItems.length - limit} {t(lang, "more")}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -1468,7 +1658,7 @@ export default function CandidatesClient() {
                 )}
               </div>
 
-              {/* AI Match Score Explainability Breakdown (EMP-FR-018 & BRD §12.3) */}
+              {/* AI Match Score Explainability Breakdown */}
               {showAiExplain && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-3 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
@@ -1507,7 +1697,7 @@ export default function CandidatesClient() {
                   </div>
 
                   <p className="text-[10px] text-blue-800/80 pt-1 border-t border-blue-200/60 italic">
-                    {t(lang, "Evaluated by LamViec360 AI Engine · Transparent & non-discriminatory per BRD §12.3 AI Ethics Principles")}
+                    {t(lang, "Evaluated by LamViec360 AI Engine · Transparent & non-discriminatory ethical scoring")}
                   </p>
                 </div>
               )}
@@ -1521,9 +1711,8 @@ export default function CandidatesClient() {
                       key={star}
                       disabled={!manage}
                       onClick={() => handleRating(open.id, star)}
-                      className={`text-lg transition-transform hover:scale-125 ${
-                        (open.rating || 0) >= star ? "text-amber-400" : "text-gray-200"
-                      }`}
+                      className={`text-lg transition-transform hover:scale-125 ${(open.rating || 0) >= star ? "text-amber-400" : "text-gray-200"
+                        }`}
                     >
                       ★
                     </button>
@@ -1541,8 +1730,8 @@ export default function CandidatesClient() {
                       {!contactVisible(open)
                         ? t(lang, "Hidden by privacy policy")
                         : privacy.maskEmail
-                        ? maskValue(open.email, "email")
-                        : open.email || "—"}
+                          ? maskValue(open.email, "email")
+                          : open.email || "—"}
                     </dd>
                   </div>
                   <div className="flex justify-between py-2">
@@ -1551,8 +1740,8 @@ export default function CandidatesClient() {
                       {!contactVisible(open)
                         ? t(lang, "Hidden by privacy policy")
                         : privacy.maskPhone
-                        ? maskValue(open.phone, "phone")
-                        : open.phone || "—"}
+                          ? maskValue(open.phone, "phone")
+                          : open.phone || "—"}
                     </dd>
                   </div>
                   <div className="flex justify-between py-2">
@@ -1566,25 +1755,23 @@ export default function CandidatesClient() {
                   <div className="flex justify-between py-2 items-center">
                     <dt className="text-muted">{t(lang, "Job Availability")}</dt>
                     <dd>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                        (open.job_availability || open.jobAvailability) === "open_to_opportunities"
-                          ? "bg-amber-50 text-amber-700 border border-amber-200"
-                          : (open.job_availability || open.jobAvailability) === "not_looking"
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${(open.job_availability || open.jobAvailability) === "open_to_opportunities"
+                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                        : (open.job_availability || open.jobAvailability) === "not_looking"
                           ? "bg-rose-50 text-rose-700 border border-rose-200"
                           : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${
-                          (open.job_availability || open.jobAvailability) === "open_to_opportunities"
-                            ? "bg-amber-500"
-                            : (open.job_availability || open.jobAvailability) === "not_looking"
+                        }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${(open.job_availability || open.jobAvailability) === "open_to_opportunities"
+                          ? "bg-amber-500"
+                          : (open.job_availability || open.jobAvailability) === "not_looking"
                             ? "bg-rose-500"
                             : "bg-emerald-500"
-                        }`} />
+                          }`} />
                         {(open.job_availability || open.jobAvailability) === "open_to_opportunities"
                           ? t(lang, "Open to Relevant Opportunities")
                           : (open.job_availability || open.jobAvailability) === "not_looking"
-                          ? t(lang, "Not Looking")
-                          : t(lang, "Open to Work")}
+                            ? t(lang, "Not Looking")
+                            : t(lang, "Open to Work")}
                       </span>
                     </dd>
                   </div>
@@ -1622,77 +1809,94 @@ export default function CandidatesClient() {
                 </div>
               )}
 
-              {/* Resume Document Link */}
-              <div className="rounded-xl border border-line bg-card p-4 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shadow-xs">
-                      <Icon name="file-text" size={20} />
+              {/* Resume & Attachment Section */}
+              {(() => {
+                const fileInfo = getResumeFileInfo(open);
+                return (
+                  <div className="rounded-xl border border-line bg-card p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-xs shrink-0 ${fileInfo.fileType === "docx" ? "bg-blue-50 text-blue-600" : "bg-rose-50 text-rose-600"
+                          }`}>
+                          <Icon name="file-text" size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-xs font-bold text-ink truncate">
+                            {fileInfo.fileName}
+                          </span>
+                          <span className="block text-[11px] text-muted">
+                            {fileInfo.fileType === "docx"
+                              ? t(lang, "Candidate Uploaded Word Document")
+                              : t(lang, "Candidate Uploaded PDF Resume")}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold border shrink-0 ${fileInfo.fileType === "docx"
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : "bg-rose-50 text-rose-700 border-rose-200"
+                        }`}>
+                        {fileInfo.fileType === "docx" ? "DOCX" : "PDF 1.4"}
+                      </span>
                     </div>
-                    <div>
-                      <span className="block text-xs font-bold text-ink">
-                        {open.resumeFileName || `${open.name?.replace(/\s+/g, "_")}_CV.pdf`}
-                      </span>
-                      <span className="block text-[11px] text-muted">
-                        {t(lang, "Candidate Uploaded PDF Resume")}
-                      </span>
+
+                    {fileInfo.fileType === "docx" ? (
+                      <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3.5 space-y-2 text-xs">
+                        <div className="flex items-center gap-2 font-bold text-blue-900">
+                          <Icon name="file-text" size={15} className="text-blue-600" />
+                          <span>Microsoft Word (.docx)</span>
+                        </div>
+                        <p className="text-[11px] text-blue-800 leading-relaxed">
+                          {t(lang, "This applicant submitted a Word document. You can download the original file or view the full parsed CV profile directly.")}
+                        </p>
+                      </div>
+                    ) : (
+                      /* Inline Mini PDF Quick Peek */
+                      <div className="relative h-44 w-full overflow-hidden rounded-lg border border-line bg-slate-100 group">
+                        <iframe
+                          src={`${getCandidatePdfUrl(open)}#toolbar=0&navpanes=0`}
+                          className="w-full h-full border-0 pointer-events-none"
+                          title="Resume Quick Peek"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-black/20 to-transparent flex items-end justify-between p-3">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate max-w-[200px]">
+                            <Icon name="file-text" size={14} className="text-blue-400" />
+                            {fileInfo.fileName}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openResumeModal(open, "pdf")}
+                            className="rounded-md bg-white px-2.5 py-1 text-xs font-bold text-ink shadow hover:bg-gray-100 transition-colors shrink-0"
+                          >
+                            {t(lang, "Expand PDF")}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1 border-t border-line/60">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => openResumeModal(open)}
+                        className="flex-1 gap-1.5 text-xs font-bold"
+                      >
+                        <Icon name="file-text" size={13} />
+                        {fileInfo.fileType === "docx" ? t(lang, "View Parsed Profile CV") : t(lang, "Show Uploaded PDF")}
+                      </Button>
+
+                      <a
+                        href={fileInfo.fileUrl}
+                        download={fileInfo.fileName}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-sunken px-3 py-1.5 text-xs font-bold text-ink hover:bg-card transition-colors shadow-xs"
+                        title={t(lang, "Download attachment")}
+                      >
+                        <Icon name="download" size={13} />
+                        {t(lang, "Download")}
+                      </a>
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 border border-rose-200">
-                    PDF 1.4
-                  </span>
-                </div>
-
-                {/* Inline Mini PDF Quick Peek */}
-                <div className="relative h-44 w-full overflow-hidden rounded-lg border border-line bg-slate-100 group">
-                  <iframe
-                    src={`${getCandidatePdfUrl(open)}#toolbar=0&navpanes=0`}
-                    className="w-full h-full border-0 pointer-events-none"
-                    title="Resume Quick Peek"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-black/20 to-transparent flex items-end justify-between p-3">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate max-w-[200px]">
-                      <Icon name="file-text" size={14} className="text-blue-400" />
-                      {open.resumeFileName || `${open.name?.replace(/\s+/g, "_")}_CV.pdf`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResumeModalTab("pdf");
-                        setResumeCandidate(open);
-                      }}
-                      className="rounded-md bg-white px-2.5 py-1 text-xs font-bold text-ink shadow hover:bg-gray-100 transition-colors shrink-0"
-                    >
-                      {t(lang, "Expand PDF")}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1 border-t border-line/60">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setResumeModalTab("pdf");
-                      setResumeCandidate(open);
-                    }}
-                    className="flex-1 gap-1.5 text-xs font-bold"
-                  >
-                    <Icon name="file-text" size={13} />
-                    {t(lang, "Show Uploaded PDF")}
-                  </Button>
-
-                  <a
-                    href={getCandidatePdfUrl(open)}
-                    download={open.resumeFileName || `${open.name?.replace(/\s+/g, "_")}_CV.pdf`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-sunken px-3 py-1.5 text-xs font-bold text-ink hover:bg-card transition-colors shadow-xs"
-                    title={t(lang, "Download attachment")}
-                  >
-                    <Icon name="download" size={13} />
-                    {t(lang, "Download")}
-                  </a>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Verification & Previous Employment Documents (Encrypted Storage) */}
               <div className="rounded-xl border border-line bg-card p-4 space-y-3 shadow-xs">
@@ -2156,17 +2360,15 @@ export default function CandidatesClient() {
                 <button
                   type="button"
                   onClick={() => setResumeModalTab("pdf")}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
-                    resumeModalTab === "pdf"
-                      ? "bg-brand text-white shadow-xs"
-                      : "text-muted hover:text-ink hover:bg-sunken"
-                  }`}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${resumeModalTab === "pdf"
+                    ? "bg-brand text-white shadow-xs"
+                    : "text-muted hover:text-ink hover:bg-sunken"
+                    }`}
                 >
                   <Icon name="file-text" size={13} />
                   <span>{t(lang, "Uploaded PDF")}</span>
-                  <span className={`rounded px-1.5 py-0.2 text-[10px] uppercase font-black ${
-                    resumeModalTab === "pdf" ? "bg-white/20 text-white" : "bg-rose-100 text-rose-700"
-                  }`}>
+                  <span className={`rounded px-1.5 py-0.2 text-[10px] uppercase font-black ${resumeModalTab === "pdf" ? "bg-white/20 text-white" : "bg-rose-100 text-rose-700"
+                    }`}>
                     PDF
                   </span>
                 </button>
@@ -2174,11 +2376,10 @@ export default function CandidatesClient() {
                 <button
                   type="button"
                   onClick={() => setResumeModalTab("profile")}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
-                    resumeModalTab === "profile"
-                      ? "bg-brand text-white shadow-xs"
-                      : "text-muted hover:text-ink hover:bg-sunken"
-                  }`}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${resumeModalTab === "profile"
+                    ? "bg-brand text-white shadow-xs"
+                    : "text-muted hover:text-ink hover:bg-sunken"
+                    }`}
                 >
                   <Icon name="user" size={13} />
                   <span>{t(lang, "Profile & AI Summary")}</span>
@@ -2230,14 +2431,17 @@ export default function CandidatesClient() {
                 {/* PDF Status & Info Sub-Bar */}
                 <div className="flex flex-wrap items-center justify-between border-b border-line bg-card/90 px-6 py-2.5 text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 border border-rose-200">
-                      PDF 1.4
+                    <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold border ${getResumeFileInfo(resumeCandidate).fileType === "docx"
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}>
+                      {getResumeFileInfo(resumeCandidate).fileType === "docx" ? "DOCX" : "PDF 1.4"}
                     </span>
                     <span className="font-bold text-ink">
-                      {resumeCandidate.resumeFileName || `${resumeCandidate.name?.replace(/\s+/g, "_")}_CV.pdf`}
+                      {getResumeFileInfo(resumeCandidate).fileName}
                     </span>
                     <span className="hidden md:inline text-muted">
-                      · {t(lang, "Candidate uploaded PDF document")}
+                      · {t(lang, "Candidate uploaded document")}
                     </span>
                   </div>
 
@@ -2258,14 +2462,71 @@ export default function CandidatesClient() {
                   </div>
                 </div>
 
-                {/* Embedded PDF iframe */}
-                <div className="flex-1 w-full h-full relative bg-slate-100">
-                  <iframe
-                    src={`${getCandidatePdfUrl(resumeCandidate)}#toolbar=1&navpanes=0`}
-                    className="w-full h-full border-0 absolute inset-0"
-                    title={`${resumeCandidate.name} - Resume PDF`}
-                  />
-                </div>
+                {getResumeFileInfo(resumeCandidate).fileType === "docx" ? (
+                  /* Word Document Notice within PDF tab */
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 bg-sunken/30 text-center">
+                    <div className="mx-auto max-w-md rounded-2xl border border-line bg-card p-6 shadow-sm space-y-4">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-xs">
+                        <Icon name="file-text" size={30} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-ink">Microsoft Word Document (.docx)</h3>
+                        <p className="mt-1.5 text-xs text-muted leading-relaxed">
+                          {t(lang, "This resume was uploaded as a Word file. Web browsers do not embed Word documents directly in iframes. You can view the candidate's structured profile or download the file.")}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-center gap-3 pt-2">
+                        <Button
+                          variant="primary"
+                          onClick={() => setResumeModalTab("profile")}
+                          className="gap-1.5 text-xs font-bold"
+                        >
+                          <Icon name="user" size={14} />
+                          {t(lang, "Switch to Profile View")}
+                        </Button>
+                        <a
+                          href={resumeCandidate.resumeUrl || resumeCandidate.resume_url || "#"}
+                          download={getResumeFileInfo(resumeCandidate).fileName}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3.5 py-2 text-xs font-bold text-ink hover:bg-sunken transition-colors shadow-xs"
+                        >
+                          <Icon name="download" size={14} />
+                          {t(lang, "Download .docx")}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Embedded PDF iframe */
+                  <div className="flex-1 w-full h-full relative bg-slate-100">
+                    <iframe
+                      src={`${getCandidatePdfUrl(resumeCandidate)}#toolbar=1&navpanes=0`}
+                      className="w-full h-full border-0 absolute inset-0"
+                      title={`${resumeCandidate.name} - Resume PDF`}
+                    />
+                    {/* Floating Fallback Helper Banner */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2.5 rounded-lg bg-card/95 backdrop-blur-sm border border-line px-3.5 py-1.5 shadow-md text-xs">
+                      <span className="text-muted text-[11px]">{t(lang, "Having trouble viewing preview?")}</span>
+                      <a
+                        href={getCandidatePdfUrl(resumeCandidate)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-bold text-brand hover:underline inline-flex items-center gap-1 text-[11px]"
+                      >
+                        <Icon name="external-link" size={11} />
+                        {t(lang, "Open in New Tab")}
+                      </a>
+                      <span className="text-line text-xs">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setResumeModalTab("profile")}
+                        className="font-bold text-blue-600 hover:underline inline-flex items-center gap-1 text-[11px]"
+                      >
+                        <Icon name="user" size={11} />
+                        {t(lang, "Switch to Profile View")}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* Modal Scrollable CV Document View */
@@ -2436,17 +2697,19 @@ export default function CandidatesClient() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setResumeModalTab("pdf")}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-ink hover:bg-sunken transition-colors shadow-xs"
-                      >
-                        <Icon name="file-text" size={13} />
-                        {t(lang, "Switch to PDF View")}
-                      </button>
+                      {getResumeFileInfo(resumeCandidate).fileType !== "docx" && (
+                        <button
+                          type="button"
+                          onClick={() => setResumeModalTab("pdf")}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-ink hover:bg-sunken transition-colors shadow-xs"
+                        >
+                          <Icon name="file-text" size={13} />
+                          {t(lang, "Switch to PDF View")}
+                        </button>
+                      )}
                       <a
-                        href={getCandidatePdfUrl(resumeCandidate)}
-                        download={resumeCandidate.resumeFileName || `${resumeCandidate.name?.replace(/\s+/g, "_")}_CV.pdf`}
+                        href={getResumeFileInfo(resumeCandidate).fileUrl}
+                        download={getResumeFileInfo(resumeCandidate).fileName}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-xs font-bold text-white hover:bg-brand-hover transition-colors shadow-xs"
                       >
                         <Icon name="download" size={13} />

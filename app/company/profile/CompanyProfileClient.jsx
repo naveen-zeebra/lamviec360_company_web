@@ -5,6 +5,7 @@ import { Button, Input, Select } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
+import { useMasterData } from "../../../lib/masterData";
 import { SEEKER_URL } from "../../../config";
 import {
   getCompany,
@@ -53,6 +54,7 @@ const AI_TAG =
 
 export default function CompanyProfileClient() {
   const [lang] = useLang();
+  const { industries, companySizes, locations } = useMasterData();
   const [company, setCompany] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [togglingPublic, setTogglingPublic] = useState(false);
@@ -326,14 +328,14 @@ export default function CompanyProfileClient() {
                 placeholder={t(lang, "Select the industry")}
                 value={company.industry || "Technology"}
                 onChange={(e) => setCompany({ ...company, industry: e.target.value })}
-                options={INDUSTRIES.map((ind) => ({ value: ind, label: ind }))}
+                options={(industries || INDUSTRIES).map((ind) => ({ value: ind, label: t(lang, ind) }))}
               />
               <Select
                 label={t(lang, "Company Size")}
                 placeholder={t(lang, "Select the size")}
                 value={company.size || "51–200 employees"}
                 onChange={(e) => setCompany({ ...company, size: e.target.value })}
-                options={SIZES.map((sz) => ({ value: sz, label: sz }))}
+                options={(companySizes || SIZES).map((sz) => ({ value: sz, label: sz.includes('employee') ? sz : `${sz} ${t(lang, 'employees')}` }))}
               />
               <Input
                 label={t(lang, "Founded Year")}
@@ -387,7 +389,7 @@ export default function CompanyProfileClient() {
                 value={company.city || "Ho Chi Minh City"}
                 placeholder={t(lang, "Select the city")}
                 onChange={(e) => setCompany({ ...company, city: e.target.value })}
-                options={CITIES.map((c) => ({ value: c, label: c }))}
+                options={(locations || CITIES).map((c) => ({ value: c, label: t(lang, c) }))}
               />
               <div className="col-span-2 max-md:col-span-1">
                 <Input

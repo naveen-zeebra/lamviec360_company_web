@@ -10,6 +10,7 @@ import Toast, { useToast } from "../../../components/ds/Toast";
 import StatusBadge from "../../../components/company/StatusBadge";
 import RequirePermission from "../../../components/company/RequirePermission";
 import { useLang, t } from "../../../utils/lang";
+import { useMasterData } from "../../../lib/masterData";
 import { getJob, saveJob, deleteJob, getQuota, setJobStatus } from "../../../lib/companyStore";
 import { getCompanyJobDetail } from "../../../lib/api/companyApi";
 
@@ -302,6 +303,7 @@ const ERRBOX = "flex flex-col items-start gap-2 rounded-md border border-red-200
 
 function JobForm({ mode, jobId }) {
   const [lang] = useLang();
+  const { jobTypes } = useMasterData();
   const router = useRouter();
   const [form, setForm] = useState(EMPTY);
   const [skillDraft, setSkillDraft] = useState("");
@@ -751,7 +753,7 @@ function JobForm({ mode, jobId }) {
               label={t(lang, "Job Type")}
               value={form.type}
               onChange={(e) => set("type", e.target.value)}
-              options={JOB_TYPES.map((x) => ({ value: x, label: t(lang, x) }))}
+              options={(jobTypes || JOB_TYPES).map((x) => ({ value: x, label: t(lang, x) }))}
               placeholder={t(lang, "Select Job Type")}
             />
             <Input

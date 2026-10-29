@@ -7,6 +7,7 @@ import * as Yup from "yup";
 import { Input, Select, PhoneInput } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import { useLang, t } from "../../../utils/lang";
+import { useMasterData } from "../../../lib/masterData";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Toast, { useToast } from "../../../components/ds/Toast";
@@ -205,8 +206,10 @@ export default function CompanyRegisterClient() {
     }
   };
 
-  const industryOptions = [...new Set(COMPANIES.map((c) => (lang === "VN" || lang === "VI" ? c.industryVi : c.industry)))].map((i) => ({ value: i, label: i }));
-  const sizeOptions = ["1–10", "11–50", "51–200", "201–500", "500+"].map((s) => ({ value: s, label: s + " " + t(lang, "employees") }));
+  const { industries, companySizes } = useMasterData();
+
+  const industryOptions = (industries || []).map((i) => ({ value: i, label: t(lang, i) }));
+  const sizeOptions = (companySizes || []).map((s) => ({ value: s, label: s + " " + t(lang, "employees") }));
 
   return (
     <>

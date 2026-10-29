@@ -19,6 +19,7 @@ const NAV = [
   { href: "/company/profile", icon: "building-2", labelKey: "Company Profile", perm: "settings.manage" },
   { href: "/company/jobs", icon: "briefcase", labelKey: "Job Management", perm: "overview.view" },
   { href: "/company/candidates", icon: "users", labelKey: "Candidate Pipeline", perm: "candidates.view" },
+  { href: "/company/talent", icon: "search", labelKey: "Talent Search", perm: "talent.search" },
   {
     href: "/company/team",
     icon: "user-cog",
@@ -79,7 +80,7 @@ export default function CompanyShell({ children }) {
       try {
         const saved = localStorage.getItem("lv360_company_sidebar_collapsed");
         if (saved === "true") setSidebarCollapsed(true);
-      } catch (_) {}
+      } catch (_) { }
     }
   }, []);
 
@@ -90,7 +91,7 @@ export default function CompanyShell({ children }) {
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("lv360_company_sidebar_collapsed", String(next));
-        } catch (_) {}
+        } catch (_) { }
       }
       return next;
     });
@@ -144,20 +145,19 @@ export default function CompanyShell({ children }) {
         className={`fixed inset-y-0 left-0 z-[120] flex flex-col overflow-y-auto overflow-x-hidden bg-inverse text-white transition-all duration-300 ease-in-out ${
           // Desktop sizing
           sidebarCollapsed ? "min-[901px]:w-[72px] min-[901px]:p-2.5 min-[901px]:pt-5" : "min-[901px]:w-[244px] min-[901px]:p-[14px] min-[901px]:pt-5"
-        } ${
+          } ${
           // Mobile sizing & slide-out drawer
           mobileNavOpen
             ? "max-[900px]:w-[260px] max-[900px]:translate-x-0 max-[900px]:p-4 max-[900px]:shadow-2xl"
             : "max-[900px]:w-[260px] max-[900px]:-translate-x-full"
-        }`}
+          }`}
       >
         {/* Sidebar Header: Logo & Toggle Control */}
         <div
-          className={`mb-4 flex items-center ${
-            sidebarCollapsed
-              ? "min-[901px]:justify-center justify-between gap-2"
-              : "justify-between gap-2"
-          }`}
+          className={`mb-4 flex items-center ${sidebarCollapsed
+            ? "min-[901px]:justify-center justify-between gap-2"
+            : "justify-between gap-2"
+            }`}
         >
           <Link
             href="/company/overview"
@@ -206,11 +206,10 @@ export default function CompanyShell({ children }) {
 
         {/* Company Info Box */}
         <div
-          className={`mb-4 flex items-center rounded-md bg-white/10 transition-all ${
-            sidebarCollapsed
-              ? "min-[901px]:justify-center min-[901px]:p-2"
-              : "gap-2.5 p-2.5"
-          }`}
+          className={`mb-4 flex items-center rounded-md bg-white/10 transition-all ${sidebarCollapsed
+            ? "min-[901px]:justify-center min-[901px]:p-2"
+            : "gap-2.5 p-2.5"
+            }`}
           title={company.name}
         >
           {showLogo ? (
@@ -277,11 +276,10 @@ export default function CompanyShell({ children }) {
                         setCollapsedFlyout({ item: n, top: Math.max(16, rect.top) });
                       }
                     }}
-                    className={`flex items-center justify-between rounded-sm text-sm font-medium transition-colors cursor-pointer w-full text-left ${
-                      sidebarCollapsed
-                        ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
-                        : "gap-[11px] px-[11px] py-2.5"
-                    } ${active ? navActiveStyle : navIdleStyle}`}
+                    className={`flex items-center justify-between rounded-sm text-sm font-medium transition-colors cursor-pointer w-full text-left ${sidebarCollapsed
+                      ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
+                      : "gap-[11px] px-[11px] py-2.5"
+                      } ${active ? navActiveStyle : navIdleStyle}`}
                     aria-expanded={sidebarCollapsed ? Boolean(collapsedFlyout) : teamExpanded}
                   >
                     <div className="flex items-center gap-[11px] min-w-0">
@@ -310,11 +308,10 @@ export default function CompanyShell({ children }) {
                             href={child.href}
                             prefetch={true}
                             onClick={() => setMobileNavOpen(false)}
-                            className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-xs font-medium transition-colors no-underline ${
-                              childActive
-                                ? "bg-white/25 text-white font-bold"
-                                : "text-white/70 hover:bg-white/10 hover:text-white"
-                            }`}
+                            className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-xs font-medium transition-colors no-underline ${childActive
+                              ? "bg-white/25 text-white font-bold"
+                              : "text-white/70 hover:bg-white/10 hover:text-white"
+                              }`}
                           >
                             <Icon name={child.icon} size={14} />
                             <span>{t(lang, child.labelKey)}</span>
@@ -322,6 +319,34 @@ export default function CompanyShell({ children }) {
                         );
                       })}
                     </div>
+                  )}
+                </div>
+              );
+            }
+
+            const isCompanyApproved = company?.verified || ["verified", "approved", "active"].includes(String(company?.approvalStatus || "").toLowerCase());
+            const isTalentDisabled = n.href === "/company/talent" && !isCompanyApproved;
+
+            if (isTalentDisabled) {
+              return (
+                <div
+                  key={n.href}
+                  title={t(lang, "Talent Search requires an active, approved company account")}
+                  className={`flex items-center justify-between rounded-sm text-sm font-medium transition-colors cursor-not-allowed opacity-50 text-white/40 select-none ${sidebarCollapsed
+                    ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
+                    : "gap-[11px] px-[11px] py-2.5"
+                    }`}
+                >
+                  <div className="flex items-center gap-[11px] min-w-0">
+                    <Icon name={n.icon} size={18} />
+                    {(!sidebarCollapsed || mobileNavOpen) && (
+                      <span className="truncate">{t(lang, n.labelKey)}</span>
+                    )}
+                  </div>
+                  {(!sidebarCollapsed || mobileNavOpen) && (
+                    <span className="rounded bg-white/15 px-1.5 py-0.5 text-[9px] font-semibold text-white/70 uppercase tracking-wider shrink-0">
+                      {t(lang, "Approval Required")}
+                    </span>
                   )}
                 </div>
               );
@@ -336,11 +361,10 @@ export default function CompanyShell({ children }) {
                 onMouseEnter={() => {
                   if (sidebarCollapsed) setCollapsedFlyout(null);
                 }}
-                className={`flex items-center rounded-sm text-sm font-medium transition-colors no-underline ${
-                  sidebarCollapsed
-                    ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
-                    : "gap-[11px] px-[11px] py-2.5"
-                } ${active ? navActiveStyle : navIdleStyle}`}
+                className={`flex items-center rounded-sm text-sm font-medium transition-colors no-underline ${sidebarCollapsed
+                  ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
+                  : "gap-[11px] px-[11px] py-2.5"
+                  } ${active ? navActiveStyle : navIdleStyle}`}
                 aria-current={active ? "page" : undefined}
                 onClick={() => {
                   setMobileNavOpen(false);
@@ -362,11 +386,10 @@ export default function CompanyShell({ children }) {
             href="/employers"
             prefetch={true}
             title={sidebarCollapsed ? t(lang, "Public site") : undefined}
-            className={`flex items-center rounded-sm text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors no-underline ${
-              sidebarCollapsed
-                ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
-                : "gap-[11px] px-[11px] py-2.5"
-            }`}
+            className={`flex items-center rounded-sm text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors no-underline ${sidebarCollapsed
+              ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
+              : "gap-[11px] px-[11px] py-2.5"
+              }`}
             onClick={() => setMobileNavOpen(false)}
           >
             <Icon name="arrow-left" size={18} />
@@ -412,11 +435,10 @@ export default function CompanyShell({ children }) {
                     href={child.href}
                     prefetch={true}
                     onClick={() => setCollapsedFlyout(null)}
-                    className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-xs font-medium transition-colors no-underline ${
-                      childActive
-                        ? "bg-brand text-white font-semibold shadow-xs"
-                        : "text-white/80 hover:bg-white/10 hover:text-white"
-                    }`}
+                    className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-xs font-medium transition-colors no-underline ${childActive
+                      ? "bg-brand text-white font-semibold shadow-xs"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                      }`}
                   >
                     <Icon name={child.icon} size={15} />
                     <span>{t(lang, child.labelKey)}</span>
@@ -430,9 +452,8 @@ export default function CompanyShell({ children }) {
 
       {/* Main Content Area (Dynamically adjusts margin on desktop) */}
       <div
-        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${
-          sidebarCollapsed ? "min-[901px]:ml-[72px]" : "min-[901px]:ml-[244px]"
-        } max-[900px]:ml-0`}
+        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${sidebarCollapsed ? "min-[901px]:ml-[72px]" : "min-[901px]:ml-[244px]"
+          } max-[900px]:ml-0`}
       >
         {/* Top Header Bar */}
         <header className="sticky top-0 z-[80] flex items-center gap-3 border-b border-line bg-white/95 px-6 py-3 backdrop-blur-[6px] backdrop-saturate-[180%]">
@@ -531,78 +552,78 @@ export default function CompanyShell({ children }) {
                     className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[240px] rounded-md border border-line bg-card p-1.5 shadow-md animate-in fade-in zoom-in-95 duration-100"
                     role="menu"
                   >
-                  <div className="border-b border-line px-2.5 py-2 flex items-center gap-2.5">
-                    {showLogo ? (
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-white p-0.5 shadow-2xs">
-                        <img
-                          src={resolvedLogo}
-                          alt={company.name}
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">
-                        {initialsOf(auth.name)}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <strong className="block text-[13px] text-ink truncate">{auth.name}</strong>
-                      <span className="text-xs text-faint truncate block">{auth.email}</span>
-                      {company.name && (
-                        <span className="text-[11px] text-muted truncate block">{company.name}</span>
+                    <div className="border-b border-line px-2.5 py-2 flex items-center gap-2.5">
+                      {showLogo ? (
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-white p-0.5 shadow-2xs">
+                          <img
+                            src={resolvedLogo}
+                            alt={company.name}
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">
+                          {initialsOf(auth.name)}
+                        </div>
                       )}
+                      <div className="min-w-0 flex-1">
+                        <strong className="block text-[13px] text-ink truncate">{auth.name}</strong>
+                        <span className="text-xs text-faint truncate block">{auth.email}</span>
+                        {company.name && (
+                          <span className="text-[11px] text-muted truncate block">{company.name}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="border-b border-line px-2.5 py-2">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-faint">
-                      {t(lang, "Role")}
-                    </span>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 rounded-sm bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                        <Icon name="shield" size={12} />
-                        {t(lang, role || "Company Admin")}
+                    <div className="border-b border-line px-2.5 py-2">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-faint">
+                        {t(lang, "Role")}
                       </span>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-sm bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          <Icon name="shield" size={12} />
+                          {t(lang, role || "Company Admin")}
+                        </span>
+                      </div>
                     </div>
+                    <div className="my-1.5 h-px bg-line" />
+                    {can(role, "settings.manage") && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={menuItem}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          router.push("/company/profile");
+                        }}
+                      >
+                        <Icon name="building-2" size={14} style={{ marginRight: 8 }} /> {t(lang, "Company Profile")}
+                      </button>
+                    )}
+                    {can(role, "settings.manage") && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={menuItem}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          router.push("/company/settings");
+                        }}
+                      >
+                        <Icon name="settings" size={14} style={{ marginRight: 8 }} /> {t(lang, "Settings")}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={`${menuItem} text-danger hover:bg-danger-bg hover:text-danger-fg`}
+                      onClick={() => {
+                        logout();
+                        router.push("/employer-login");
+                      }}
+                    >
+                      <Icon name="log-out" size={14} style={{ marginRight: 8 }} /> {t(lang, "Logout")}
+                    </button>
                   </div>
-                  <div className="my-1.5 h-px bg-line" />
-                  {can(role, "settings.manage") && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={menuItem}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        router.push("/company/profile");
-                      }}
-                    >
-                      <Icon name="building-2" size={14} style={{ marginRight: 8 }} /> {t(lang, "Company Profile")}
-                    </button>
-                  )}
-                  {can(role, "settings.manage") && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={menuItem}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        router.push("/company/settings");
-                      }}
-                    >
-                      <Icon name="settings" size={14} style={{ marginRight: 8 }} /> {t(lang, "Settings")}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={`${menuItem} text-danger hover:bg-danger-bg hover:text-danger-fg`}
-                    onClick={() => {
-                      logout();
-                      router.push("/employer-login");
-                    }}
-                  >
-                    <Icon name="log-out" size={14} style={{ marginRight: 8 }} /> {t(lang, "Logout")}
-                  </button>
-                </div>
                 </>
               )}
             </div>
@@ -627,9 +648,8 @@ export default function CompanyShell({ children }) {
               key={tab.href}
               href={tab.href}
               prefetch={true}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] font-semibold no-underline transition-colors ${
-                active ? "text-brand" : "text-faint hover:text-ink"
-              }`}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] font-semibold no-underline transition-colors ${active ? "text-brand" : "text-faint hover:text-ink"
+                }`}
               aria-current={active ? "page" : undefined}
             >
               <Icon name={tab.icon} size={20} />

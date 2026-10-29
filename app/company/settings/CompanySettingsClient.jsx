@@ -26,7 +26,7 @@ import {
   resetPipelineStagesToDefault,
   resolveCompanyLogoUrl,
 } from "../../../lib/companyStore";
-const TABS = ["Security", "Notifications", "Pipeline", "Privacy & Data", "Account"];
+const TABS = ["Security", "Notifications", "Privacy & Data", "Account"];
 const CONTACT_VISIBILITY = [
   { value: "always", label: "Always visible" },
   { value: "after_shortlist", label: "Only after Shortlisted" },
@@ -64,15 +64,13 @@ function Switch({ on, onChange, label }) {
         aria-checked={isChecked}
         aria-label={label}
         onClick={() => onChange(!isChecked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-          isChecked ? "bg-blue-600" : "bg-gray-300"
-        }`}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isChecked ? "bg-blue-600" : "bg-gray-300"
+          }`}
       >
         <span
           aria-hidden="true"
-          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-            isChecked ? "translate-x-5" : "translate-x-0"
-          }`}
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${isChecked ? "translate-x-5" : "translate-x-0"
+            }`}
         />
       </button>
     </div>
@@ -430,253 +428,7 @@ function Settings() {
             />
           </div>
         )}
-        {/* TAB 4: PIPELINE */}
-        {tab === "Pipeline" && (
-          <div className="flex flex-col gap-6">
-            {/* Screen e12: Stage Config */}
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-                <div>
-                  <h3 className="text-base font-bold text-ink">{t(lang, "Recruitment Pipeline Stages (Screen e12)")}</h3>
-                  <p className="text-sm text-muted">
-                    {t(lang, "Standard static stages form the foundation. Company Admin can toggle optional stages, reorder, or add custom stages.")}
-                  </p>
-                </div>
-                <Button variant="secondary" size="sm" onClick={handleResetStages}>
-                  <Icon name="rotate-ccw" size={13} style={{ marginRight: 6 }} />
-                  {t(lang, "Reset to Standard Stages")}
-                </Button>
-              </div>
-              {/* Stage list */}
-              <div className="flex flex-col gap-2 mt-3 mb-4">
-                {stages.map((stg, idx) => {
-                  const isCore = stg.required;
-                  const isCustom = stg.custom;
-                  return (
-                    <div
-                      key={stg.id}
-                      className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${
-                        stg.enabled ? "border-line bg-card" : "border-line/60 bg-sunken/40 opacity-70"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sunken text-xs font-bold text-muted">
-                          {idx + 1}
-                        </span>
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <strong className="text-sm font-bold text-ink">{t(lang, stg.label)}</strong>
-                            {isCore ? (
-                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
-                                {t(lang, "Static Core")}
-                              </span>
-                            ) : isCustom ? (
-                              <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
-                                {t(lang, "Custom Stage")}
-                              </span>
-                            ) : (
-                              <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">
-                                {t(lang, "Standard Optional")}
-                              </span>
-                            )}
-                          </div>
-                          {stg.description && (
-                            <span className="text-xs text-muted mt-0.5">{t(lang, stg.description)}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* Order buttons */}
-                        <div className="flex items-center">
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => handleMoveStage(idx, "up")}
-                            className="p-1 text-muted hover:text-ink disabled:opacity-30 rounded hover:bg-sunken"
-                            aria-label="Move stage up"
-                          >
-                            <Icon name="arrow-up" size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === stages.length - 1}
-                            onClick={() => handleMoveStage(idx, "down")}
-                            className="p-1 text-muted hover:text-ink disabled:opacity-30 rounded hover:bg-sunken"
-                            aria-label="Move stage down"
-                          >
-                            <Icon name="arrow-down" size={14} />
-                          </button>
-                        </div>
-                        {/* Enable toggle or delete */}
-                        {isCore ? (
-                          <span className="text-xs font-semibold text-muted px-2 py-1 bg-sunken rounded">
-                            {t(lang, "Always Active")}
-                          </span>
-                        ) : isCustom ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCustomStage(stg.id)}
-                            className="p-1.5 text-danger-fg hover:bg-danger-bg rounded"
-                            title={t(lang, "Delete custom stage")}
-                          >
-                            <Icon name="trash" size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStage(stg.id)}
-                            className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
-                              stg.enabled
-                                ? "bg-brand text-on-brand hover:opacity-90"
-                                : "bg-sunken text-muted hover:text-ink"
-                            }`}
-                          >
-                            {stg.enabled ? t(lang, "Active") : t(lang, "Disabled")}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Add custom stage */}
-              <div className="flex gap-2 p-3 rounded-lg border border-dashed border-line bg-sunken/30">
-                <Input
-                  value={newStageName}
-                  onChange={(e) => setNewStageName(e.target.value)}
-                  placeholder={t(lang, "Enter new custom stage name (e.g. Assessment / Take-home test)")}
-                  className="flex-1 text-xs"
-                />
-                <Button variant="secondary" size="sm" onClick={handleAddCustomStage}>
-                  <Icon name="plus" size={14} style={{ marginRight: 4 }} />
-                  {t(lang, "Add Stage")}
-                </Button>
-              </div>
-            </div>
-            <div className="border-t border-line pt-5">
-              <h3 className="mb-1 text-base font-bold">{t(lang, "Contact Visibility Gate")}</h3>
-              <p className="mb-3 text-sm text-muted">
-                {t(lang, "Configure the minimum pipeline stage required to view candidate phone number and email (Default: Screening onward).")}
-              </p>
-              <div className="max-w-md">
-                <Select
-                  value={settings.pipeline?.contactVisibilityStage || "Screening"}
-                  onChange={(e) =>
-                    persistSettings({
-                      pipeline: { ...settings.pipeline, contactVisibilityStage: e.target.value },
-                    })
-                  }
-                  options={[
-                    { value: "Applied", label: t(lang, "Applied (Always visible)") },
-                    { value: "Screening", label: t(lang, "Screening (Default - Vietnam standard)") },
-                    { value: "Phone Screening", label: t(lang, "Phone Screening") },
-                    { value: "Shortlisted", label: t(lang, "Shortlisted") },
-                    { value: "Interview Scheduled", label: t(lang, "Interview Scheduled") },
-                    { value: "Never", label: t(lang, "Never (Fully masked)") },
-                  ]}
-                />
-              </div>
-            </div>
-            <div className="border-t border-line pt-5">
-              <h3 className="mb-1 text-base font-bold">{t(lang, "Automated Pipeline Rules")}</h3>
-              <p className="mb-4 text-sm text-muted">{t(lang, "Configure default behaviors for candidate pipeline.")}</p>
-              <div className="flex flex-col">
-                <Switch
-                  label={t(lang, "Send rejection email automatically upon moving to Rejected")}
-                  on={settings.pipeline.autoRejectEmail}
-                  onChange={(v) =>
-                    persistSettings({ pipeline: { ...settings.pipeline, autoRejectEmail: v } })
-                  }
-                />
-                <Switch
-                  label={t(lang, "Delay rejection emails until position is closed")}
-                  on={settings.pipeline.delayRejectionEmail}
-                  onChange={(v) =>
-                    persistSettings({ pipeline: { ...settings.pipeline, delayRejectionEmail: v } })
-                  }
-                />
-              </div>
-            </div>
-            <div className="border-t border-line pt-5">
-              <h3 className="mb-1 text-base font-bold">{t(lang, "Candidate Rejection Templates")}</h3>
-              <p className="mb-4 text-sm text-muted">
-                {t(lang, "Selectable polite reasons sent to candidates when rejecting an application.")}
-              </p>
-              <div className="flex flex-col gap-2.5 mb-5">
-                {templates.map((tpl) => (
-                  <div key={tpl.id} className="rounded-md border border-line p-3.5 bg-sunken/40">
-                    <div className="flex items-start justify-between gap-3">
-                      <strong className="text-sm font-bold text-ink">{tpl.title}</strong>
-                      <div className="flex flex-shrink-0 gap-2">
-                        <button
-                          className="text-xs font-semibold text-brand hover:underline"
-                          onClick={() => {
-                            setEditingTpl(tpl.id);
-                            setTplDraft({ title: tpl.title, body: tpl.body });
-                          }}
-                        >
-                          {t(lang, "Edit")}
-                        </button>
-                        <button
-                          className="text-xs font-semibold text-danger-fg hover:underline"
-                          onClick={() => removeTemplate(tpl.id)}
-                        >
-                          {t(lang, "Delete")}
-                        </button>
-                      </div>
-                    </div>
-                    <p className="mt-1 text-sm text-muted leading-relaxed">{tpl.body}</p>
-                  </div>
-                ))}
-                {templates.length === 0 && <p className="text-sm text-faint">{t(lang, "No templates configured.")}</p>}
-              </div>
-              <div className="rounded-md bg-sunken p-4 border border-line">
-                <strong className="text-sm font-bold">
-                  {editingTpl ? t(lang, "Edit Template") : t(lang, "Create New Template")}
-                </strong>
-                <div className="mt-3 flex flex-col gap-3">
-                  <Input
-                    label={t(lang, "Template Title")}
-                    value={tplDraft.title}
-                    onChange={(e) => setTplDraft({ ...tplDraft, title: e.target.value })}
-                    placeholder={t(lang, "e.g. Skillset Mismatch, Position Filled, Experience Level")}
-                  />
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-ink">
-                      {t(lang, "Candidate Notification Message")}
-                    </label>
-                    <textarea
-                      className={`${TEXTAREA} min-h-[90px]`}
-                      value={tplDraft.body}
-                      onChange={(e) => setTplDraft({ ...tplDraft, body: e.target.value })}
-                      placeholder={t(
-                        lang,
-                        "Thank you for taking the time to interview with us. At this time we have decided..."
-                      )}
-                    />
-                  </div>
-                  <div className="flex gap-2.5">
-                    <Button variant="primary" size="sm" onClick={saveTemplate}>
-                      {editingTpl ? t(lang, "Save Template") : t(lang, "Add Template")}
-                    </Button>
-                    {editingTpl && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setEditingTpl(null);
-                          setTplDraft({ title: "", body: "" });
-                        }}
-                      >
-                        {t(lang, "Cancel")}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
         {/* TAB 5: PRIVACY & DATA */}
         {tab === "Privacy & Data" && (
           <div className="flex flex-col gap-6">

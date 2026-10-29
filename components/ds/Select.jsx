@@ -4,10 +4,15 @@ export default function Select({
   value,
   onChange,
   onBlur,
-  placeholder = "Chọn...",
+  placeholder,
   error,
   ...rest
 }) {
+  const hasEmptyOption = options.some(
+    (o) => (typeof o === "object" && o !== null ? o.value : o) === ""
+  );
+  const showPlaceholder = Boolean(placeholder) && !hasEmptyOption;
+
   return (
     <div className="flex flex-col gap-1.5 font-body">
       {label && <label className="text-sm font-semibold text-ink">{label}</label>}
@@ -23,7 +28,7 @@ export default function Select({
         ].join(" ")}
         {...rest}
       >
-        <option value="">{placeholder}</option>
+        {showPlaceholder && <option value="">{placeholder}</option>}
         {options.map((o, i) => (
           <option key={i} value={o.value !== undefined ? o.value : o}>
             {o.label !== undefined ? o.label : o}

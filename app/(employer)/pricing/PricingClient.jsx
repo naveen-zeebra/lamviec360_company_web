@@ -24,10 +24,14 @@ export default function PricingClient() {
   const isVi = lang === "VI" || lang === "VN";
 
   const handlePlanAction = (planId) => {
+    if (planId !== "Freemium") {
+      // Phase 2 only
+      return;
+    }
     if (hasToken) {
-      router.push("/company/billing");
+      router.push(`/company/billing`);
     } else {
-      router.push("/company-register");
+      router.push(`/company-register?plan=Freemium`);
     }
   };
 
@@ -35,27 +39,29 @@ export default function PricingClient() {
     ? [
         {
           id: "Freemium",
-          n: "Miễn phí",
-          t: "Bắt đầu miễn phí",
-          d: "Dành cho doanh nghiệp mới bắt đầu tuyển dụng hoặc tuyển dụng thời vụ.",
+          n: "Miễn phí (Freemium)",
+          t: "Kích hoạt Giai đoạn 1",
+          d: "Dành cho toàn bộ doanh nghiệp tuyển dụng trong Giai đoạn 1.",
           priceMonthly: "0 ₫",
           priceAnnual: "0 ₫",
           unit: "",
           features: [
-            "Tối đa 3 tin tuyển dụng hoạt động",
-            "Quản lý hồ sơ ứng viên theo pipeline",
-            "1 tài khoản thành viên",
+            "999 tin tuyển dụng hoạt động (Giai đoạn 1)",
+            "Quản lý hồ sơ ứng viên theo pipeline tuyển dụng",
+            "1 tài khoản thành viên tuyển dụng",
             "Trang hồ sơ doanh nghiệp chuẩn",
+            "Lưu trữ dữ liệu ứng viên 6 tháng",
             "Hỗ trợ qua email",
           ],
           c: "Bắt đầu miễn phí",
-          v: "secondary",
-          f: false,
+          v: "primary",
+          f: true,
+          enabled: true,
         },
         {
           id: "Professional",
           n: "Chuyên nghiệp",
-          t: "Phát triển tuyển dụng",
+          t: "Giai đoạn 2 (Sắp ra mắt)",
           d: "Dành cho các doanh nghiệp và đội ngũ tuyển dụng đang mở rộng quy mô.",
           priceMonthly: "2.900.000 ₫",
           priceAnnual: "2.320.000 ₫",
@@ -65,17 +71,19 @@ export default function PricingClient() {
             "Sàng lọc & chấm điểm ứng viên bằng AI",
             "Soạn mô tả công việc tự động bằng AI",
             "Không giới hạn thành viên đội ngũ",
+            "Lưu trữ dữ liệu ứng viên 12 tháng",
             "Huy hiệu doanh nghiệp đã xác thực",
             "Hỗ trợ kỹ thuật ưu tiên",
           ],
-          c: "Chọn gói Chuyên nghiệp",
-          v: "primary",
-          f: true,
+          c: "Sắp ra mắt (Giai đoạn 2)",
+          v: "secondary",
+          f: false,
+          enabled: false,
         },
         {
           id: "Enterprise",
           n: "Doanh nghiệp",
-          t: "Mở rộng quy mô tuyển dụng",
+          t: "Giai đoạn 2 (Sắp ra mắt)",
           d: "Dành cho tập đoàn và tổ chức có yêu cầu tuyển dụng cao cấp, số lượng lớn.",
           priceMonthly: "Liên hệ",
           priceAnnual: "Liên hệ",
@@ -84,38 +92,42 @@ export default function PricingClient() {
             "Không giới hạn số lượng tin tuyển dụng",
             "Toàn bộ tính năng AI & phân tích chuyên sâu",
             "Tích hợp SSO & bảo mật doanh nghiệp",
+            "Lưu trữ dữ liệu ứng viên 24 tháng",
             "Xuất dữ liệu & báo cáo tuyển dụng nâng cao",
             "Quản lý tài khoản riêng biệt & hỗ trợ 24/7",
           ],
-          c: "Liên hệ Kinh doanh",
+          c: "Sắp ra mắt (Giai đoạn 2)",
           v: "secondary",
           f: false,
+          enabled: false,
         },
       ]
     : [
         {
           id: "Freemium",
           n: "Freemium",
-          t: "Start for free",
-          d: "For startups and small businesses getting started with occasional hiring.",
+          t: "Phase 1 Active Tier",
+          d: "Phase 1 launch tier for all employers.",
           priceMonthly: "0 VND",
           priceAnnual: "0 VND",
           unit: "",
           features: [
-            "Up to 3 active job postings",
-            "Basic candidate pipeline management",
+            "999 active job postings (Phase 1 quota)",
+            "Full candidate pipeline management",
             "1 team member seat",
             "Standard verified company profile",
+            "6-month candidate data retention",
             "Standard email support",
           ],
           c: "Start Free",
-          v: "secondary",
-          f: false,
+          v: "primary",
+          f: true,
+          enabled: true,
         },
         {
           id: "Professional",
           n: "Professional",
-          t: "Grow your hiring",
+          t: "Phase 2 (Coming Soon)",
           d: "For growing companies and active talent acquisition teams.",
           priceMonthly: "2,900,000 VND",
           priceAnnual: "2,320,000 VND",
@@ -125,17 +137,19 @@ export default function PricingClient() {
             "AI candidate screening & fit scoring",
             "AI job description assistant",
             "Unlimited team members & roles",
+            "12-month candidate data retention",
             "Verified Employer badge",
             "Priority customer support",
           ],
-          c: "Choose Professional",
-          v: "primary",
-          f: true,
+          c: "Coming in Phase 2",
+          v: "secondary",
+          f: false,
+          enabled: false,
         },
         {
           id: "Enterprise",
           n: "Enterprise",
-          t: "Scale your recruitment",
+          t: "Phase 2 (Coming Soon)",
           d: "For organizations with advanced recruitment requirements and high volume.",
           priceMonthly: "Custom",
           priceAnnual: "Custom",
@@ -144,12 +158,14 @@ export default function PricingClient() {
             "Unlimited active job postings",
             "Full AI suite & recruitment analytics",
             "SSO authentication & enterprise security",
+            "24-month candidate data retention",
             "Custom data exports & audit logs",
             "Dedicated account manager & 24/7 SLA",
           ],
-          c: "Contact Sales",
+          c: "Coming in Phase 2",
           v: "secondary",
           f: false,
+          enabled: false,
         },
       ];
 
@@ -237,6 +253,53 @@ export default function PricingClient() {
           desc={t(lang, "Always free for job seekers. Employer plans are priced in VND.")}
         />
 
+        {/* Phase 1 Launch Promotional Callout */}
+        <div style={{ maxWidth: 1120, margin: "24px auto 0", padding: "0 var(--space-4)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 12,
+              background: "linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(99,102,241,0.06) 100%)",
+              border: "1px solid rgba(37,99,235,0.2)",
+              borderRadius: 16,
+              padding: "16px 24px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: "1.5rem" }}>🎉</span>
+              <div>
+                <strong style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
+                  {isVi
+                    ? "Ưu đãi Giai đoạn 1: Miễn phí toàn bộ tính năng tuyển dụng"
+                    : "Phase 1 Launch Special: 100% Free Access for All Employers"}
+                </strong>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>
+                  {isVi
+                    ? "Trong Giai đoạn 1, mọi doanh nghiệp đăng ký đều được cấp 999 tin tuyển dụng hoạt động miễn phí."
+                    : "During Phase 1, all registered companies receive 999 active job postings with zero payment required."}
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handlePlanAction("Freemium")}
+              style={{ fontWeight: 700, fontSize: "var(--text-xs)" }}
+            >
+              {hasToken
+                ? isVi
+                  ? "Xem hạn mức của bạn"
+                  : "View Your Quota"
+                : isVi
+                ? "Đăng ký nhận ưu đãi"
+                : "Claim Free Access"}
+            </Button>
+          </div>
+        </div>
+
         {/* Pricing Grid Section */}
         <section className="lv-section" style={{ paddingTop: 56 }}>
           <div className="lv-billing-toggle" style={{ marginBottom: "var(--space-10)", marginTop: 0 }}>
@@ -259,10 +322,37 @@ export default function PricingClient() {
           <div className="lv-pricing-grid">
             {plans.map((p) => {
               const priceDisplay = annual ? p.priceAnnual : p.priceMonthly;
+              const isPhase2 = !p.enabled;
               return (
                 <Reveal key={p.id}>
-                  <div className={`lv-price-card ${p.f ? "featured" : ""}`}>
-                    {p.f && <span className="lv-price-badge">{t(lang, "Most popular")}</span>}
+                  <div
+                    className={`lv-price-card ${p.id === "Freemium" ? "featured" : ""}`}
+                    style={
+                      isPhase2
+                        ? {
+                            opacity: 0.82,
+                            background: "var(--color-bg-sunken, #f8fafc)",
+                            border: "1px dashed rgba(100, 116, 139, 0.4)",
+                          }
+                        : undefined
+                    }
+                  >
+                    {p.id === "Freemium" && (
+                      <span className="lv-price-badge">
+                        {isVi ? "Giai đoạn 1 đang mở (Miễn phí)" : "Phase 1 Active (100% Free)"}
+                      </span>
+                    )}
+                    {isPhase2 && (
+                      <span
+                        className="lv-price-badge"
+                        style={{
+                          background: "#64748b",
+                          borderColor: "#64748b",
+                        }}
+                      >
+                        {isVi ? "Giai đoạn 2 (Sắp mở)" : "Phase 2 (Coming Soon)"}
+                      </span>
+                    )}
                     <h3 style={{ fontSize: "var(--text-xl)", fontWeight: 700 }}>{p.n}</h3>
                     <p className="lv-price-tag">{p.t}</p>
 
@@ -327,12 +417,22 @@ export default function PricingClient() {
 
                     <div style={{ marginTop: "auto" }}>
                       <Button
-                        variant={p.v}
+                        variant={p.id === "Freemium" ? "primary" : "secondary"}
                         size="md"
-                        style={{ width: "100%", justifyContent: "center" }}
+                        disabled={isPhase2}
+                        style={{
+                          width: "100%",
+                          justifyContent: "center",
+                          cursor: isPhase2 ? "not-allowed" : "pointer",
+                          opacity: isPhase2 ? 0.6 : 1,
+                        }}
                         onClick={() => handlePlanAction(p.id)}
                       >
-                        {hasToken ? (isVi ? `Chọn gói ${p.n}` : `Choose ${p.n}`) : p.c}
+                        {p.id === "Freemium"
+                          ? hasToken
+                            ? (isVi ? "Xem hạn mức của bạn" : "View Your Quota")
+                            : (isVi ? "Bắt đầu miễn phí" : "Start Free")
+                          : (isVi ? "Sắp ra mắt (Giai đoạn 2)" : "Coming in Phase 2")}
                       </Button>
                     </div>
                   </div>

@@ -11,7 +11,6 @@ import {
   getDashboard,
   listJobs,
   listCandidates,
-  listNotifications,
   getPipelineStages,
   can,
   syncCompanyWithBackend,
@@ -35,7 +34,6 @@ export default function OverviewClient() {
         dash: getDashboard(),
         jobs: listJobs(),
         candidates: listCandidates(),
-        notifications: listNotifications(),
       });
     };
     refresh();
@@ -62,7 +60,7 @@ export default function OverviewClient() {
     );
   }
 
-  const { auth, dash, jobs, candidates, notifications } = data;
+  const { auth, dash, jobs, candidates } = data;
   const role = auth.role;
   const remaining = dash.quota.remaining === Infinity ? "∞" : dash.quota.remaining;
   const activeStages = getPipelineStages();
@@ -225,23 +223,7 @@ export default function OverviewClient() {
             ))}
           </div>
 
-          <div className={`${sectionHead} mt-7`}>
-            <h2 className={sectionH2}>{t(lang, "Notifications")}</h2>
-            <Link href="/company/notifications" className={viewLink}>
-              {t(lang, "View all")} <Icon name="arrow-right" size={14} />
-            </Link>
-          </div>
-          <div className="flex flex-col">
-            {notifications.slice(0, 3).map((n) => (
-              <div key={n.id} className="flex items-start gap-2.5 border-b border-line py-2.5 last:border-0">
-                {!n.read && <span className="mt-[5px] h-2 w-2 flex-shrink-0 rounded-full bg-blue-600" aria-label={t(lang, "Unread")} />}
-                <div>
-                  <strong className="block text-[13px]">{n.title}</strong>
-                  <p className="mt-0.5 text-xs text-faint">{n.message}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+
         </section>
       </div>
     </>
