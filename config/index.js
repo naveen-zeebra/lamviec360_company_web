@@ -95,6 +95,16 @@ const ENV_URLS = {
 // Select active environment URLs (default to local if unknown)
 const activeEnvConfig = ENV_URLS[ENVIRONMENT] ?? ENV_URLS.local;
 
+// Helper to extract protocol + hostname origin from full URL
+function extractOrigin(url) {
+  if (!url) return "";
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+}
+
 // Direct overrides take priority if defined in .env.local
 const resolvedBaseUrl =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
@@ -103,6 +113,12 @@ const resolvedBaseUrl =
 const resolvedSeekerUrl =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SEEKER_URL) ||
   activeEnvConfig.seekerUrl;
+
+const resolvedApiTarget =
+  (typeof process !== "undefined" && (process.env.NEXT_PUBLIC_API_TARGET || process.env.NEXT_PUBLIC_BACKEND_URL)) ||
+  extractOrigin(resolvedBaseUrl) ||
+  activeEnvConfig.apiTarget ||
+  "http://localhost:8002";
 
 // ================================
 // Exports
@@ -115,7 +131,7 @@ export const API_BASE_URL = (resolvedBaseUrl || "").replace(/\/$/, "");
 export const S3_IMAGE_BASE_URL = (activeEnvConfig.s3ImageBaseUrl || "").replace(/\/$/, "");
 
 /** Public host of the backend API Gateway */
-export const API_TARGET = (activeEnvConfig.apiTarget || "http://localhost:8002").replace(/\/$/, "");
+export const API_TARGET = (resolvedApiTarget || "").replace(/\/$/, "");
 
 /** Public jobseeker portal URL */
 export const SEEKER_URL = (resolvedSeekerUrl || "http://localhost:3001").replace(/\/$/, "");
