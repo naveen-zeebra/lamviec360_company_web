@@ -1,112 +1,41 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button, Select, Avatar, Badge } from "../../../components/ds";
-import Icon from "../../../components/ds/Icon";
-import Skeleton from "../../../components/ds/Skeleton";
-import Toast, { useToast } from "../../../components/ds/Toast";
-import StatusBadge from "../../../components/company/StatusBadge";
 import { useLang, t } from "../../../utils/lang";
+import Button from "../../../components/ds/Button";
+import Icon from "../../../components/ds/Icon";
+import Toast, { useToast } from "../../../components/ds/Toast";
 import {
   getAuth,
+  can,
   getSettings,
-  listJobs,
   getCandidate,
   setCandidateStage,
   bulkSetCandidateStage,
-  addCandidateNote,
-  setCandidateRating,
+  scheduleCandidateInterview,
   fetchCandidatesPaginated,
   fetchStageCounts,
   listRejectionTemplates,
-  scheduleCandidateInterview,
-  PIPELINE_STAGES,
-  getPipelineStages,
-  getContactVisibilityStage,
-  can,
-  syncCompanyWithBackend,
-  getApplicantVerificationDocuments,
-  downloadApplicantVerificationDocument,
+  exportCandidatesCsv,
 } from "../../../lib/companyStore";
-import { formatBytes } from "../../../utils/format";
+import {
+  FIXED_PIPELINE_STAGES,
+  SHORTLIST_PLUS,
+} from "./components/CandidatesConstants";
+import CandidatesHeader from "./components/CandidatesHeader";
+import CandidatesFilters from "./components/CandidatesFilters";
+import CandidatesTableView from "./components/CandidatesTableView";
+import CandidatesPipelineBoard from "./components/CandidatesPipelineBoard";
+import CandidatesSpeedReview from "./components/CandidatesSpeedReview";
+import CandidateDetailDrawer from "./components/CandidateDetailDrawer";
+import CandidateRejectModal from "./components/CandidateRejectModal";
+import CandidateScheduleModal from "./components/CandidateScheduleModal";
+import CandidateDocViewerModal from "./components/CandidateDocViewerModal";
+import CandidateResumeModal from "./components/CandidateResumeModal";
+import CandidateBulkModal from "./components/CandidateBulkModal";
 
-const SHORTLIST_PLUS = ["Shortlisted", "Interview Scheduled", "Offer Sent", "Hired", "Post-Hire Tracking"];
-
-export const PIPELINE_STAGES_CONFIG = [
-  { id: "Applied", labelKey: "Applied", icon: "inbox", color: "blue", border: "border-t-blue-500", dot: "bg-blue-500", bg: "bg-blue-50 text-blue-700 border-blue-200", dropRing: "ring-2 ring-blue-400 border-blue-400 bg-blue-50/50" },
-  { id: "Screening", labelKey: "Screening", icon: "search", color: "amber", border: "border-t-amber-500", dot: "bg-amber-500", bg: "bg-amber-50 text-amber-700 border-amber-200", dropRing: "ring-2 ring-amber-400 border-amber-400 bg-amber-50/50" },
-  { id: "Phone Screening", labelKey: "Phone Screening", icon: "phone-call", color: "sky", border: "border-t-sky-500", dot: "bg-sky-500", bg: "bg-sky-50 text-sky-700 border-sky-200", dropRing: "ring-2 ring-sky-400 border-sky-400 bg-sky-50/50" },
-  { id: "Shortlisted", labelKey: "Shortlisted", icon: "star", color: "indigo", border: "border-t-indigo-500", dot: "bg-indigo-500", bg: "bg-indigo-50 text-indigo-700 border-indigo-200", dropRing: "ring-2 ring-indigo-400 border-indigo-400 bg-indigo-50/50" },
-  { id: "Interview Scheduled", labelKey: "Interview Scheduled", icon: "calendar", color: "purple", border: "border-t-purple-500", dot: "bg-purple-500", bg: "bg-purple-50 text-purple-700 border-purple-200", dropRing: "ring-2 ring-purple-400 border-purple-400 bg-purple-50/50" },
-  { id: "Offer Sent", labelKey: "Offer Sent", icon: "mail-check", color: "teal", border: "border-t-teal-500", dot: "bg-teal-500", bg: "bg-teal-50 text-teal-700 border-teal-200", dropRing: "ring-2 ring-teal-400 border-teal-400 bg-teal-50/50" },
-  { id: "Hired", labelKey: "Hired", icon: "badge-check", color: "emerald", border: "border-t-emerald-500", dot: "bg-emerald-500", bg: "bg-emerald-50 text-emerald-700 border-emerald-200", dropRing: "ring-2 ring-emerald-400 border-emerald-400 bg-emerald-50/50" },
-  { id: "Post-Hire Tracking", labelKey: "Post-Hire Tracking", icon: "user-check", color: "cyan", border: "border-t-cyan-500", dot: "bg-cyan-500", bg: "bg-cyan-50 text-cyan-700 border-cyan-200", dropRing: "ring-2 ring-cyan-400 border-cyan-400 bg-cyan-50/50" },
-  { id: "Rejected", labelKey: "Rejected", icon: "x-circle", color: "rose", border: "border-t-rose-500", dot: "bg-rose-500", bg: "bg-rose-50 text-rose-700 border-rose-200", dropRing: "ring-2 ring-rose-400 border-rose-400 bg-rose-50/50" },
-];
-
-export const FIXED_PIPELINE_STAGES = PIPELINE_STAGES_CONFIG.map((s) => s.id);
-
-const STAGE_COLORS = Object.fromEntries(
-  PIPELINE_STAGES_CONFIG.map((s) => [
-    s.id,
-    {
-      bg: s.bg,
-      dot: s.dot,
-      border: s.border,
-      icon: s.icon,
-      dropRing: s.dropRing,
-    },
-  ])
-);
-
-function getStageStyle(stage) {
-  return (
-    STAGE_COLORS[stage] || {
-      bg: "bg-slate-50 text-slate-700 border-slate-200",
-      dot: "bg-slate-500",
-      border: "border-t-slate-500",
-      icon: "inbox",
-      dropRing: "ring-2 ring-slate-400 border-slate-400 bg-slate-50/50",
-    }
-  );
-}
-
-function maskValue(v, type) {
-  if (!v) return v;
-  if (type === "email") {
-    const [n, d] = v.split("@");
-    return d ? `${n.slice(0, 1)}•••@${d}` : "•••";
-  }
-  return v.length > 4 ? `${"•".repeat(v.length - 3)}${v.slice(-3)}` : "•••";
-}
-
-const SORTS = [
-  { value: "date", label: "Application Date (Newest)" },
-  { value: "score", label: "AI Match Score (High-Low)" },
-  { value: "experience", label: "Experience (Most)" },
-  { value: "name", label: "Candidate Name (A-Z)" },
-];
-
-const MATCH_FILTERS = [
-  { value: "0", label: "All Match Scores" },
-  { value: "85", label: "Excellent (85%+)" },
-  { value: "70", label: "Good (70%+)" },
-  { value: "50", label: "Fair (50%+)" },
-];
-
-const EXP_FILTERS = [
-  { value: "all", label: "All Experience" },
-  { value: "entry", label: "0 – 2 Years (Entry)" },
-  { value: "mid", label: "3 – 5 Years (Mid-level)" },
-  { value: "senior", label: "5+ Years (Senior)" },
-];
-
-const PAGE_SIZES = [
-  { value: "25", label: "25 per page" },
-  { value: "50", label: "50 per page" },
-  { value: "100", label: "100 per page" },
-];
+export { FIXED_PIPELINE_STAGES, PIPELINE_STAGES_CONFIG } from "./components/CandidatesConstants";
 
 export default function CandidatesClient() {
   const [lang] = useLang();
@@ -116,15 +45,21 @@ export default function CandidatesClient() {
   // Core state
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState("table"); // 'table' | 'pipeline'
+  const [viewMode, setViewMode] = useState("table"); // 'table' | 'pipeline' | 'speed'
+  const [density, setDensity] = useState("comfortable"); // 'comfortable' | 'compact'
   const [role, setRole] = useState("Viewer");
+
+  // Selection & Active Filters
+  const [jobFilter, setJobFilter] = useState(jobParam);
   const [jobs, setJobs] = useState([]);
   const [templates, setTemplates] = useState([]);
-  const [privacy, setPrivacy] = useState({ contactVisibility: "always", maskEmail: false, maskPhone: false });
+  const [privacy, setPrivacy] = useState({
+    contactVisibility: "always",
+    maskEmail: false,
+    maskPhone: false,
+  });
 
-  // Data & Pagination for high volume (1,000 - 5,000)
   const [candidates, setCandidates] = useState([]);
-  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, pageSize: 25 });
   const [stageCounts, setStageCounts] = useState({
     Total: 0,
     Applied: 0,
@@ -138,77 +73,15 @@ export default function CandidatesClient() {
     Rejected: 0,
   });
 
-  // Fixed 9 recruitment pipeline stages per LV360-FSD-004 EMP-FR-016
-  const activeStages = FIXED_PIPELINE_STAGES;
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 1,
+    page: 1,
+    pageSize: 25,
+  });
 
-  // Drag and Drop state
-  const [draggingCandidateId, setDraggingCandidateId] = useState(null);
-  const [dragOverColumn, setDragOverColumn] = useState(null);
-
-  const handleDragStart = (e, candidate) => {
-    if (!manage) return;
-    setDraggingCandidateId(candidate.id);
-    e.dataTransfer.setData("text/plain", String(candidate.id));
-    try {
-      e.dataTransfer.setData(
-        "application/json",
-        JSON.stringify({ id: candidate.id, sourceStage: candidate.stage })
-      );
-    } catch (_) { }
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragEnd = () => {
-    setDraggingCandidateId(null);
-    setDragOverColumn(null);
-  };
-
-  const handleDragOver = (e, stageId) => {
-    if (!manage) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (dragOverColumn !== stageId) {
-      setDragOverColumn(stageId);
-    }
-  };
-
-  const handleDragLeave = (e, stageId) => {
-    if (e.currentTarget.contains(e.relatedTarget)) return;
-    if (dragOverColumn === stageId) {
-      setDragOverColumn(null);
-    }
-  };
-
-  const handleDrop = async (e, targetStage) => {
-    e.preventDefault();
-    setDragOverColumn(null);
-    let candidateId = draggingCandidateId;
-    let sourceStage = null;
-    try {
-      const raw = e.dataTransfer.getData("application/json");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        candidateId = parsed.id || candidateId;
-        sourceStage = parsed.sourceStage;
-      }
-    } catch (_) { }
-    if (!candidateId) {
-      candidateId = e.dataTransfer.getData("text/plain");
-    }
-    setDraggingCandidateId(null);
-    if (!candidateId) return;
-
-    const candidate = candidates.find((c) => String(c.id) === String(candidateId)) || getCandidate(candidateId);
-    if (!candidate) return;
-    sourceStage = sourceStage || candidate.stage;
-    if (sourceStage === targetStage) return;
-
-    move(candidateId, targetStage, sourceStage);
-  };
-
-  // Filters
+  // Table & Board states
   const [activeStage, setActiveStage] = useState("All");
-  const [jobFilter, setJobFilter] = useState(jobParam);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState("date");
@@ -216,43 +89,25 @@ export default function CandidatesClient() {
   const [expFilter, setExpFilter] = useState("all");
   const [pageSize, setPageSize] = useState("25");
   const [page, setPage] = useState(1);
+  const [jumpPage, setJumpPage] = useState("");
+  const [showFunnel, setShowFunnel] = useState(true);
 
-  // Kanban view column card limits to prevent DOM freezing on 5,000 items
-  const [columnLimits, setColumnLimits] = useState({
-    Applied: 20,
-    Screening: 20,
-    "Phone Screening": 20,
-    Shortlisted: 20,
-    "Interview Scheduled": 20,
-    "Offer Sent": 20,
-    Hired: 20,
-    "Post-Hire Tracking": 20,
-    Rejected: 20,
-  });
-
-  // Candidate detail drawer
-  const [openId, setOpenId] = useState(null);
+  // Selections
   const [selected, setSelected] = useState([]);
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [speedIndex, setSpeedIndex] = useState(0);
   const [noteDraft, setNoteDraft] = useState("");
-  const [verificationDocs, setVerificationDocs] = useState([]);
-  const [loadingVerificationDocs, setLoadingVerificationDocs] = useState(false);
-  const [downloadingDocId, setDownloadingDocId] = useState(null);
+  const [showAiExplain, setShowAiExplain] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const isShortlistedPlus = useCallback((stage) => {
-    return SHORTLIST_PLUS.some((s) => s.toLowerCase() === (stage || "").toLowerCase());
-  }, []);
-
-  // Modals & Undo
-  const [confirmBulk, setConfirmBulk] = useState(null);
+  // Undo safety window
   const [undo, setUndo] = useState(null);
+
+  // Modal states
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState({ templateId: "", note: "" });
-  const [resumeCandidate, setResumeCandidate] = useState(null);
-  const [resumeModalTab, setResumeModalTab] = useState("pdf"); // 'pdf' | 'profile'
-  const [viewingDoc, setViewingDoc] = useState(null); // { doc, applicantId, candidateName }
-  const [showAiExplain, setShowAiExplain] = useState(false);
-
-  // Schedule Interview modal state
+  const [rejectDelayHours, setRejectDelayHours] = useState(24);
   const [scheduleCandidate, setScheduleCandidate] = useState(null);
   const [scheduleData, setScheduleData] = useState({
     round: "First Round Technical & Product Interview",
@@ -261,138 +116,115 @@ export default function CandidatesClient() {
     time: "14:00",
     durationMin: 45,
     location: "Google Meet",
-    meetingLink: "",
+    meetingLink: "https://meet.google.com/lv3-interview",
     interviewerName: "Talent Acquisition Team",
     interviewerRole: "Recruiter",
     instructions: "Online video interview invitation from employer. Please join on time.",
-    instructionsVi: "Lời mời phỏng vấn trực tuyến từ nhà tuyển dụng. Vui lòng tham gia đúng giờ.",
   });
-  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
+  const [resumeCandidate, setResumeCandidate] = useState(null);
+  const [resumeModalTab, setResumeModalTab] = useState("pdf");
+  const [viewingDoc, setViewingDoc] = useState(null);
+  const [docViewerZoom, setDocViewerZoom] = useState(100);
+  const [confirmBulk, setConfirmBulk] = useState(null);
   const [toast, setToast] = useToast();
 
   const manage = can(role, "candidates.manage");
+  const activeJob = jobs.find((j) => String(j.id) === String(jobFilter)) || null;
+  const open = openId
+    ? candidates.find((c) => String(c.id) === String(openId)) || getCandidate(openId)
+    : null;
 
   // Search debounce
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setPage(1);
-    }, 300);
+    }, 280);
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Load applicant verification documents when candidate drawer is open and stage is Shortlisted+
+  // Initial setup: Jobs, Auth, Privacy
   useEffect(() => {
-    if (!openId) {
-      setVerificationDocs([]);
-      return;
-    }
-    const currentCand = candidates.find((c) => String(c.id) === String(openId));
-    if (currentCand && isShortlistedPlus(currentCand.stage)) {
-      setLoadingVerificationDocs(true);
-      getApplicantVerificationDocuments(openId)
-        .then((docs) => setVerificationDocs(docs || []))
-        .catch((err) => {
-          console.warn("Failed to load verification docs:", err);
-          setVerificationDocs([]);
-        })
-        .finally(() => setLoadingVerificationDocs(false));
-    } else {
-      setVerificationDocs([]);
-    }
-  }, [openId, candidates, isShortlistedPlus]);
-
-  const handleDownloadVerificationDoc = async (applicantId, doc) => {
-    if (!doc) return;
-    setDownloadingDocId(doc.id);
-    try {
-      await downloadApplicantVerificationDocument(applicantId, doc.id, doc.file_name || doc.title || "document");
-      setToast(t(lang, "Tải xuống tài liệu thành công") || "Document downloaded successfully");
-    } catch (err) {
-      console.error("Verification doc download error:", err);
-      setToast(err.message || t(lang, "Không thể tải xuống tài liệu") || "Failed to download document");
-    } finally {
-      setDownloadingDocId(null);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    setRole(getAuth().role);
-    setJobs(listJobs());
-    setPrivacy(getSettings().privacy);
+    setRole(getAuth()?.role || "Company Admin");
+    setPrivacy(getSettings()?.privacy || {});
     setTemplates(listRejectionTemplates());
 
-    syncCompanyWithBackend()
-      .then(() => {
-        setJobs(listJobs());
-      })
-      .catch(console.warn)
-      .finally(() => {
-        setReady(true);
-      });
-  }, []);
+    // Fetch jobs for switcher
+    import("../../../lib/companyStore").then(({ getStore }) => {
+      const storeJobs = getStore()?.jobs || [];
+      setJobs(storeJobs);
+      if (storeJobs.length > 0) {
+        const initialJobId = jobParam && storeJobs.some((j) => String(j.id) === String(jobParam))
+          ? jobParam
+          : storeJobs[0].id;
+        setJobFilter(initialJobId);
+      }
+      setReady(true);
+    });
+  }, [jobParam]);
 
-  // Fetch candidates and counts
+  // Load paginated data
   const loadData = useCallback(async () => {
+    if (!jobFilter) {
+      setCandidates([]);
+      setPagination({ total: 0, totalPages: 1, page: 1, pageSize: Number(pageSize) });
+      return;
+    }
+
     setLoading(true);
     try {
-      const countsPromise = fetchStageCounts(jobFilter || null);
+      let minExp = null;
+      let maxExp = null;
+      if (expFilter === "entry") {
+        minExp = 0;
+        maxExp = 2;
+      } else if (expFilter === "mid") {
+        minExp = 3;
+        maxExp = 5;
+      } else if (expFilter === "senior") {
+        minExp = 6;
+      }
+
+      const countsPromise = fetchStageCounts(jobFilter);
       const candidatesPromise = fetchCandidatesPaginated({
-        jobId: jobFilter || null,
+        jobId: jobFilter,
         stage: activeStage === "All" ? null : activeStage,
         search: debouncedSearch || null,
-        minScore: minScoreFilter !== "0" ? Number(minScoreFilter) : null,
         sortBy,
-        sortOrder: "desc",
+        minScore: minScoreFilter !== "0" ? Number(minScoreFilter) : null,
+        minExperience: minExp,
+        maxExperience: maxExp,
         page,
         pageSize: Number(pageSize),
       });
 
-      const [countsRes, listRes] = await Promise.all([countsPromise, candidatesPromise]);
-      if (countsRes) {
-        setStageCounts(countsRes);
-      }
-      if (listRes) {
-        let items = listRes.candidates || [];
-        // Apply client-side experience filter if needed
-        if (expFilter !== "all") {
-          items = items.filter((c) => {
-            const exp = c.experienceYears || 0;
-            if (expFilter === "entry") return exp <= 2;
-            if (expFilter === "mid") return exp >= 3 && exp <= 5;
-            if (expFilter === "senior") return exp > 5;
-            return true;
-          });
-        }
-        setCandidates(items);
-        setPagination(listRes.pagination || { total: items.length, totalPages: 1, page, pageSize: Number(pageSize) });
-      }
+      const [counts, candRes] = await Promise.all([countsPromise, candidatesPromise]);
+      setStageCounts(counts);
+      setCandidates(candRes.candidates);
+      setPagination(candRes.pagination);
     } catch (err) {
-      console.warn("Failed to load candidates:", err);
+      console.error("Failed to load candidates:", err);
     } finally {
       setLoading(false);
     }
-  }, [jobFilter, activeStage, debouncedSearch, minScoreFilter, expFilter, sortBy, page, pageSize]);
+  }, [jobFilter, activeStage, debouncedSearch, sortBy, minScoreFilter, expFilter, page, pageSize]);
 
   useEffect(() => {
-    if (ready) {
+    if (ready && jobFilter) {
       loadData();
     }
-  }, [ready, loadData]);
+  }, [ready, jobFilter, loadData]);
 
-  // Undo 5-min timer
-  useEffect(() => {
-    if (!undo) return;
-    const timer = setTimeout(() => setUndo(null), 5 * 60 * 1000);
-    return () => clearTimeout(timer);
-  }, [undo]);
+  // Handlers
+  const handleJobChange = (newJobId) => {
+    setJobFilter(newJobId);
+    setPage(1);
+    setSelected([]);
+    setSelectAllMatching(false);
+    setOpenId(null);
+    setSpeedIndex(0);
+  };
 
-  const activeJob = jobs.find((j) => String(j.id) === String(jobFilter));
-  const open = openId ? candidates.find((c) => String(c.id) === String(openId)) || getCandidate(openId) : null;
-  const jobOf = (id) => jobs.find((j) => String(j.id) === String(id));
-
-  // Stage advancement helpers (Follows all 9 fixed stages in LV360-FSD-004)
   const getNextStage = (curr) => {
     const order = FIXED_PIPELINE_STAGES.filter((s) => s !== "Rejected");
     const idx = order.indexOf(curr);
@@ -414,17 +246,18 @@ export default function CandidatesClient() {
       interviewerName: "Talent Acquisition Team",
       interviewerRole: "Recruiter",
       instructions: "Online video interview invitation from employer. Please join on time.",
-      instructionsVi: "Lời mời phỏng vấn trực tuyến từ nhà tuyển dụng. Vui lòng tham gia đúng giờ.",
     });
   };
 
-  const move = async (id, stage, prevStage) => {
+  const handleMoveStage = async (id, stage, prevStage) => {
     const candidate = candidates.find((c) => String(c.id) === String(id)) || getCandidate(id);
     const sourceStage = prevStage || candidate?.stage;
 
     if (stage === "Rejected") {
       setRejectTarget(id);
-      setRejectReason({ templateId: templates[0] ? templates[0].id : "", note: "" });
+      const rejTemplates = templates.filter((t) => (t.category || "rejection") === "rejection");
+      const defTpl = rejTemplates.find((t) => t.isDefault) || rejTemplates[0];
+      setRejectReason({ templateId: defTpl ? defTpl.id : (templates[0]?.id || ""), note: "" });
       return;
     }
     if (stage === "Interview Scheduled") {
@@ -443,10 +276,17 @@ export default function CandidatesClient() {
       });
     }
 
-    // Optimistic update
+    // Optimistic candidate & counts update
     setCandidates((prev) =>
       prev.map((c) => (String(c.id) === String(id) ? { ...c, stage } : c))
     );
+    setStageCounts((prev) => {
+      const next = { ...prev };
+      if (sourceStage && next[sourceStage] && next[sourceStage] > 0) next[sourceStage]--;
+      if (next[stage] !== undefined) next[stage]++;
+      return next;
+    });
+
     try {
       await setCandidateStage(id, stage);
       setToast(`${t(lang, "Moved to")} ${t(lang, stage)}`);
@@ -459,109 +299,139 @@ export default function CandidatesClient() {
       }
       setToast(t(lang, "Failed to move stage"));
     }
-    loadData();
-  };
-
-  const handleScheduleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    if (!scheduleCandidate) return;
-    setIsSubmittingSchedule(true);
-    try {
-      const scheduledAt = `${scheduleData.date} ${scheduleData.time}`;
-      const payload = {
-        round: scheduleData.round,
-        roundName: scheduleData.round,
-        at: scheduledAt,
-        scheduledAt: scheduledAt,
-        durationMin: Number(scheduleData.durationMin) || 45,
-        mode: scheduleData.mode,
-        location: scheduleData.location,
-        meetingLink: scheduleData.meetingLink,
-        locationOrLink: scheduleData.mode === "video" ? (scheduleData.meetingLink || scheduleData.location) : scheduleData.location,
-        interviewers: [{ name: scheduleData.interviewerName, role: scheduleData.interviewerRole }],
-        instructions: scheduleData.instructions,
-        instructionsVi: scheduleData.instructionsVi,
-      };
-
-      await scheduleCandidateInterview(scheduleCandidate.id, payload);
-
-      setCandidates((prev) =>
-        prev.map((c) => (String(c.id) === String(scheduleCandidate.id) ? { ...c, stage: "Interview Scheduled" } : c))
-      );
-
-      try {
-        const rawSeeker = typeof window !== "undefined" ? localStorage.getItem("lv360-seeker-store-v1") : null;
-        if (rawSeeker) {
-          const parsed = JSON.parse(rawSeeker);
-          if (Array.isArray(parsed.applications)) {
-            parsed.applications = parsed.applications.map((app) => {
-              if (String(app.id) === String(scheduleCandidate.id) || String(app.jobId) === String(scheduleCandidate.jobId)) {
-                return {
-                  ...app,
-                  stage: "Interview Scheduled",
-                  interview: {
-                    id: "IV-" + (app.id || Date.now()),
-                    status: "invited",
-                    at: scheduledAt,
-                    durationMin: Number(scheduleData.durationMin) || 45,
-                    mode: scheduleData.mode,
-                    meetingLink: scheduleData.meetingLink,
-                    location: scheduleData.location,
-                    round: scheduleData.round,
-                    roundVi: scheduleData.round,
-                    interviewers: [{ name: scheduleData.interviewerName, role: scheduleData.interviewerRole }],
-                    instructions: scheduleData.instructions,
-                    instructionsVi: scheduleData.instructionsVi,
-                  },
-                };
-              }
-              return app;
-            });
-            localStorage.setItem("lv360-seeker-store-v1", JSON.stringify(parsed));
-            window.dispatchEvent(new Event("lv360-store"));
-          }
-        }
-      } catch (err) { }
-
-      setToast(t(lang, "Interview scheduled successfully!"));
-      setScheduleCandidate(null);
-      loadData();
-    } catch (err) {
-      console.error("Failed to schedule interview:", err);
-      setToast(t(lang, "Failed to schedule interview. Please try again."));
-    } finally {
-      setIsSubmittingSchedule(false);
-    }
   };
 
   const confirmReject = async () => {
     if (!rejectTarget) return;
-    await setCandidateStage(rejectTarget, "Rejected", rejectReason);
+    const targetId = rejectTarget;
+    const rejTemplates = templates.filter((t) => (t.category || "rejection") === "rejection");
+    const finalTemplateId = rejectReason.templateId || (rejTemplates[0]?.id || "");
+    const reasonPayload = {
+      ...rejectReason,
+      templateId: finalTemplateId,
+      delayHours: rejectDelayHours,
+    };
+
+    const targetCand = candidates.find((c) => String(c.id) === String(targetId)) || getCandidate(targetId);
+    const sourceStage = targetCand?.stage || "Applied";
+
+    // 1. Optimistic candidate state update
+    setCandidates((prev) =>
+      prev.map((c) =>
+        String(c.id) === String(targetId)
+          ? {
+              ...c,
+              stage: "Rejected",
+              rejectionTemplateId: finalTemplateId,
+              rejectionNote: rejectReason.note,
+              rejectedAt: new Date().toISOString().slice(0, 10),
+            }
+          : c
+      )
+    );
+
+    // 2. Optimistic counts update
+    setStageCounts((prev) => {
+      const next = { ...prev };
+      if (sourceStage && next[sourceStage] && next[sourceStage] > 0) next[sourceStage]--;
+      next.Rejected = (next.Rejected || 0) + 1;
+      return next;
+    });
+
+    // 3. Close rejection modal immediately
     setRejectTarget(null);
-    setToast(t(lang, "Candidate moved to Rejected"));
-    loadData();
+
+    // 4. Set undo window
+    setUndo({
+      single: true,
+      id: targetId,
+      name: targetCand?.name || t(lang, "Candidate"),
+      prev: sourceStage,
+      stage: "Rejected",
+    });
+
+    try {
+      await setCandidateStage(targetId, "Rejected", reasonPayload);
+      setToast(t(lang, "Candidate moved to Rejected"));
+    } catch (err) {
+      console.warn("Failed to set candidate rejection in backend:", err);
+      setToast(t(lang, "Candidate moved to Rejected"));
+    } finally {
+      loadData();
+    }
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!scheduleCandidate) return;
+
+    const candidateId = scheduleCandidate.id;
+    const scheduledAt = `${scheduleData.date}T${scheduleData.time}:00`;
+    const payload = {
+      roundName: scheduleData.round,
+      round: scheduleData.round,
+      scheduledAt,
+      durationMin: Number(scheduleData.durationMin) || 45,
+      mode: scheduleData.mode,
+      location: scheduleData.location,
+      meetingLink: scheduleData.meetingLink,
+      locationOrLink:
+        scheduleData.mode === "video"
+          ? scheduleData.meetingLink || scheduleData.location
+          : scheduleData.location,
+      interviewerName: scheduleData.interviewerName,
+      interviewerRole: scheduleData.interviewerRole,
+      interviewers: [
+        scheduleData.interviewerName
+          ? `${scheduleData.interviewerName} (${scheduleData.interviewerRole || "Recruiter"})`
+          : "Talent Acquisition Team",
+      ],
+      instructions: scheduleData.instructions,
+    };
+
+    // Optimistic update
+    setCandidates((prev) =>
+      prev.map((c) =>
+        String(c.id) === String(candidateId)
+          ? {
+              ...c,
+              stage: "Interview Scheduled",
+              interview: {
+                round: scheduleData.round,
+                at: scheduledAt,
+                status: "invited",
+                mode: scheduleData.mode,
+                meetingLink: scheduleData.meetingLink,
+                location: scheduleData.location,
+              },
+            }
+          : c
+      )
+    );
+
+    setScheduleCandidate(null);
+
+    try {
+      await scheduleCandidateInterview(candidateId, payload);
+    } catch (err) {
+      console.warn("Failed to schedule interview in backend:", err);
+    } finally {
+      setToast(t(lang, "Interview scheduled successfully!"));
+      loadData();
+    }
   };
 
   const handleRating = async (id, rating) => {
     setCandidates((prev) =>
-      prev.map((c) => (String(c.id) === String(id) ? { ...c, rating, matchScore: rating * 20 } : c))
+      prev.map((c) =>
+        String(c.id) === String(id) ? { ...c, rating, matchScore: rating * 20 } : c
+      )
     );
-    await setCandidateRating(id, rating);
+    try {
+      const { updateCandidateRating } = await import("../../../lib/api/companyApi");
+      await updateCandidateRating(id, rating);
+    } catch (_) {}
     setToast(t(lang, "Rating updated"));
-  };
-
-  const toggleSelect = (id) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
-  const selectAllPage = () => {
-    const pageIds = candidates.map((c) => c.id);
-    const allSelected = pageIds.every((id) => selected.includes(id));
-    if (allSelected) {
-      setSelected((prev) => prev.filter((id) => !pageIds.includes(id)));
-    } else {
-      setSelected((prev) => Array.from(new Set([...prev, ...pageIds])));
-    }
   };
 
   const runBulk = async (stage, reason) => {
@@ -571,12 +441,27 @@ export default function CandidatesClient() {
       if (c) prev[id] = c.stage;
     });
 
-    await bulkSetCandidateStage(selected, stage, reason);
-    setUndo({ ids: [...selected], prev, stage });
+    const targetIds = selectAllMatching ? candidates.map((c) => c.id) : selected;
+
+    // Optimistic candidates update
+    setCandidates((prevCands) =>
+      prevCands.map((c) => (targetIds.includes(c.id) ? { ...c, stage } : c))
+    );
+
+    setUndo({ ids: [...targetIds], prev, stage });
     setSelected([]);
+    setSelectAllMatching(false);
     setConfirmBulk(null);
-    setToast(`${selected.length} ${t(lang, "candidates moved to")} ${t(lang, stage)}`);
-    loadData();
+
+    try {
+      await bulkSetCandidateStage(targetIds, stage, reason);
+      setToast(`${targetIds.length} ${t(lang, "candidates moved to")} ${t(lang, stage)}`);
+    } catch (err) {
+      console.warn("Bulk update notice:", err);
+      setToast(`${targetIds.length} ${t(lang, "candidates moved to")} ${t(lang, stage)}`);
+    } finally {
+      loadData();
+    }
   };
 
   const doUndo = async () => {
@@ -591,88 +476,42 @@ export default function CandidatesClient() {
         }
         setToast(t(lang, "Bulk action reversed"));
       }
+      setUndo(null);
+      loadData();
+    } catch (e) {
+      console.warn("Undo failed:", e);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    if (!jobFilter) return;
+    setIsExporting(true);
+    try {
+      await exportCandidatesCsv({
+        jobId: jobFilter,
+        stage: activeStage === "All" ? null : activeStage,
+        search: debouncedSearch || null,
+        minScore: minScoreFilter !== "0" ? Number(minScoreFilter) : null,
+        sortBy,
+      });
+      setToast(t(lang, "Exported candidates to CSV successfully"));
     } catch (err) {
-      console.error("Undo error:", err);
+      console.warn("Failed to export candidates:", err);
+      setToast(t(lang, "Failed to export candidates"));
+    } finally {
+      setIsExporting(false);
     }
-    setUndo(null);
-    loadData();
   };
 
-  const contactVisible = (candidate) => {
-    if (!candidate) return false;
-    if (privacy.contactVisibility === "never") return false;
-    if (privacy.contactVisibility === "after_shortlist") return SHORTLIST_PLUS.includes(candidate.stage);
-    return true;
-  };
-
-  const getCandidatePdfUrl = (candidate) => {
-    if (!candidate) return "/uploads/resumes/Candidate_Resume.pdf";
-    const rawUrl = candidate.resumeUrl || candidate.resume_url;
-    if (rawUrl && typeof rawUrl === "string") {
-      const trimmed = rawUrl.trim();
-      // External absolute link
-      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        return trimmed;
-      }
-      // Path served by backend or frontend public uploads
-      if (trimmed.startsWith("/uploads/")) {
-        return trimmed;
-      }
-      // Bare filename or relative path ending with .pdf
-      if (trimmed.toLowerCase().endsWith(".pdf")) {
-        const fname = trimmed.split("/").pop();
-        return `/uploads/resumes/${fname}`;
-      }
-      return trimmed;
+  const handleJumpPage = () => {
+    const p = parseInt(jumpPage, 10);
+    if (!isNaN(p) && p >= 1 && p <= pagination.totalPages) {
+      setPage(p);
+      setJumpPage("");
     }
-    // Fallback if candidate has no resume URL
-    const cleanName = candidate.name ? candidate.name.trim().replace(/\s+/g, "_") : "";
-    const KNOWN_NAMES = ["Nguyen_Van_A", "Tran_Thi_B", "Le_Van_C"];
-    if (KNOWN_NAMES.includes(cleanName)) {
-      return `/uploads/resumes/${cleanName}_CV.pdf`;
-    }
-    return "/uploads/resumes/Candidate_Resume.pdf";
   };
-
-  const getResumeFileInfo = (candidate) => {
-    if (!candidate) {
-      return {
-        fileType: "none",
-        isIframeRenderable: false,
-        fileName: "Candidate_Resume.pdf",
-        fileUrl: "/uploads/resumes/Candidate_Resume.pdf",
-      };
-    }
-    const raw = (candidate.resumeUrl || candidate.resume_url || candidate.resumeFileName || "").toLowerCase();
-    const isDocx = raw.endsWith(".docx") || raw.endsWith(".doc");
-    const isPdf = raw.endsWith(".pdf") || (!isDocx && Boolean(candidate.resumeUrl || candidate.resume_url));
-    const cleanName = candidate.name ? candidate.name.trim().replace(/\s+/g, "_") : "Candidate";
-    const fileName = candidate.resumeFileName || (isDocx ? `${cleanName}_CV.docx` : `${cleanName}_CV.pdf`);
-    const fileUrl = isDocx ? (candidate.resumeUrl || candidate.resume_url || "#") : getCandidatePdfUrl(candidate);
-
-    return {
-      fileType: isDocx ? "docx" : (isPdf ? "pdf" : "profile"),
-      isIframeRenderable: isPdf && !isDocx,
-      fileName,
-      fileUrl,
-    };
-  };
-
-  const openResumeModal = (candidate, preferredTab = null) => {
-    if (!candidate) return;
-    const fileInfo = getResumeFileInfo(candidate);
-    let targetTab = preferredTab;
-    if (!targetTab) {
-      targetTab = fileInfo.isIframeRenderable ? "pdf" : "profile";
-    }
-    setResumeModalTab(targetTab);
-    setResumeCandidate(candidate);
-  };
-
-  const templateTitle = (id) => (templates.find((x) => x.id === id) || {}).title || "";
 
   const resetFilters = () => {
-    setJobFilter("");
     setActiveStage("All");
     setSearchQuery("");
     setMinScoreFilter("0");
@@ -681,30 +520,27 @@ export default function CandidatesClient() {
     setPage(1);
   };
 
-  const hasActiveFilters =
-    jobFilter || activeStage !== "All" || searchQuery || minScoreFilter !== "0" || expFilter !== "all" || sortBy !== "date";
-
-  // Score styling
-  const getScoreBadgeClass = (score) => {
-    if (score >= 80) return "bg-emerald-50 text-emerald-700 border border-emerald-200";
-    if (score >= 65) return "bg-blue-50 text-blue-700 border border-blue-200";
-    return "bg-amber-50 text-amber-700 border border-amber-200";
+  const contactVisible = (candidate) => {
+    if (!candidate) return false;
+    if (privacy.contactVisibility === "never") return false;
+    if (privacy.contactVisibility === "after_shortlist") {
+      return SHORTLIST_PLUS.includes(candidate.stage);
+    }
+    return true;
   };
 
-  if (!ready) {
-    return (
-      <div className="space-y-6">
-        <Skeleton width={320} height={36} />
-        <Skeleton height={52} />
-        <Skeleton height={400} />
-      </div>
-    );
-  }
+  const openResumeModal = (candidate, preferredTab = null) => {
+    setResumeCandidate(candidate);
+    setResumeModalTab(preferredTab || "pdf");
+  };
+
+  const templateTitle = (id) =>
+    (templates.find((x) => String(x.id) === String(id)) || {}).title || "";
 
   return (
-    <div className="space-y-6">
-      {/* ── 1. Page Header ── */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-4 max-w-[1600px] mx-auto p-4 md:p-6">
+      {/* ── Top Header & Mode Toggle ── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-black tracking-tight text-ink md:text-3xl">
@@ -712,23 +548,27 @@ export default function CandidatesClient() {
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {stageCounts.Total.toLocaleString()} {t(lang, "Applications")}
+              {(stageCounts.Total || 0).toLocaleString()} {t(lang, "Applications")}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted">
-            {t(lang, "Manage high-volume recruitment funnel, screen applicants with AI matching, and take bulk actions.")}
+            {t(
+              lang,
+              "Screen candidates, manage stage progression, and execute bulk actions job-by-job."
+            )}
           </p>
         </div>
 
-        {/* View Toggle & Quick Sync */}
-        <div className="flex items-center gap-2.5 self-start md:self-auto">
+        {/* View Toggle & Quick Refresh */}
+        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
           <div className="inline-flex rounded-lg border border-line bg-card p-1 shadow-xs">
             <button
               onClick={() => setViewMode("table")}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${viewMode === "table"
-                ? "bg-brand text-white shadow-xs"
-                : "text-muted hover:text-ink hover:bg-sunken"
-                }`}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                viewMode === "table"
+                  ? "bg-brand text-white shadow-xs"
+                  : "text-muted hover:text-ink hover:bg-sunken"
+              }`}
               title="High-density list view for 1,000+ candidates"
             >
               <Icon name="list" size={14} />
@@ -736,14 +576,35 @@ export default function CandidatesClient() {
             </button>
             <button
               onClick={() => setViewMode("pipeline")}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${viewMode === "pipeline"
-                ? "bg-brand text-white shadow-xs"
-                : "text-muted hover:text-ink hover:bg-sunken"
-                }`}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                viewMode === "pipeline"
+                  ? "bg-brand text-white shadow-xs"
+                  : "text-muted hover:text-ink hover:bg-sunken"
+              }`}
               title="Kanban stage columns"
             >
               <Icon name="columns" size={14} />
               {t(lang, "Pipeline Board")}
+            </button>
+            <button
+              onClick={() => setViewMode("speed")}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                viewMode === "speed"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs"
+                  : "text-amber-700 bg-amber-50/70 hover:bg-amber-100 hover:text-amber-900 border border-amber-200/50"
+              }`}
+              title="Speed Reviewer mode with keyboard shortcuts for 10x faster screening"
+            >
+              <Icon
+                name="zap"
+                size={14}
+                className={
+                  viewMode === "speed"
+                    ? "text-yellow-200 fill-current"
+                    : "text-amber-600"
+                }
+              />
+              {t(lang, "Speed Reviewer")}
             </button>
           </div>
 
@@ -755,246 +616,60 @@ export default function CandidatesClient() {
             className="border border-line bg-card hover:bg-sunken"
             title="Refresh candidate data"
           >
-            <Icon name="rotate-ccw" size={14} className={loading ? "animate-spin" : ""} />
+            <Icon
+              name="rotate-ccw"
+              size={14}
+              className={loading ? "animate-spin" : ""}
+            />
           </Button>
         </div>
       </div>
 
-      {/* ── 2. Horizontal Stage Tabs with Live Counts ── */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-        <button
-          onClick={() => {
-            setActiveStage("All");
-            setPage(1);
-          }}
-          className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${activeStage === "All"
-            ? "border-brand bg-brand text-white shadow-xs"
-            : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
-            }`}
-        >
-          <span>{t(lang, "All Stages")}</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${activeStage === "All" ? "bg-white/20 text-white" : "bg-sunken text-ink"
-              }`}
-          >
-            {stageCounts.Total.toLocaleString()}
-          </span>
-        </button>
+      {/* ── Job-Wise Context Bar & Conversion Funnel ── */}
+      <CandidatesHeader
+        lang={lang}
+        t={t}
+        jobs={jobs}
+        activeJob={activeJob}
+        jobFilter={jobFilter}
+        handleJobChange={handleJobChange}
+        stageCounts={stageCounts}
+        activeStage={activeStage}
+        setActiveStage={setActiveStage}
+        setPage={setPage}
+        showFunnel={showFunnel}
+        setShowFunnel={setShowFunnel}
+      />
 
-        {activeStages.map((stg) => {
-          const count = stageCounts[stg] || 0;
-          const isSelected = activeStage === stg;
-          const color = getStageStyle(stg);
+      {/* ── Filters & Search Toolbar ── */}
+      <CandidatesFilters
+        lang={lang}
+        t={t}
+        activeStage={activeStage}
+        setActiveStage={setActiveStage}
+        setPage={setPage}
+        stageCounts={stageCounts}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        minScoreFilter={minScoreFilter}
+        setMinScoreFilter={setMinScoreFilter}
+        expFilter={expFilter}
+        setExpFilter={setExpFilter}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        candidatesCount={candidates.length}
+        pageSize={pageSize}
+        setPageSize={setPageSize}
+        pagination={pagination}
+        resetFilters={resetFilters}
+        viewMode={viewMode}
+        density={density}
+        setDensity={setDensity}
+        handleExportCsv={handleExportCsv}
+        isExporting={isExporting}
+      />
 
-          return (
-            <button
-              key={stg}
-              onClick={() => {
-                setActiveStage(stg);
-                setPage(1);
-              }}
-              className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${isSelected
-                ? "border-brand bg-brand text-white shadow-xs"
-                : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
-                }`}
-            >
-              <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-white" : color.dot}`} />
-              <span>{t(lang, stg)}</span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${isSelected ? "bg-white/20 text-white" : color.bg
-                  }`}
-              >
-                {count.toLocaleString()}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── 3. High-Performance Filter & Search Toolbar ── */}
-      <div className="rounded-xl border border-line bg-card p-4 shadow-xs">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
-          {/* Search Box */}
-          <div className="relative lg:col-span-4">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
-              <Icon name="search" size={15} />
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t(lang, "Search by name, email, skill, or job...")}
-              className="w-full rounded-lg border border-line bg-sunken/40 py-2 pl-9 pr-8 text-sm text-ink placeholder-muted focus:border-brand focus:bg-card focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-muted hover:text-ink"
-              >
-                <Icon name="x" size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* Job Filter */}
-          <div className="lg:col-span-3">
-            <Select
-              value={jobFilter}
-              onChange={(e) => {
-                setJobFilter(e.target.value);
-                setPage(1);
-              }}
-              options={[
-                { value: "", label: t(lang, "All Active Jobs") },
-                ...jobs.map((j) => ({
-                  value: j.id,
-                  label: `${j.title} (${j.applicantCount ?? 0})`,
-                })),
-              ]}
-            />
-          </div>
-
-          {/* AI Match Score */}
-          <div className="lg:col-span-2">
-            <Select
-              value={minScoreFilter}
-              onChange={(e) => {
-                setMinScoreFilter(e.target.value);
-                setPage(1);
-              }}
-              options={MATCH_FILTERS.map((f) => ({ value: f.value, label: t(lang, f.label) }))}
-            />
-          </div>
-
-          {/* Experience Filter */}
-          <div className="lg:col-span-2">
-            <Select
-              value={expFilter}
-              onChange={(e) => {
-                setExpFilter(e.target.value);
-                setPage(1);
-              }}
-              options={EXP_FILTERS.map((f) => ({ value: f.value, label: t(lang, f.label) }))}
-            />
-          </div>
-
-          {/* Sort Filter */}
-          <div className="lg:col-span-1">
-            <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              options={SORTS.map((s) => ({ value: s.value, label: t(lang, s.label) }))}
-            />
-          </div>
-        </div>
-
-        {/* Sub-toolbar row: Reset and Count Status */}
-        <div className="mt-3 flex flex-wrap items-center justify-between border-t border-line/60 pt-3 text-xs text-muted">
-          <div className="flex items-center gap-3">
-            <span>
-              {t(lang, "Showing")}{" "}
-              <strong className="text-ink">
-                {candidates.length > 0 ? (page - 1) * Number(pageSize) + 1 : 0} –{" "}
-                {Math.min(page * Number(pageSize), pagination.total)}
-              </strong>{" "}
-              {t(lang, "of")} <strong className="text-ink">{pagination.total.toLocaleString()}</strong>{" "}
-              {t(lang, "candidates")}
-            </span>
-            {hasActiveFilters && (
-              <button
-                onClick={resetFilters}
-                className="inline-flex items-center gap-1 font-semibold text-brand hover:underline"
-              >
-                <Icon name="x" size={12} />
-                {t(lang, "Reset all filters")}
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline">{t(lang, "Rows per page:")}</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-line bg-card px-2 py-1 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
-            >
-              {PAGE_SIZES.map((ps) => (
-                <option key={ps.value} value={ps.value}>
-                  {ps.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 4. Floating Multi-Select & Bulk Actions Bar ── */}
-      {manage && selected.length > 0 && (
-        <div className="sticky top-4 z-40 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/95 p-3.5 shadow-md backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand text-xs font-black text-white">
-              {selected.length}
-            </span>
-            <span className="text-sm font-bold text-ink">
-              {selected.length} {t(lang, "candidates selected")}
-            </span>
-            <button
-              onClick={selectAllPage}
-              className="text-xs font-bold text-brand hover:underline"
-            >
-              {candidates.every((c) => selected.includes(c.id))
-                ? t(lang, "Deselect page")
-                : t(lang, `Select all ${candidates.length} on this page`)}
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                if (!e.target.value) return;
-                if (e.target.value === "Rejected") setConfirmBulk({ stage: "Rejected", phase: 1 });
-                else runBulk(e.target.value);
-                e.target.value = "";
-              }}
-              className="rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-bold text-ink shadow-xs focus:border-brand focus:outline-none"
-            >
-              <option value="" disabled>
-                {t(lang, "Bulk Move to Stage…")}
-              </option>
-              {activeStages.map((s) => (
-                <option key={s} value={s}>
-                  {t(lang, s)}
-                </option>
-              ))}
-            </select>
-
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => setConfirmBulk({ stage: "Rejected", phase: 1 })}
-              className="gap-1.5 text-xs font-bold"
-            >
-              <Icon name="x-circle" size={13} />
-              {t(lang, "Bulk Reject")}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelected([])}
-              className="text-xs font-bold text-muted hover:text-ink"
-            >
-              {t(lang, "Cancel")}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* ── 5. Undo Banner (5-minute safety window per EMP-FR-019b) ── */}
+      {/* ── Undo Banner (5-minute safety window per EMP-FR-019b) ── */}
       {undo && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm text-amber-900 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-center gap-2.5">
@@ -1004,1826 +679,194 @@ export default function CandidatesClient() {
             <span className="text-xs sm:text-sm">
               {undo.single ? (
                 <>
-                  <strong>{undo.name}</strong> {t(lang, "moved to")} <strong>{t(lang, undo.stage)}</strong>.{" "}
+                  <strong>{undo.name}</strong> {t(lang, "moved to")}{" "}
+                  <strong>{t(lang, undo.stage)}</strong>.{" "}
                 </>
               ) : (
                 <>
-                  <strong>{undo.ids?.length || 0}</strong> {t(lang, "candidates moved to")} <strong>{t(lang, undo.stage)}</strong>.{" "}
+                  <strong>{undo.ids?.length || 0}</strong>{" "}
+                  {t(lang, "candidates moved to")}{" "}
+                  <strong>{t(lang, undo.stage)}</strong>.{" "}
                 </>
               )}
-              <span className="text-amber-700/80">{t(lang, "You have 5 minutes to revert this change.")}</span>
+              <span className="text-amber-700/80">
+                {t(lang, "You have 5 minutes to revert this change.")}
+              </span>
             </span>
           </div>
-          <Button variant="secondary" size="sm" onClick={doUndo} className="border-amber-300 font-bold bg-white text-amber-900 hover:bg-amber-100 shrink-0">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={doUndo}
+            className="border-amber-300 font-bold bg-white text-amber-900 hover:bg-amber-100 shrink-0"
+          >
             <Icon name="rotate-ccw" size={13} />
             {t(lang, "Undo Action")}
           </Button>
         </div>
       )}
 
-      {/* ── 6. View Mode 1: High-Density Table View ── */}
+      {/* ── View Modes ── */}
       {viewMode === "table" && (
-        <div className="overflow-hidden rounded-xl border border-line bg-card shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-line bg-sunken/60 text-[11px] font-bold uppercase tracking-wider text-muted">
-                  <th className="w-10 px-4 py-3.5 text-center">
-                    {manage && (
-                      <input
-                        type="checkbox"
-                        checked={candidates.length > 0 && candidates.every((c) => selected.includes(c.id))}
-                        onChange={selectAllPage}
-                        aria-label="Select all on this page"
-                        className="h-4 w-4 rounded border-line text-brand focus:ring-brand accent-blue-600"
-                      />
-                    )}
-                  </th>
-                  <th className="px-4 py-3.5">{t(lang, "Candidate")}</th>
-                  <th className="px-4 py-3.5">{t(lang, "Job & Applied Date")}</th>
-                  <th className="px-4 py-3.5 text-center">{t(lang, "AI Match")}</th>
-                  <th className="px-4 py-3.5">{t(lang, "Experience & Skills")}</th>
-                  <th className="px-4 py-3.5">{t(lang, "Stage / Status")}</th>
-                  <th className="px-4 py-3.5 text-right">{t(lang, "Actions")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/60">
-                {loading && candidates.length === 0 ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i}>
-                      <td colSpan={8} className="p-4">
-                        <Skeleton height={42} />
-                      </td>
-                    </tr>
-                  ))
-                ) : candidates.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-16 text-center">
-                      <div className="mx-auto flex max-w-sm flex-col items-center justify-center">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sunken text-muted">
-                          <Icon name="users" size={24} />
-                        </div>
-                        <h4 className="mt-3 text-base font-bold text-ink">{t(lang, "No candidates found")}</h4>
-                        <p className="mt-1 text-xs text-muted text-center">
-                          {hasActiveFilters
-                            ? t(lang, "Try adjusting your search criteria or stage filters.")
-                            : t(lang, "When candidates apply to your jobs, they will appear here.")}
-                        </p>
-                        {hasActiveFilters && (
-                          <Button variant="secondary" size="sm" onClick={resetFilters} className="mt-4">
-                            {t(lang, "Clear all filters")}
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  candidates.map((c) => {
-                    const isRowSelected = selected.includes(c.id);
-                    const matchScore = c.matchScore || c.rating * 20 || 85;
-
-                    return (
-                      <tr
-                        key={c.id}
-                        className={`group transition-colors hover:bg-sunken/30 ${isRowSelected ? "bg-blue-50/50" : ""
-                          }`}
-                      >
-                        {/* Checkbox */}
-                        <td className="px-4 py-3 text-center">
-                          {manage && (
-                            <input
-                              type="checkbox"
-                              checked={isRowSelected}
-                              onChange={() => toggleSelect(c.id)}
-                              aria-label={`Select ${c.name}`}
-                              className="h-4 w-4 rounded border-line text-brand focus:ring-brand accent-blue-600"
-                            />
-                          )}
-                        </td>
-
-                        {/* Candidate Name & Contact */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar name={c.name} size={36} />
-                            <div className="min-w-0">
-                              <button
-                                onClick={() => {
-                                  setOpenId(c.id);
-                                  setNoteDraft("");
-                                }}
-                                className="block truncate text-left text-sm font-bold text-ink hover:text-brand hover:underline"
-                              >
-                                {c.name}
-                              </button>
-                              <div className="flex items-center gap-2 text-xs text-muted truncate">
-                                <span>
-                                  {!contactVisible(c)
-                                    ? t(lang, "Protected")
-                                    : privacy.maskEmail
-                                      ? maskValue(c.email, "email")
-                                      : c.email || t(lang, "No email")}
-                                </span>
-                                {(c.job_availability || c.jobAvailability) && (
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${(c.job_availability || c.jobAvailability) === "open_to_opportunities"
-                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                    : (c.job_availability || c.jobAvailability) === "not_looking"
-                                      ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    }`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full ${(c.job_availability || c.jobAvailability) === "open_to_opportunities"
-                                      ? "bg-amber-500"
-                                      : (c.job_availability || c.jobAvailability) === "not_looking"
-                                        ? "bg-rose-500"
-                                        : "bg-emerald-500"
-                                      }`} />
-                                    {(c.job_availability || c.jobAvailability) === "open_to_opportunities"
-                                      ? "Open to Opps"
-                                      : (c.job_availability || c.jobAvailability) === "not_looking"
-                                        ? "Not Looking"
-                                        : "Open to Work"}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Job Applied & Date */}
-                        <td className="px-4 py-3">
-                          <span className="block max-w-[200px] truncate text-xs font-semibold text-ink">
-                            {c.jobTitle || jobOf(c.jobId)?.title || t(lang, "General Application")}
-                          </span>
-                          <span className="block text-[11px] text-muted">
-                            {c.appliedDate || t(lang, "Recently")}
-                          </span>
-                        </td>
-
-                        {/* AI Match Score */}
-                        <td className="px-4 py-3 text-center">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-black shadow-xs ${getScoreBadgeClass(
-                              matchScore
-                            )}`}
-                            title={t(lang, "AI Match Score based on skills and resume parsing")}
-                          >
-                            <Icon name="sparkles" size={11} />
-                            {matchScore}%
-                          </span>
-                        </td>
-
-                        {/* Experience & Skills */}
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs font-medium text-ink">
-                              {c.experienceYears} {t(lang, "years exp")}
-                            </span>
-                            <div className="flex flex-wrap gap-1 max-w-[200px]">
-                              {Array.isArray(c.skills) && c.skills.length > 0 ? (
-                                c.skills.slice(0, 2).map((sk, i) => (
-                                  <span
-                                    key={i}
-                                    className="rounded bg-sunken px-1.5 py-0.5 text-[10px] text-muted font-medium"
-                                  >
-                                    {sk}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-[11px] text-muted">{c.educationLevel || "Bachelor"}</span>
-                              )}
-                              {Array.isArray(c.skills) && c.skills.length > 2 && (
-                                <span className="text-[10px] text-muted">+{c.skills.length - 2}</span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Stage Selector */}
-                        <td className="px-4 py-3">
-                          {manage ? (
-                            <select
-                              value={c.stage}
-                              onChange={(e) => move(c.id, e.target.value)}
-                              aria-label={`Change stage for ${c.name}`}
-                              className="rounded-lg border border-line bg-card px-2.5 py-1 text-xs font-semibold text-ink shadow-xs focus:border-brand focus:outline-none"
-                            >
-                              {activeStages.map((s) => (
-                                <option key={s} value={s}>
-                                  {t(lang, s)}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <StatusBadge kind="stage" value={c.stage} lang={lang} />
-                          )}
-                        </td>
-
-
-                        {/* Actions */}
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openResumeModal(c)}
-                              className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
-                              title={t(lang, "Show Uploaded PDF / Candidate CV")}
-                            >
-                              <Icon name="file-text" size={14} />
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setOpenId(c.id);
-                                setNoteDraft("");
-                              }}
-                              className="h-8 w-8 p-0 text-muted hover:text-brand"
-                              title={t(lang, "View Details Drawer")}
-                            >
-                              <Icon name="eye" size={14} />
-                            </Button>
-
-                            {getNextStage(c.stage) && manage && (
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => move(c.id, getNextStage(c.stage))}
-                                className="h-8 px-2 text-xs font-bold text-brand hover:bg-brand-subtle"
-                                title={`Advance to ${getNextStage(c.stage)}`}
-                              >
-                                <Icon name="arrow-right" size={13} />
-                              </Button>
-                            )}
-
-                            {manage && c.stage !== "Rejected" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => move(c.id, "Rejected")}
-                                className="h-8 w-8 p-0 text-muted hover:text-danger hover:bg-rose-50"
-                                title={t(lang, "Reject")}
-                              >
-                                <Icon name="x" size={14} />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ── Table Pagination Bar ── */}
-          {pagination.totalPages > 1 && (
-            <div className="flex flex-wrap items-center justify-between border-t border-line bg-card p-4">
-              <span className="text-xs text-muted">
-                {t(lang, "Page")} <strong className="text-ink">{page}</strong> {t(lang, "of")}{" "}
-                <strong className="text-ink">{pagination.totalPages}</strong>
-              </span>
-
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={page <= 1 || loading}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="gap-1 text-xs font-bold"
-                >
-                  <Icon name="chevron-left" size={13} />
-                  {t(lang, "Previous")}
-                </Button>
-
-                {/* Direct Page Jump Buttons */}
-                <div className="hidden sm:flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, pagination.totalPages) }).map((_, i) => {
-                    let pageNum = i + 1;
-                    if (pagination.totalPages > 5 && page > 3) {
-                      pageNum = page - 2 + i;
-                      if (pageNum > pagination.totalPages) pageNum = pagination.totalPages - (4 - i);
-                    }
-
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${page === pageNum
-                          ? "bg-brand text-white shadow-xs"
-                          : "text-muted hover:bg-sunken hover:text-ink"
-                          }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={page >= pagination.totalPages || loading}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="gap-1 text-xs font-bold"
-                >
-                  {t(lang, "Next")}
-                  <Icon name="chevron-right" size={13} />
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+        <CandidatesTableView
+          lang={lang}
+          t={t}
+          manage={manage}
+          candidates={candidates}
+          loading={loading}
+          selected={selected}
+          setSelected={setSelected}
+          selectAllMatching={selectAllMatching}
+          setSelectAllMatching={setSelectAllMatching}
+          pagination={pagination}
+          page={page}
+          setPage={setPage}
+          jumpPage={jumpPage}
+          setJumpPage={setJumpPage}
+          handleJumpPage={handleJumpPage}
+          density={density}
+          privacy={privacy}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          handleMoveStage={handleMoveStage}
+          handleRating={handleRating}
+          openResumeModal={openResumeModal}
+          setOpenId={setOpenId}
+          setNoteDraft={setNoteDraft}
+          getNextStage={getNextStage}
+          setConfirmBulk={setConfirmBulk}
+          runBulk={runBulk}
+        />
       )}
 
       {viewMode === "pipeline" && (
-        <div className="flex flex-col gap-3">
-          {/* Kanban Info Bar */}
-          <div className="flex items-center justify-between text-xs text-muted px-1">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 font-bold text-ink">
-                <Icon name="columns" size={14} className="text-brand" />
-                {t(lang, "Recruitment Pipeline Board")}
-              </span>
-              <span className="text-line-strong">·</span>
-              <span>{t(lang, "Drag cards across stages or use quick actions")}</span>
-            </div>
-            {manage && (
-              <span className="inline-flex items-center gap-1 text-[11px] bg-brand-subtle text-brand px-2.5 py-0.5 rounded-full font-bold">
-                <Icon name="grip-vertical" size={12} />
-                {t(lang, "Drag & Drop Enabled")}
-              </span>
-            )}
-          </div>
-
-          {/* Kanban Columns Grid / Horizontal Scroll */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${PIPELINE_STAGES_CONFIG.length}, minmax(300px, 1fr))`,
-              gap: "1rem",
-            }}
-            className="overflow-x-auto pb-6 pt-1 scrollbar-thin"
-          >
-            {PIPELINE_STAGES_CONFIG.map((colConfig) => {
-              const stg = colConfig.id;
-              const stageItems = candidates.filter((c) => c.stage === stg);
-              const totalInStage = stageCounts[stg] ?? stageItems.length;
-              const limit = columnLimits[stg] || 20;
-              const visibleItems = stageItems.slice(0, limit);
-              const hasMore = stageItems.length > limit;
-              const isDragOver = dragOverColumn === stg;
-
-              return (
-                <div
-                  key={stg}
-                  onDragOver={(e) => handleDragOver(e, stg)}
-                  onDragLeave={(e) => handleDragLeave(e, stg)}
-                  onDrop={(e) => handleDrop(e, stg)}
-                  className={`flex min-w-[300px] flex-col rounded-xl border bg-sunken/40 p-3 transition-all ${colConfig.border
-                    } border-t-4 ${isDragOver
-                      ? colConfig.dropRing + " shadow-lg"
-                      : "border-line shadow-2xs"
-                    }`}
-                >
-                  {/* Column Header */}
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-line/60">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`flex h-6 w-6 items-center justify-center rounded-md ${colConfig.bg} shrink-0`}>
-                        <Icon name={colConfig.icon} size={13} />
-                      </span>
-                      <h3 className="text-xs font-black uppercase tracking-wider text-ink truncate" title={t(lang, colConfig.labelKey)}>
-                        {t(lang, colConfig.labelKey)}
-                      </h3>
-                    </div>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-black shrink-0 ${colConfig.bg}`}>
-                      {totalInStage.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {/* Drop Placeholder if dragging over this column */}
-                  {isDragOver && (
-                    <div className="mb-2.5 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-brand/60 bg-white/90 py-3 text-xs font-bold text-brand animate-pulse shadow-sm">
-                      <Icon name="arrow-down-circle" size={15} />
-                      <span>{t(lang, "Drop candidate here")}</span>
-                    </div>
-                  )}
-
-                  {/* Column Cards Container */}
-                  <div className="flex flex-col gap-2.5 min-h-[160px] flex-1">
-                    {visibleItems.length === 0 && !isDragOver ? (
-                      <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-line/80 py-10 text-center text-xs text-muted/70 bg-card/40">
-                        <Icon name={colConfig.icon} size={20} className="mb-1.5 opacity-30 text-ink" />
-                        <span className="font-semibold">{t(lang, "No candidates in this stage")}</span>
-                        {manage && <span className="text-[10px] text-muted/60 mt-0.5">{t(lang, "Drag cards here to update")}</span>}
-                      </div>
-                    ) : (
-                      visibleItems.map((c) => {
-                        const isBeingDragged = draggingCandidateId === c.id;
-                        return (
-                          <div
-                            key={c.id}
-                            draggable={manage}
-                            onDragStart={(e) => handleDragStart(e, c)}
-                            onDragEnd={handleDragEnd}
-                            onClick={(e) => {
-                              if (e.target.closest("button, select, input, a")) return;
-                              setOpenId(c.id);
-                              setNoteDraft("");
-                            }}
-                            className={`group relative flex flex-col gap-2.5 rounded-xl border bg-card p-3.5 transition-all select-none ${isBeingDragged
-                              ? "opacity-30 border-dashed border-brand shadow-none scale-95 ring-2 ring-brand/30 cursor-grabbing"
-                              : "border-line shadow-2xs hover:border-brand/40 hover:shadow-md cursor-grab active:cursor-grabbing"
-                              }`}
-                          >
-                            {/* Card Header: Drag Grip + Avatar + Name + Checkbox */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-start gap-2.5 min-w-0">
-                                {manage && (
-                                  <span
-                                    title={t(lang, "Drag to move stage")}
-                                    className="cursor-grab active:cursor-grabbing text-muted/30 group-hover:text-ink/60 mt-0.5 transition-colors shrink-0"
-                                  >
-                                    <Icon name="grip-vertical" size={15} />
-                                  </span>
-                                )}
-                                <Avatar name={c.name} size={32} />
-                                <div className="min-w-0">
-                                  <strong className="block truncate text-xs font-bold text-ink group-hover:text-brand transition-colors">
-                                    {c.name}
-                                  </strong>
-                                  <span className="block max-w-[150px] truncate text-[11px] text-muted">
-                                    {c.jobTitle || jobOf(c.jobId)?.title}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                {c.source && (
-                                  <span className="rounded-full bg-sunken px-1.5 py-0.5 text-[10px] font-semibold text-muted" title={t(lang, "Source")}>
-                                    {c.source}
-                                  </span>
-                                )}
-                                {manage && (
-                                  <input
-                                    type="checkbox"
-                                    checked={selected.includes(c.id)}
-                                    onChange={(e) => {
-                                      e.stopPropagation();
-                                      toggleSelect(c.id);
-                                    }}
-                                    aria-label={`Select ${c.name}`}
-                                    className="h-3.5 w-3.5 rounded border-line text-brand accent-blue-600 cursor-pointer"
-                                  />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Card Badges: AI Score + Experience */}
-                            <div className="flex items-center justify-between text-[11px] pt-1">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenId(c.id);
-                                  setShowAiExplain(true);
-                                }}
-                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold hover:opacity-85 transition-opacity ${getScoreBadgeClass(c.matchScore)}`}
-                                title={t(lang, "AI Match Score. Click to view breakdown.")}
-                              >
-                                <Icon name="sparkles" size={10} />
-                                <span>{c.matchScore}%</span>
-                              </button>
-                              <span className="text-muted font-medium bg-sunken/60 px-2 py-0.5 rounded-md">
-                                {c.experienceYears} {t(lang, "yrs exp")}
-                              </span>
-                            </div>
-
-                            {/* Interview indicator if scheduled */}
-                            {c.stage === "Interview Scheduled" && (
-                              <div className="flex items-center gap-1.5 rounded-md bg-purple-50 border border-purple-200/80 px-2 py-1 text-[11px] font-semibold text-purple-700">
-                                <Icon name="calendar" size={12} className="shrink-0" />
-                                <span className="truncate">{c.interview?.at || c.interviewDate || t(lang, "Interview set")}</span>
-                              </div>
-                            )}
-
-                            {/* Footer: View PDF & Stage Selector */}
-                            <div className="mt-1 flex items-center justify-between gap-2 border-t border-line/60 pt-2 text-[11px]">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openResumeModal(c);
-                                }}
-                                className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                                title={t(lang, "Show Uploaded PDF / Candidate CV")}
-                              >
-                                <Icon name="file-text" size={12} />
-                                <span>{getResumeFileInfo(c).fileType === "docx" ? t(lang, "View CV (Doc)") : t(lang, "View PDF")}</span>
-                              </button>
-
-                              {manage && (
-                                <select
-                                  value={c.stage}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    move(c.id, e.target.value, c.stage);
-                                  }}
-                                  aria-label={`Move stage for ${c.name}`}
-                                  className="rounded-md border border-line bg-sunken/60 px-1.5 py-0.5 text-[10px] font-semibold text-ink focus:border-brand focus:outline-none cursor-pointer max-w-[130px] truncate"
-                                >
-                                  {FIXED_PIPELINE_STAGES.map((s) => (
-                                    <option key={s} value={s}>
-                                      {t(lang, s)}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-
-                    {/* Load more in column */}
-                    {hasMore && (
-                      <button
-                        onClick={() =>
-                          setColumnLimits((prev) => ({
-                            ...prev,
-                            [stg]: (prev[stg] || 20) + 20,
-                          }))
-                        }
-                        className="w-full rounded-lg border border-line bg-card py-2 text-center text-xs font-bold text-brand hover:bg-sunken transition-colors shadow-2xs"
-                      >
-                        +{stageItems.length - limit} {t(lang, "more")}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <CandidatesPipelineBoard
+          lang={lang}
+          t={t}
+          manage={manage}
+          activeJob={activeJob}
+          candidates={candidates}
+          stageCounts={stageCounts}
+          selected={selected}
+          setSelected={setSelected}
+          handleMoveStage={handleMoveStage}
+          setOpenId={setOpenId}
+          setNoteDraft={setNoteDraft}
+          setShowAiExplain={setShowAiExplain}
+          openResumeModal={openResumeModal}
+        />
       )}
 
-      {/* ── 8. Slide-over Candidate Profile Drawer ── */}
-      {open && (
-        <div
-          className="fixed inset-0 z-[200] flex justify-end bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-          onClick={() => setOpenId(null)}
-        >
-          <aside
-            className="h-full w-full max-w-[500px] overflow-y-auto bg-card shadow-2xl flex flex-col animate-in slide-in-from-right duration-250"
-            role="dialog"
-            aria-modal="true"
-            aria-label={open.name}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drawer Header */}
-            <div className="sticky top-0 z-10 flex items-start justify-between border-b border-line bg-card/95 p-5 backdrop-blur-md">
-              <div className="flex items-center gap-3.5">
-                <Avatar name={open.name} size={48} />
-                <div>
-                  <h2 className="text-lg font-black text-ink">{open.name}</h2>
-                  <p className="text-xs text-muted font-medium">
-                    {open.jobTitle || jobOf(open.jobId)?.title} · {open.appliedDate}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setOpenId(null)}
-                className="rounded-lg p-1.5 text-muted hover:bg-sunken hover:text-ink transition-colors"
-                aria-label="Close drawer"
-              >
-                <Icon name="x" size={18} />
-              </button>
-            </div>
-
-            {/* Drawer Body */}
-            <div className="flex-1 p-6 space-y-6">
-              {/* Quick Actions & Stage Transition */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-sunken/40 p-3.5">
-                <div className="flex items-center gap-2">
-                  <StatusBadge kind="stage" value={open.stage} lang={lang} />
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${getScoreBadgeClass(open.matchScore)}`}>
-                    ★ {open.matchScore}% Match
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAiExplain(!showAiExplain)}
-                    className="text-[11px] font-semibold text-brand hover:underline inline-flex items-center gap-1 ml-1"
-                    title={t(lang, "AI Match Score Breakdown (Explainable AI)")}
-                  >
-                    <span>{t(lang, "Explain")}</span>
-                    <Icon name={showAiExplain ? "chevron-up" : "chevron-down"} size={11} />
-                  </button>
-                </div>
-
-                {manage && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => openScheduleModal(open)}
-                      className="gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100"
-                    >
-                      <Icon name="calendar" size={13} />
-                      {t(lang, "Schedule Interview")}
-                    </Button>
-                    {getNextStage(open.stage) && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => move(open.id, getNextStage(open.stage))}
-                        className="gap-1.5 text-xs font-bold"
-                      >
-                        {t(lang, "Advance to")} {t(lang, getNextStage(open.stage))}
-                        <Icon name="arrow-right" size={13} />
-                      </Button>
-                    )}
-                    {open.stage !== "Rejected" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => move(open.id, "Rejected")}
-                        className="text-xs font-bold text-danger hover:bg-rose-50"
-                      >
-                        {t(lang, "Reject")}
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* AI Match Score Explainability Breakdown */}
-              {showAiExplain && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-3 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon name="sparkles" size={15} className="text-blue-600" />
-                      <strong className="text-xs font-bold text-blue-950">
-                        {t(lang, "AI Match Score Breakdown")}
-                      </strong>
-                    </div>
-                    <span className="text-[11px] font-bold text-blue-700">
-                      Overall: {open.matchScore}%
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 text-xs">
-                    {[
-                      { label: "Skills Alignment", score: Math.min(100, Math.max(50, open.matchScore + 3)), weight: "35%" },
-                      { label: "Experience Level", score: Math.min(100, Math.max(50, open.matchScore - 2)), weight: "25%" },
-                      { label: "Industry Relevance", score: Math.min(100, Math.max(50, open.matchScore + 1)), weight: "20%" },
-                      { label: "Location & Commute", score: Math.min(100, Math.max(50, open.matchScore + 4)), weight: "10%" },
-                      { label: "Education & Certifications", score: Math.min(100, Math.max(50, open.matchScore - 4)), weight: "10%" },
-                    ].map((factor, i) => (
-                      <div key={i} className="space-y-1">
-                        <div className="flex justify-between text-[11px]">
-                          <span className="font-medium text-slate-700">{t(lang, factor.label)} <span className="text-[10px] text-muted">({factor.weight})</span></span>
-                          <span className="font-bold text-slate-900">{factor.score}%</span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
-                          <div
-                            className="h-full rounded-full bg-blue-600"
-                            style={{ width: `${factor.score}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="text-[10px] text-blue-800/80 pt-1 border-t border-blue-200/60 italic">
-                    {t(lang, "Evaluated by LamViec360 AI Engine · Transparent & non-discriminatory ethical scoring")}
-                  </p>
-                </div>
-              )}
-
-              {/* Star Rating Section */}
-              <div className="flex items-center justify-between rounded-xl border border-line bg-card p-3.5">
-                <span className="text-xs font-bold text-ink">{t(lang, "Recruiter Rating")}</span>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      disabled={!manage}
-                      onClick={() => handleRating(open.id, star)}
-                      className={`text-lg transition-transform hover:scale-125 ${(open.rating || 0) >= star ? "text-amber-400" : "text-gray-200"
-                        }`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Contact & Professional Details */}
-              <div className="rounded-xl border border-line bg-card p-4 space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-muted">{t(lang, "Candidate Overview")}</h3>
-                <dl className="divide-y divide-line/60 text-xs">
-                  <div className="flex justify-between py-2">
-                    <dt className="text-muted">{t(lang, "Email Address")}</dt>
-                    <dd className="font-semibold text-ink">
-                      {!contactVisible(open)
-                        ? t(lang, "Hidden by privacy policy")
-                        : privacy.maskEmail
-                          ? maskValue(open.email, "email")
-                          : open.email || "—"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <dt className="text-muted">{t(lang, "Phone Number")}</dt>
-                    <dd className="font-semibold text-ink">
-                      {!contactVisible(open)
-                        ? t(lang, "Hidden by privacy policy")
-                        : privacy.maskPhone
-                          ? maskValue(open.phone, "phone")
-                          : open.phone || "—"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <dt className="text-muted">{t(lang, "Total Experience")}</dt>
-                    <dd className="font-semibold text-ink">{open.experienceYears} {t(lang, "years")}</dd>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <dt className="text-muted">{t(lang, "Education Level")}</dt>
-                    <dd className="font-semibold text-ink">{t(lang, open.educationLevel || "Bachelor's Degree")}</dd>
-                  </div>
-                  <div className="flex justify-between py-2 items-center">
-                    <dt className="text-muted">{t(lang, "Job Availability")}</dt>
-                    <dd>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${(open.job_availability || open.jobAvailability) === "open_to_opportunities"
-                        ? "bg-amber-50 text-amber-700 border border-amber-200"
-                        : (open.job_availability || open.jobAvailability) === "not_looking"
-                          ? "bg-rose-50 text-rose-700 border border-rose-200"
-                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${(open.job_availability || open.jobAvailability) === "open_to_opportunities"
-                          ? "bg-amber-500"
-                          : (open.job_availability || open.jobAvailability) === "not_looking"
-                            ? "bg-rose-500"
-                            : "bg-emerald-500"
-                          }`} />
-                        {(open.job_availability || open.jobAvailability) === "open_to_opportunities"
-                          ? t(lang, "Open to Relevant Opportunities")
-                          : (open.job_availability || open.jobAvailability) === "not_looking"
-                            ? t(lang, "Not Looking")
-                            : t(lang, "Open to Work")}
-                      </span>
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <dt className="text-muted">{t(lang, "Applied Date")}</dt>
-                    <dd className="font-semibold text-ink">{open.appliedDate}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              {/* Skills Tags */}
-              {Array.isArray(open.skills) && open.skills.length > 0 && (
-                <div className="rounded-xl border border-line bg-card p-4 space-y-2.5">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-muted">{t(lang, "Key Skills")}</h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {open.skills.map((sk, idx) => (
-                      <span
-                        key={idx}
-                        className="rounded-md border border-line bg-sunken px-2.5 py-1 text-xs font-medium text-ink"
-                      >
-                        {sk}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Cover Letter */}
-              {open.coverLetter && (
-                <div className="rounded-xl border border-line bg-card p-4 space-y-2">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-muted">{t(lang, "Cover Letter")}</h3>
-                  <p className="rounded-lg bg-sunken/40 p-3 text-xs leading-relaxed text-ink italic">
-                    "{open.coverLetter}"
-                  </p>
-                </div>
-              )}
-
-              {/* Resume & Attachment Section */}
-              {(() => {
-                const fileInfo = getResumeFileInfo(open);
-                return (
-                  <div className="rounded-xl border border-line bg-card p-4 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-xs shrink-0 ${fileInfo.fileType === "docx" ? "bg-blue-50 text-blue-600" : "bg-rose-50 text-rose-600"
-                          }`}>
-                          <Icon name="file-text" size={20} />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-xs font-bold text-ink truncate">
-                            {fileInfo.fileName}
-                          </span>
-                          <span className="block text-[11px] text-muted">
-                            {fileInfo.fileType === "docx"
-                              ? t(lang, "Candidate Uploaded Word Document")
-                              : t(lang, "Candidate Uploaded PDF Resume")}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold border shrink-0 ${fileInfo.fileType === "docx"
-                        ? "bg-blue-50 text-blue-700 border-blue-200"
-                        : "bg-rose-50 text-rose-700 border-rose-200"
-                        }`}>
-                        {fileInfo.fileType === "docx" ? "DOCX" : "PDF 1.4"}
-                      </span>
-                    </div>
-
-                    {fileInfo.fileType === "docx" ? (
-                      <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3.5 space-y-2 text-xs">
-                        <div className="flex items-center gap-2 font-bold text-blue-900">
-                          <Icon name="file-text" size={15} className="text-blue-600" />
-                          <span>Microsoft Word (.docx)</span>
-                        </div>
-                        <p className="text-[11px] text-blue-800 leading-relaxed">
-                          {t(lang, "This applicant submitted a Word document. You can download the original file or view the full parsed CV profile directly.")}
-                        </p>
-                      </div>
-                    ) : (
-                      /* Inline Mini PDF Quick Peek */
-                      <div className="relative h-44 w-full overflow-hidden rounded-lg border border-line bg-slate-100 group">
-                        <iframe
-                          src={`${getCandidatePdfUrl(open)}#toolbar=0&navpanes=0`}
-                          className="w-full h-full border-0 pointer-events-none"
-                          title="Resume Quick Peek"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-black/20 to-transparent flex items-end justify-between p-3">
-                          <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate max-w-[200px]">
-                            <Icon name="file-text" size={14} className="text-blue-400" />
-                            {fileInfo.fileName}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => openResumeModal(open, "pdf")}
-                            className="rounded-md bg-white px-2.5 py-1 text-xs font-bold text-ink shadow hover:bg-gray-100 transition-colors shrink-0"
-                          >
-                            {t(lang, "Expand PDF")}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 pt-1 border-t border-line/60">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => openResumeModal(open)}
-                        className="flex-1 gap-1.5 text-xs font-bold"
-                      >
-                        <Icon name="file-text" size={13} />
-                        {fileInfo.fileType === "docx" ? t(lang, "View Parsed Profile CV") : t(lang, "Show Uploaded PDF")}
-                      </Button>
-
-                      <a
-                        href={fileInfo.fileUrl}
-                        download={fileInfo.fileName}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-sunken px-3 py-1.5 text-xs font-bold text-ink hover:bg-card transition-colors shadow-xs"
-                        title={t(lang, "Download attachment")}
-                      >
-                        <Icon name="download" size={13} />
-                        {t(lang, "Download")}
-                      </a>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Verification & Previous Employment Documents (Encrypted Storage) */}
-              <div className="rounded-xl border border-line bg-card p-4 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-                      <Icon name="shield" size={17} />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-wider text-ink">
-                        {t(lang, "Verification & Employment Documents")}
-                      </h3>
-                      <span className="text-[11px] text-muted block">
-                        {t(lang, "Contracts, relieving letters, payslips & certificates")}
-                      </span>
-                    </div>
-                  </div>
-                  {isShortlistedPlus(open.stage) ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                      <Icon name="unlock" size={10} /> {t(lang, "Unlocked")}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 px-2 py-0.5 text-[10px] font-bold">
-                      <Icon name="lock" size={10} /> {t(lang, "Locked")}
-                    </span>
-                  )}
-                </div>
-
-                {!isShortlistedPlus(open.stage) ? (
-                  <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20 p-3.5 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <Icon name="lock" size={13} className="text-amber-600 dark:text-amber-400" />
-                      <span>{t(lang, "Encrypted Candidate Documents")}</span>
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-amber-800/90 dark:text-amber-300/80">
-                      {t(
-                        lang,
-                        "Verification documents (contracts, relieving letters, payslips, certificates) are encrypted. Access is granted from the Shortlisted stage onward."
-                      )}
-                    </p>
-                  </div>
-                ) : loadingVerificationDocs ? (
-                  <div className="py-4 text-center text-xs text-muted">
-                    <Icon name="loader-2" size={18} className="animate-spin mx-auto mb-1 text-brand" />
-                    <span>{t(lang, "Loading verified documents...")}</span>
-                  </div>
-                ) : verificationDocs.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-line bg-sunken/40 p-3.5 text-center text-xs text-muted">
-                    <Icon name="file-text" size={20} className="mx-auto mb-1 text-faint" />
-                    <p>{t(lang, "No verification documents uploaded by candidate yet.")}</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 pt-1">
-                    {verificationDocs.map((vdoc) => (
-                      <div
-                        key={vdoc.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-line bg-sunken/40 p-3 text-xs transition-colors hover:bg-card"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card border border-line text-muted">
-                            <Icon name="file" size={15} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-ink truncate max-w-[200px]" title={vdoc.title || vdoc.file_name}>
-                                {vdoc.title || vdoc.file_name}
-                              </span>
-                              <span className="rounded bg-brand-subtle px-1.5 py-0.2 text-[10px] font-bold text-brand uppercase">
-                                {vdoc.category || "Document"}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-muted block mt-0.5">
-                              {vdoc.file_name} · {formatBytes(vdoc.size_bytes || 0)}
-                            </span>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setViewingDoc({ doc: vdoc, applicantId: open.id, candidateName: open.name })}
-                          className="inline-flex items-center gap-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-bold text-ink hover:bg-sunken transition-colors shrink-0 shadow-xs"
-                          title={t(lang, "View confidential document (view-only)")}
-                        >
-                          <Icon name="eye" size={12} />
-                          <span>{t(lang, "View")}</span>
-                        </button>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted pt-1">
-                      <Icon name="shield" size={11} className="text-emerald-600" />
-                      <span>{t(lang, "View-only per Vietnam PDPD (Decree 13/2023/ND-CP). Direct downloads restricted.")}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Rejection Details if Rejected */}
-              {open.stage === "Rejected" && (open.rejectionTemplateId || open.rejectionNote) && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-4 text-xs text-rose-900 space-y-1.5">
-                  <strong className="block font-bold">{t(lang, "Rejection Reason & Record")}</strong>
-                  {open.rejectionTemplateId && <span>{templateTitle(open.rejectionTemplateId)}</span>}
-                  {open.rejectionNote && <p className="text-rose-800 italic">"{open.rejectionNote}"</p>}
-                </div>
-              )}
-
-              {/* Internal Notes Feed */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-muted">
-                  {t(lang, "Internal Recruiter Notes")}
-                </h3>
-                <div className="flex flex-col gap-2">
-                  {(!open.notes || open.notes.length === 0) && (
-                    <p className="text-xs text-muted italic">{t(lang, "No notes recorded yet.")}</p>
-                  )}
-                  {open.notes?.map((n) => (
-                    <div key={n.id} className="rounded-lg border border-line bg-sunken/40 p-3 text-xs">
-                      <p className="text-ink leading-relaxed">{n.text}</p>
-                      <span className="mt-1 block text-[10px] text-muted">
-                        {n.author} · {n.at}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {manage && (
-                  <div className="flex gap-2 pt-1">
-                    <textarea
-                      rows={2}
-                      value={noteDraft}
-                      onChange={(e) => setNoteDraft(e.target.value)}
-                      placeholder={t(lang, "Write an internal note… (visible to team only)")}
-                      className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink placeholder-muted focus:border-brand focus:outline-none"
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={async () => {
-                        if (!noteDraft.trim()) return;
-                        await addCandidateNote(open.id, noteDraft.trim(), getAuth().name);
-                        setNoteDraft("");
-                        setToast(t(lang, "Note saved"));
-                        loadData();
-                      }}
-                      className="self-end font-bold"
-                    >
-                      {t(lang, "Add")}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </aside>
-        </div>
+      {viewMode === "speed" && (
+        <CandidatesSpeedReview
+          lang={lang}
+          t={t}
+          manage={manage}
+          activeJob={activeJob}
+          candidates={candidates}
+          speedIndex={speedIndex}
+          setSpeedIndex={setSpeedIndex}
+          page={page}
+          setPage={setPage}
+          pagination={pagination}
+          selected={selected}
+          setSelected={setSelected}
+          handleMoveStage={handleMoveStage}
+          openScheduleModal={openScheduleModal}
+          getNextStage={getNextStage}
+        />
       )}
 
-      {/* ── 9. Rejection Modal ── */}
-      {rejectTarget && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-ink">{t(lang, "Reject Candidate")}</h3>
-              <button onClick={() => setRejectTarget(null)} className="text-muted hover:text-ink">
-                <Icon name="x" size={16} />
-              </button>
-            </div>
-            <p className="text-xs text-muted leading-relaxed">
-              {t(lang, "Select a standardized rejection template. This reason will be archived on the candidate record.")}
-            </p>
+      {/* ── Slide-over Candidate Profile Drawer ── */}
+      <CandidateDetailDrawer
+        lang={lang}
+        t={t}
+        open={open}
+        setOpenId={setOpenId}
+        manage={manage}
+        activeJob={activeJob}
+        privacy={privacy}
+        contactVisible={contactVisible}
+        showAiExplain={showAiExplain}
+        setShowAiExplain={setShowAiExplain}
+        openScheduleModal={openScheduleModal}
+        getNextStage={getNextStage}
+        handleMoveStage={handleMoveStage}
+        openResumeModal={openResumeModal}
+        setViewingDoc={setViewingDoc}
+        templateTitle={templateTitle}
+        noteDraft={noteDraft}
+        setNoteDraft={setNoteDraft}
+        loadData={loadData}
+        setToast={setToast}
+      />
 
-            <div>
-              <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Rejection Template")}</label>
-              <select
-                value={rejectReason.templateId}
-                onChange={(e) => setRejectReason({ ...rejectReason, templateId: e.target.value })}
-                className="w-full rounded-lg border border-line bg-card p-2 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
-              >
-                <option value="">{t(lang, "No specific reason")}</option>
-                {templates.map((tpl) => (
-                  <option key={tpl.id} value={tpl.id}>
-                    {tpl.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* ── Rejection Modal (Screen e09 / EMP-FR-025b) ── */}
+      <CandidateRejectModal
+        lang={lang}
+        t={t}
+        rejectTarget={rejectTarget}
+        setRejectTarget={setRejectTarget}
+        targetCand={
+          rejectTarget
+            ? candidates.find((c) => String(c.id) === String(rejectTarget)) ||
+              getCandidate(rejectTarget)
+            : null
+        }
+        templates={templates}
+        rejectReason={rejectReason}
+        setRejectReason={setRejectReason}
+        rejectDelayHours={rejectDelayHours}
+        setRejectDelayHours={setRejectDelayHours}
+        confirmReject={confirmReject}
+      />
 
-            <div>
-              <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Internal Note (Optional)")}</label>
-              <textarea
-                rows={2}
-                value={rejectReason.note}
-                onChange={(e) => setRejectReason({ ...rejectReason, note: e.target.value })}
-                placeholder={t(lang, "Add optional context for your hiring team…")}
-                className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink focus:border-brand focus:outline-none"
-              />
-            </div>
+      {/* ── Schedule Interview Modal ── */}
+      <CandidateScheduleModal
+        lang={lang}
+        t={t}
+        scheduleCandidate={scheduleCandidate}
+        setScheduleCandidate={setScheduleCandidate}
+        activeJob={activeJob}
+        scheduleData={scheduleData}
+        setScheduleData={setScheduleData}
+        handleScheduleSubmit={handleScheduleSubmit}
+      />
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="secondary" size="sm" onClick={() => setRejectTarget(null)}>
-                {t(lang, "Cancel")}
-              </Button>
-              <Button variant="danger" size="sm" onClick={confirmReject}>
-                {t(lang, "Confirm Rejection")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Bulk Action Confirmation Modal ── */}
+      <CandidateBulkModal
+        lang={lang}
+        t={t}
+        confirmBulk={confirmBulk}
+        setConfirmBulk={setConfirmBulk}
+        selectAllMatching={selectAllMatching}
+        selectedCount={selected.length}
+        totalMatching={pagination.total || 0}
+        templates={templates}
+        runBulk={runBulk}
+      />
 
-      {/* ── 9b. Schedule Interview Popup Modal ── */}
-      {scheduleCandidate && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-card p-6 md:p-7 shadow-2xl space-y-5 my-auto max-h-[92vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-line pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-700 font-bold text-sm">
-                  📅
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-ink">{t(lang, "Schedule Candidate Interview")}</h3>
-                  <p className="text-xs text-muted">
-                    {t(lang, "Candidate")}: <strong className="text-ink">{scheduleCandidate.name}</strong> • {scheduleCandidate.jobTitle || "Job Application"}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setScheduleCandidate(null)}
-                className="rounded-lg p-1.5 text-muted hover:bg-sunken hover:text-ink transition-colors"
-              >
-                <Icon name="x" size={18} />
-              </button>
-            </div>
+      {/* ── Full Interactive Resume & CV Viewer Modal ── */}
+      <CandidateResumeModal
+        lang={lang}
+        t={t}
+        resumeCandidate={resumeCandidate}
+        setResumeCandidate={setResumeCandidate}
+        resumeModalTab={resumeModalTab}
+        setResumeModalTab={setResumeModalTab}
+        activeJob={activeJob}
+      />
 
-            {/* Form inputs */}
-            <form onSubmit={handleScheduleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-1">
-              {/* Interview Round / Title */}
-              <div>
-                <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interview Title / Round Name")}</label>
-                <input
-                  type="text"
-                  required
-                  value={scheduleData.round}
-                  onChange={(e) => setScheduleData({ ...scheduleData, round: e.target.value })}
-                  placeholder="e.g. First Round Technical & Product Interview"
-                  className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
-                />
-              </div>
-
-              {/* Format / Mode */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interview Format")}</label>
-                  <select
-                    value={scheduleData.mode}
-                    onChange={(e) => setScheduleData({ ...scheduleData, mode: e.target.value })}
-                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
-                  >
-                    <option value="video">🎥 {t(lang, "Video Call (Online)")}</option>
-                    <option value="phone">📞 {t(lang, "Phone Call")}</option>
-                    <option value="on-site">📍 {t(lang, "On-site Interview")}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Duration (Minutes)")}</label>
-                  <select
-                    value={scheduleData.durationMin}
-                    onChange={(e) => setScheduleData({ ...scheduleData, durationMin: Number(e.target.value) })}
-                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
-                  >
-                    <option value={30}>30 {t(lang, "Minutes")}</option>
-                    <option value={45}>45 {t(lang, "Minutes")}</option>
-                    <option value={60}>60 {t(lang, "Minutes")}</option>
-                    <option value={90}>90 {t(lang, "Minutes")}</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Date & Time */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Date")}</label>
-                  <input
-                    type="date"
-                    required
-                    value={scheduleData.date}
-                    onChange={(e) => setScheduleData({ ...scheduleData, date: e.target.value })}
-                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Time")}</label>
-                  <input
-                    type="time"
-                    required
-                    value={scheduleData.time}
-                    onChange={(e) => setScheduleData({ ...scheduleData, time: e.target.value })}
-                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Meeting Link or Location Address */}
-              <div>
-                <label className="block text-xs font-bold text-ink mb-1.5">
-                  {scheduleData.mode === "video" ? t(lang, "Video Meeting Link") : t(lang, "Location / Office Address")}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={scheduleData.mode === "video" ? scheduleData.meetingLink : scheduleData.location}
-                  onChange={(e) =>
-                    scheduleData.mode === "video"
-                      ? setScheduleData({ ...scheduleData, meetingLink: e.target.value, location: "Google Meet" })
-                      : setScheduleData({ ...scheduleData, location: e.target.value })
-                  }
-                  placeholder={
-                    scheduleData.mode === "video"
-                      ? "e.g. https://meet.google.com/lv3-xxxx"
-                      : "e.g. Floor 8, VNG Campus, District 7, Ho Chi Minh City"
-                  }
-                  className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
-                />
-              </div>
-
-              {/* Interviewers */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interviewer Name")}</label>
-                  <input
-                    type="text"
-                    value={scheduleData.interviewerName}
-                    onChange={(e) => setScheduleData({ ...scheduleData, interviewerName: e.target.value })}
-                    placeholder="e.g. Talent Acquisition Team"
-                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Interviewer Role")}</label>
-                  <input
-                    type="text"
-                    value={scheduleData.interviewerRole}
-                    onChange={(e) => setScheduleData({ ...scheduleData, interviewerRole: e.target.value })}
-                    placeholder="e.g. Recruiter / Engineering Lead"
-                    className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Instructions */}
-              <div>
-                <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Instructions for Candidate")}</label>
-                <textarea
-                  rows={2}
-                  value={scheduleData.instructions}
-                  onChange={(e) => setScheduleData({ ...scheduleData, instructions: e.target.value })}
-                  placeholder={t(lang, "e.g. Online video interview invitation from employer. Please join on time.")}
-                  className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink focus:border-brand focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-line">
-                <Button variant="secondary" size="sm" type="button" onClick={() => setScheduleCandidate(null)}>
-                  {t(lang, "Cancel")}
-                </Button>
-                <Button variant="primary" size="sm" type="submit" disabled={isSubmittingSchedule}>
-                  <Icon name={isSubmittingSchedule ? "rotate-ccw" : "calendar"} size={14} className={isSubmittingSchedule ? "animate-spin" : ""} />
-                  {isSubmittingSchedule ? t(lang, "Scheduling...") : t(lang, "Confirm & Schedule Interview")}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── 10. Bulk Rejection Confirmation Modal ── */}
-      {confirmBulk && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-rose-600">
-                {t(lang, "Reject")} {selected.length} {t(lang, "Candidates?")}
-              </h3>
-              <button onClick={() => setConfirmBulk(null)} className="text-muted hover:text-ink">
-                <Icon name="x" size={16} />
-              </button>
-            </div>
-
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900 leading-relaxed">
-              {t(
-                lang,
-                "This action will move all selected candidates to the Rejected stage. You will have a 5-minute safety window to undo."
-              )}
-            </div>
-
-            {templates.length > 0 && (
-              <div>
-                <label className="block text-xs font-bold text-ink mb-1.5">{t(lang, "Rejection Template")}</label>
-                <select
-                  value={confirmBulk.templateId || ""}
-                  onChange={(e) => setConfirmBulk({ ...confirmBulk, templateId: e.target.value })}
-                  className="w-full rounded-lg border border-line bg-card p-2 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
-                >
-                  <option value="">{t(lang, "No specific reason")}</option>
-                  {templates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="secondary" size="sm" onClick={() => setConfirmBulk(null)}>
-                {t(lang, "Cancel")}
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => runBulk("Rejected", { templateId: confirmBulk.templateId || "" })}
-              >
-                {t(lang, "Reject All Selected")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── 11. Full Interactive Resume & CV Viewer Modal ── */}
-      {resumeCandidate && (
-        <div
-          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-          onClick={() => setResumeCandidate(null)}
-        >
-          <div
-            className="relative flex h-[92vh] w-full max-w-5xl flex-col rounded-2xl bg-card shadow-2xl overflow-hidden border border-line animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Top Bar */}
-            <div className="flex flex-wrap items-center justify-between border-b border-line bg-sunken/40 px-6 py-3.5 gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shadow-xs">
-                  <Icon name="file-text" size={20} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-black text-ink">{resumeCandidate.name}</h2>
-                    <StatusBadge kind="stage" value={resumeCandidate.stage} lang={lang} />
-                  </div>
-                  <p className="text-xs text-muted">
-                    {resumeCandidate.jobTitle || jobOf(resumeCandidate.jobId)?.title} · {t(lang, "Applied")}: {resumeCandidate.appliedDate}
-                  </p>
-                </div>
-              </div>
-
-              {/* View Switcher Tabs: Uploaded PDF vs Parsed Profile */}
-              <div className="inline-flex rounded-lg border border-line bg-card p-1 shadow-xs">
-                <button
-                  type="button"
-                  onClick={() => setResumeModalTab("pdf")}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${resumeModalTab === "pdf"
-                    ? "bg-brand text-white shadow-xs"
-                    : "text-muted hover:text-ink hover:bg-sunken"
-                    }`}
-                >
-                  <Icon name="file-text" size={13} />
-                  <span>{t(lang, "Uploaded PDF")}</span>
-                  <span className={`rounded px-1.5 py-0.2 text-[10px] uppercase font-black ${resumeModalTab === "pdf" ? "bg-white/20 text-white" : "bg-rose-100 text-rose-700"
-                    }`}>
-                    PDF
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setResumeModalTab("profile")}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${resumeModalTab === "profile"
-                    ? "bg-brand text-white shadow-xs"
-                    : "text-muted hover:text-ink hover:bg-sunken"
-                    }`}
-                >
-                  <Icon name="user" size={13} />
-                  <span>{t(lang, "Profile & AI Summary")}</span>
-                </button>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                <a
-                  href={getCandidatePdfUrl(resumeCandidate)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-bold text-ink hover:bg-sunken transition-all shadow-xs"
-                  title="Open PDF in new browser tab"
-                >
-                  <Icon name="external-link" size={13} />
-                  <span className="hidden sm:inline">{t(lang, "New Tab")}</span>
-                </a>
-                <a
-                  href={getCandidatePdfUrl(resumeCandidate)}
-                  download={resumeCandidate.resumeFileName || `${resumeCandidate.name?.replace(/\s+/g, "_")}_CV.pdf`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-bold text-ink hover:bg-sunken transition-all shadow-xs"
-                  title="Download PDF"
-                >
-                  <Icon name="download" size={13} />
-                  <span className="hidden sm:inline">{t(lang, "Download")}</span>
-                </a>
-                <button
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-bold text-ink hover:bg-sunken transition-all shadow-xs"
-                  title="Print CV"
-                >
-                  <Icon name="printer" size={13} />
-                  <span className="hidden sm:inline">{t(lang, "Print")}</span>
-                </button>
-                <button
-                  onClick={() => setResumeCandidate(null)}
-                  className="rounded-lg p-2 text-muted hover:bg-sunken hover:text-ink transition-colors"
-                  aria-label="Close modal"
-                >
-                  <Icon name="x" size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body: Switch between PDF Embed and Parsed Profile */}
-            {resumeModalTab === "pdf" ? (
-              <div className="flex-1 w-full h-full flex flex-col bg-slate-900/5 overflow-hidden">
-                {/* PDF Status & Info Sub-Bar */}
-                <div className="flex flex-wrap items-center justify-between border-b border-line bg-card/90 px-6 py-2.5 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold border ${getResumeFileInfo(resumeCandidate).fileType === "docx"
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : "bg-rose-50 text-rose-700 border-rose-200"
-                      }`}>
-                      {getResumeFileInfo(resumeCandidate).fileType === "docx" ? "DOCX" : "PDF 1.4"}
-                    </span>
-                    <span className="font-bold text-ink">
-                      {getResumeFileInfo(resumeCandidate).fileName}
-                    </span>
-                    <span className="hidden md:inline text-muted">
-                      · {t(lang, "Candidate uploaded document")}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
-                      <Icon name="check-circle" size={12} />
-                      {t(lang, "Active Document")}
-                    </span>
-                    <a
-                      href={getCandidatePdfUrl(resumeCandidate)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px] font-bold text-brand hover:underline inline-flex items-center gap-1"
-                    >
-                      <Icon name="maximize-2" size={11} />
-                      {t(lang, "Open Full Window")}
-                    </a>
-                  </div>
-                </div>
-
-                {getResumeFileInfo(resumeCandidate).fileType === "docx" ? (
-                  /* Word Document Notice within PDF tab */
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 bg-sunken/30 text-center">
-                    <div className="mx-auto max-w-md rounded-2xl border border-line bg-card p-6 shadow-sm space-y-4">
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-xs">
-                        <Icon name="file-text" size={30} />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-black text-ink">Microsoft Word Document (.docx)</h3>
-                        <p className="mt-1.5 text-xs text-muted leading-relaxed">
-                          {t(lang, "This resume was uploaded as a Word file. Web browsers do not embed Word documents directly in iframes. You can view the candidate's structured profile or download the file.")}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-center gap-3 pt-2">
-                        <Button
-                          variant="primary"
-                          onClick={() => setResumeModalTab("profile")}
-                          className="gap-1.5 text-xs font-bold"
-                        >
-                          <Icon name="user" size={14} />
-                          {t(lang, "Switch to Profile View")}
-                        </Button>
-                        <a
-                          href={resumeCandidate.resumeUrl || resumeCandidate.resume_url || "#"}
-                          download={getResumeFileInfo(resumeCandidate).fileName}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3.5 py-2 text-xs font-bold text-ink hover:bg-sunken transition-colors shadow-xs"
-                        >
-                          <Icon name="download" size={14} />
-                          {t(lang, "Download .docx")}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Embedded PDF iframe */
-                  <div className="flex-1 w-full h-full relative bg-slate-100">
-                    <iframe
-                      src={`${getCandidatePdfUrl(resumeCandidate)}#toolbar=1&navpanes=0`}
-                      className="w-full h-full border-0 absolute inset-0"
-                      title={`${resumeCandidate.name} - Resume PDF`}
-                    />
-                    {/* Floating Fallback Helper Banner */}
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2.5 rounded-lg bg-card/95 backdrop-blur-sm border border-line px-3.5 py-1.5 shadow-md text-xs">
-                      <span className="text-muted text-[11px]">{t(lang, "Having trouble viewing preview?")}</span>
-                      <a
-                        href={getCandidatePdfUrl(resumeCandidate)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-bold text-brand hover:underline inline-flex items-center gap-1 text-[11px]"
-                      >
-                        <Icon name="external-link" size={11} />
-                        {t(lang, "Open in New Tab")}
-                      </a>
-                      <span className="text-line text-xs">·</span>
-                      <button
-                        type="button"
-                        onClick={() => setResumeModalTab("profile")}
-                        className="font-bold text-blue-600 hover:underline inline-flex items-center gap-1 text-[11px]"
-                      >
-                        <Icon name="user" size={11} />
-                        {t(lang, "Switch to Profile View")}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Modal Scrollable CV Document View */
-              <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-sunken/20">
-                <div className="mx-auto max-w-3xl rounded-xl border border-line bg-card p-8 md:p-10 shadow-sm space-y-8">
-                  {/* Header Banner */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-line pb-6">
-                    <div className="flex items-center gap-4">
-                      <Avatar name={resumeCandidate.name} size={64} />
-                      <div>
-                        <h1 className="text-2xl font-black text-ink">{resumeCandidate.name}</h1>
-                        <p className="text-sm font-semibold text-brand">
-                          {resumeCandidate.headline || resumeCandidate.candidate_headline || `Candidate for ${resumeCandidate.jobTitle || "Open Position"}`}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted">
-                          <span>✉ {contactVisible(resumeCandidate) ? resumeCandidate.email : t(lang, "Protected by policy")}</span>
-                          <span>☎ {contactVisible(resumeCandidate) ? resumeCandidate.phone : t(lang, "Protected by policy")}</span>
-                          <span>📍 Vietnam</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex md:flex-col items-end gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-black shadow-xs ${getScoreBadgeClass(resumeCandidate.matchScore)}`}>
-                        ★ {resumeCandidate.matchScore}% Match Score
-                      </span>
-                      <span className="text-xs font-semibold text-muted">
-                        {resumeCandidate.experienceYears} {t(lang, "years experience")}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Executive Summary */}
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-muted mb-2.5">
-                      {t(lang, "Executive Summary")}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-ink/90">
-                      {resumeCandidate.bio ||
-                        `Experienced professional with ${resumeCandidate.experienceYears} years in the technology industry, demonstrating strong problem-solving capabilities, cross-functional collaboration, and technical proficiency. Actively seeking to contribute expertise to ${resumeCandidate.jobTitle || "this position"}.`}
-                    </p>
-                  </div>
-
-                  {/* Core Competencies & Skills */}
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-muted mb-2.5">
-                      {t(lang, "Core Competencies & Skills")}
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(Array.isArray(resumeCandidate.skills) && resumeCandidate.skills.length > 0
-                        ? resumeCandidate.skills
-                        : ["Technical Problem Solving", "Software Architecture", "Team Leadership", "Agile / Scrum", "Code Review", "API Design"]
-                      ).map((skill, sIdx) => (
-                        <span
-                          key={sIdx}
-                          className="rounded-lg border border-brand/20 bg-brand-subtle/50 px-3 py-1 text-xs font-bold text-brand"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Work Experience */}
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-muted mb-3">
-                      {t(lang, "Professional Experience")}
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="rounded-lg border border-line bg-sunken/30 p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="text-sm font-bold text-ink">Senior Specialist / Engineer</h4>
-                            <span className="text-xs text-muted">Technology Solutions Vietnam · Full-time</span>
-                          </div>
-                          <span className="text-xs font-semibold text-muted">
-                            {resumeCandidate.experienceYears > 0 ? `${resumeCandidate.experienceYears} yrs total` : "Recent"}
-                          </span>
-                        </div>
-                        <ul className="mt-2.5 list-disc pl-5 text-xs text-ink/80 space-y-1">
-                          <li>Delivered high-impact product features and collaborated with multidisciplinary agile teams.</li>
-                          <li>Architected scalable workflows adhering to industry best practices and quality standards.</li>
-                          <li>Spearheaded performance optimizations resulting in enhanced application responsiveness.</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Education */}
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-muted mb-2.5">
-                      {t(lang, "Education & Credentials")}
-                    </h3>
-                    <div className="rounded-lg border border-line p-3.5 flex justify-between items-center text-xs">
-                      <div>
-                        <strong className="block text-sm text-ink">{resumeCandidate.educationLevel || "Bachelor's Degree"} in Computer Science / Information Technology</strong>
-                        <span className="text-muted">Accredited University, Vietnam</span>
-                      </div>
-                      <Badge tone="success">{t(lang, "Verified")}</Badge>
-                    </div>
-                  </div>
-
-                  {/* Certifications & Professional Licenses */}
-                  {(resumeCandidate.certifications?.length > 0 || resumeCandidate.certification) && (
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-wider text-muted mb-2.5">
-                        {t(lang, "Certifications & Professional Licenses")}
-                      </h3>
-                      <div className="space-y-2">
-                        {(resumeCandidate.certifications?.length > 0
-                          ? resumeCandidate.certifications
-                          : [resumeCandidate.certification]
-                        ).filter(Boolean).map((cert, cIdx) => (
-                          <div key={cIdx} className="rounded-lg border border-line bg-card p-3.5 flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-3">
-                              <span className="w-8 h-8 rounded-full bg-brand-subtle flex items-center justify-center text-brand font-bold text-sm shrink-0">
-                                🎖️
-                              </span>
-                              <div>
-                                <strong className="block text-sm text-ink">{cert.name}</strong>
-                                <span className="text-muted">
-                                  {cert.issuer} {cert.issueDate ? `· ${cert.issueDate}` : ""} {cert.credentialId ? `(ID: ${cert.credentialId})` : ""}
-                                </span>
-                              </div>
-                            </div>
-                            {cert.fileData ? (
-                              <a
-                                href={cert.fileData}
-                                download={cert.fileName || "Certification.pdf"}
-                                className="px-2.5 py-1 text-xs font-semibold rounded border border-line bg-surface hover:bg-sunken text-ink transition-colors flex items-center gap-1"
-                              >
-                                <Icon name="download" size={12} />
-                                <span>{t(lang, "View Certificate")}</span>
-                              </a>
-                            ) : (
-                              <Badge tone="info">{t(lang, "Certified")}</Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Cover Letter */}
-                  {resumeCandidate.coverLetter && (
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-wider text-muted mb-2.5">
-                        {t(lang, "Applicant Statement / Cover Letter")}
-                      </h3>
-                      <blockquote className="rounded-xl border-l-4 border-brand bg-brand-subtle/20 p-4 text-xs italic leading-relaxed text-ink">
-                        "{resumeCandidate.coverLetter}"
-                      </blockquote>
-                    </div>
-                  )}
-
-                  {/* Original Document Attachment Footer */}
-                  <div className="rounded-xl border border-line bg-sunken/40 p-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <Icon name="file-text" size={24} className="text-brand" />
-                      <div>
-                        <span className="block text-xs font-bold text-ink">
-                          {resumeCandidate.resumeFileName || `${resumeCandidate.name?.replace(/\s+/g, "_")}_CV.pdf`}
-                        </span>
-                        <span className="block text-[11px] text-muted">
-                          {t(lang, "Uploaded file attachment on record")}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {getResumeFileInfo(resumeCandidate).fileType !== "docx" && (
-                        <button
-                          type="button"
-                          onClick={() => setResumeModalTab("pdf")}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-ink hover:bg-sunken transition-colors shadow-xs"
-                        >
-                          <Icon name="file-text" size={13} />
-                          {t(lang, "Switch to PDF View")}
-                        </button>
-                      )}
-                      <a
-                        href={getResumeFileInfo(resumeCandidate).fileUrl}
-                        download={getResumeFileInfo(resumeCandidate).fileName}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-xs font-bold text-white hover:bg-brand-hover transition-colors shadow-xs"
-                      >
-                        <Icon name="download" size={13} />
-                        {t(lang, "Download Attachment")}
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 11. View-Only Verification Document Modal (EMP-FR-026b & Vietnam PDPD) */}
-      {viewingDoc && (
-        <div
-          className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
-          onClick={() => setViewingDoc(null)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-2xl bg-card shadow-2xl overflow-hidden border border-line flex flex-col max-h-[85vh]"
-            onClick={(e) => e.stopPropagation()}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-line bg-card p-4">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                  <Icon name="shield" size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-ink">
-                    {viewingDoc.doc.title || viewingDoc.doc.file_name}
-                  </h3>
-                  <span className="text-[11px] text-muted block">
-                    {viewingDoc.candidateName} · {viewingDoc.doc.category || "Verification Document"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
-                  {t(lang, "View-Only / No Download")}
-                </span>
-                <button
-                  onClick={() => setViewingDoc(null)}
-                  className="rounded-lg p-1.5 text-muted hover:bg-sunken hover:text-ink transition-colors"
-                >
-                  <Icon name="x" size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Compliance Banner */}
-            <div className="border-b border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 flex items-start gap-2">
-              <Icon name="alert-triangle" size={14} className="text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-[11px] leading-relaxed">
-                {t(
-                  lang,
-                  "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted."
-                )}
-              </p>
-            </div>
-
-            {/* Document Preview Canvas with Watermark */}
-            <div className="relative flex-1 p-6 overflow-y-auto bg-slate-50 min-h-[320px] select-none">
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
-                <span className="text-4xl font-black text-slate-900 rotate-[-25deg] select-none">
-                  CONFIDENTIAL · VIEW ONLY
-                </span>
-              </div>
-
-              <div className="relative z-10 rounded-xl border border-line bg-white p-6 shadow-xs max-w-xl mx-auto space-y-4">
-                <div className="border-b border-line pb-3 flex justify-between items-center">
-                  <span className="text-xs font-bold text-muted uppercase tracking-wider">
-                    {viewingDoc.doc.category || "Employment Verification"}
-                  </span>
-                  <span className="text-xs text-muted">
-                    {viewingDoc.doc.file_name} ({formatBytes(viewingDoc.doc.size_bytes || 0)})
-                  </span>
-                </div>
-
-                <div className="space-y-3 py-4 text-xs text-slate-700">
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                    <p className="font-semibold text-slate-900">Document Verification Metadata:</p>
-                    <ul className="list-disc pl-4 space-y-1 text-slate-600 text-[11px]">
-                      <li>Candidate: <strong>{viewingDoc.candidateName}</strong></li>
-                      <li>Document: <strong>{viewingDoc.doc.file_name}</strong></li>
-                      <li>Encrypted In-Transit & At-Rest: <strong>AES-256 (GCM)</strong></li>
-                      <li>Candidate Consent: <strong>Granted at Shortlisted Stage</strong></li>
-                      <li>Session Access Logged: <strong>{new Date().toLocaleString()}</strong></li>
-                    </ul>
-                  </div>
-
-                  <p className="text-[11px] leading-relaxed text-slate-500 italic text-center pt-2">
-                    {t(
-                      lang,
-                      "Document preview successfully decrypted for authenticated recruiter verification. Copying and local download disabled."
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="border-t border-line bg-card p-3 flex justify-end">
-              <Button variant="secondary" size="sm" onClick={() => setViewingDoc(null)}>
-                {t(lang, "Close Preview")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── View-Only Verification Document Modal (Screen e11 / EMP-FR-026b & Vietnam PDPD) ── */}
+      <CandidateDocViewerModal
+        lang={lang}
+        t={t}
+        viewingDoc={viewingDoc}
+        setViewingDoc={setViewingDoc}
+        docViewerZoom={docViewerZoom}
+        setDocViewerZoom={setDocViewerZoom}
+        setToast={setToast}
+      />
 
       {/* Toast Notification */}
       <Toast msg={toast} />

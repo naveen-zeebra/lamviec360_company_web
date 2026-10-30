@@ -19,7 +19,6 @@ const NAV = [
   { href: "/company/profile", icon: "building-2", labelKey: "Company Profile", perm: "settings.manage" },
   { href: "/company/jobs", icon: "briefcase", labelKey: "Job Management", perm: "overview.view" },
   { href: "/company/candidates", icon: "users", labelKey: "Candidate Pipeline", perm: "candidates.view" },
-  { href: "/company/talent", icon: "search", labelKey: "Talent Search", perm: "talent.search" },
   {
     href: "/company/team",
     icon: "user-cog",
@@ -319,34 +318,6 @@ export default function CompanyShell({ children }) {
                         );
                       })}
                     </div>
-                  )}
-                </div>
-              );
-            }
-
-            const isCompanyApproved = company?.verified || ["verified", "approved", "active"].includes(String(company?.approvalStatus || "").toLowerCase());
-            const isTalentDisabled = n.href === "/company/talent" && !isCompanyApproved;
-
-            if (isTalentDisabled) {
-              return (
-                <div
-                  key={n.href}
-                  title={t(lang, "Talent Search requires an active, approved company account")}
-                  className={`flex items-center justify-between rounded-sm text-sm font-medium transition-colors cursor-not-allowed opacity-50 text-white/40 select-none ${sidebarCollapsed
-                    ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
-                    : "gap-[11px] px-[11px] py-2.5"
-                    }`}
-                >
-                  <div className="flex items-center gap-[11px] min-w-0">
-                    <Icon name={n.icon} size={18} />
-                    {(!sidebarCollapsed || mobileNavOpen) && (
-                      <span className="truncate">{t(lang, n.labelKey)}</span>
-                    )}
-                  </div>
-                  {(!sidebarCollapsed || mobileNavOpen) && (
-                    <span className="rounded bg-white/15 px-1.5 py-0.5 text-[9px] font-semibold text-white/70 uppercase tracking-wider shrink-0">
-                      {t(lang, "Approval Required")}
-                    </span>
                   )}
                 </div>
               );

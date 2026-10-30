@@ -303,7 +303,7 @@ const ERRBOX = "flex flex-col items-start gap-2 rounded-md border border-red-200
 
 function JobForm({ mode, jobId }) {
   const [lang] = useLang();
-  const { jobTypes } = useMasterData();
+  const { jobTypes, departments, locations } = useMasterData();
   const router = useRouter();
   const [form, setForm] = useState(EMPTY);
   const [skillDraft, setSkillDraft] = useState("");
@@ -412,6 +412,7 @@ function JobForm({ mode, jobId }) {
       const jobData = {
         ...form,
         deadline: form.openUntilClosed ? null : form.deadline,
+        expires_at: form.openUntilClosed ? null : form.deadline,
         description: form.description,
         status: finalStatus,
         ...(mode === "edit" ? { id: jobId } : {}),
@@ -465,6 +466,43 @@ function JobForm({ mode, jobId }) {
   };
 
   const retriesLeft = Math.max(0, 2 - Math.max(0, aiAttempts - 1));
+  const departmentList = departments && departments.length > 0 ? departments : [
+    "Engineering & Technology",
+    "Product & Design",
+    "Marketing & Communications",
+    "Sales & Business Development",
+    "Human Resources & Talent",
+    "Finance & Accounting",
+    "Customer Success & Operations",
+    "Legal & Compliance",
+    "Administration",
+  ];
+  const departmentOptions = Array.from(new Set([
+    ...(form.department ? [form.department] : []),
+    ...departmentList,
+  ])).map((d) => ({ value: d, label: t(lang, d) }));
+
+  const locationList = locations && locations.length > 0 ? locations : [
+    "Ho Chi Minh City",
+    "Hanoi",
+    "Da Nang",
+    "Can Tho",
+    "Hai Phong",
+    "Binh Duong",
+    "Dong Nai",
+    "Remote",
+  ];
+  const locationOptions = Array.from(new Set([
+    ...(form.location ? [form.location] : []),
+    ...locationList,
+  ])).map((l) => ({ value: l, label: t(lang, l) }));
+
+  const typeList = jobTypes && jobTypes.length > 0 ? jobTypes : JOB_TYPES;
+  const jobTypeOptions = Array.from(new Set([
+    ...(form.type ? [form.type] : []),
+    ...typeList,
+  ])).map((x) => ({ value: x, label: t(lang, x) }));
+
   const completionRate = calculateCompletion(form);
 
   if (isLoading) {
@@ -742,26 +780,29 @@ function JobForm({ mode, jobId }) {
               error={errors.title}
               placeholder={t(lang, "e.g. Senior Frontend Engineer")}
             />
-            <Input
+            <Select
               label={t(lang, "Department")}
               value={form.department}
               onChange={(e) => set("department", e.target.value)}
               error={errors.department}
-              placeholder={t(lang, "e.g. Product Engineering")}
+              options={departmentOptions}
+              placeholder={t(lang, "Select Department")}
             />
             <Select
               label={t(lang, "Job Type")}
               value={form.type}
               onChange={(e) => set("type", e.target.value)}
-              options={(jobTypes || JOB_TYPES).map((x) => ({ value: x, label: t(lang, x) }))}
+              error={errors.type}
+              options={jobTypeOptions}
               placeholder={t(lang, "Select Job Type")}
             />
-            <Input
+            <Select
               label={t(lang, "Location")}
               value={form.location}
               onChange={(e) => set("location", e.target.value)}
               error={errors.location}
-              placeholder={t(lang, "e.g. Ho Chi Minh City, Vietnam")}
+              options={locationOptions}
+              placeholder={t(lang, "Select Location")}
             />
           </div>
 

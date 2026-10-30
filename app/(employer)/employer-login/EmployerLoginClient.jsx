@@ -10,7 +10,7 @@ import OtpInput from "../../../components/ds/OtpInput";
 import { useLang, t } from "../../../utils/lang";
 import Toast, { useToast } from "../../../components/ds/Toast";
 import NaukriShell from "../../../components/auth/NaukriShell";
-import { beginLogin, completeLogin } from "../../../lib/companyStore";
+import { beginLogin, completeLogin, resendLoginOtp } from "../../../lib/companyStore";
 
 const RESEND_SECONDS = 45;
 
@@ -28,6 +28,8 @@ export default function EmployerLoginClient() {
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [toast, setToast] = useToast();
   const [sessionToken, setSessionToken] = useState("");
+  const [devOtp, setDevOtp] = useState("");
+  const [resending, setResending] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState("");
 
   useEffect(() => {
@@ -93,6 +95,8 @@ export default function EmployerLoginClient() {
         setSessionToken(token || "mock_token");
         const masked = data?.masked_email || res?.masked_email;
         if (masked) setMaskedEmail(masked);
+        const otp = data?.dev_otp || res?.dev_otp;
+        if (otp) setDevOtp(otp);
         setStage("otp");
         setSeconds(RESEND_SECONDS);
         setToast(t(lang, "We sent a 6-digit code to your email"));
@@ -282,6 +286,7 @@ export default function EmployerLoginClient() {
               <strong>{maskedEmail || maskEmail(loginFormik.values.email)}</strong>.{" "}
               {t(lang, "2FA is required for company admins.")}
             </p>
+
             <form onSubmit={otpFormik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <OtpInput
                 value={otpFormik.values.code}
@@ -346,13 +351,23 @@ export default function EmployerLoginClient() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSeconds(RESEND_SECONDS);
-                    setToast(t(lang, "A new code has been sent"));
+                  onClick={async () => {
+                    setResending(true);
+                    try {
+                      const r = await resendLoginOtp(sessionToken, loginFormik.values.email);
+                      setSeconds(RESEND_SECONDS);
+                      if (r?.dev_otp) setDevOtp(r.dev_otp);
+                      setToast(t(lang, "A new 2FA code has been sent to your email"));
+                    } catch (e) {
+                      setToast(t(lang, e.message || "Failed to resend code"));
+                    } finally {
+                      setResending(false);
+                    }
                   }}
-                  style={{ background: "none", border: "none", color: "#4f46e5", fontWeight: 600, cursor: "pointer" }}
+                  disabled={resending}
+                  style={{ background: "none", border: "none", color: "#4f46e5", fontWeight: 600, cursor: resending ? "not-allowed" : "pointer" }}
                 >
-                  {t(lang, "Resend code")}
+                  {resending ? t(lang, "Sending...") : t(lang, "Resend code")}
                 </button>
               )}
             </div>

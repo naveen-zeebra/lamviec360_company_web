@@ -23,14 +23,18 @@ export default function CompanyVerifyEmailClient() {
   const [email, setEmail] = useState("");
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [toast, setToast] = useToast();
+  const [devCode, setDevCode] = useState("");
 
   useEffect(() => {
     let storedEmail = "";
+    let storedOtp = "";
     if (typeof window !== "undefined") {
       storedEmail = localStorage.getItem("lv360_company_email") || "";
+      storedOtp = localStorage.getItem("lv360_company_dev_otp") || "";
     }
     const target = queryEmail || storedEmail || getAuth().email || getCompany().email || "";
     setEmail(target);
+    if (storedOtp) setDevCode(storedOtp);
   }, [queryEmail]);
 
   useEffect(() => {
@@ -67,7 +71,14 @@ export default function CompanyVerifyEmailClient() {
   const resend = async () => {
     setSeconds(RESEND_SECONDS);
     try {
-      await resendVerificationCode(email);
+      const res = await resendVerificationCode(email);
+      const code = res?.data?.dev_code || res?.dev_code;
+      if (code) {
+        setDevCode(code);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("lv360_company_dev_otp", code);
+        }
+      }
       setToast(t(lang, "A new verification code has been sent to your email"));
     } catch (e) {
       setToast(t(lang, e.message || "Failed to resend code"));
@@ -89,6 +100,12 @@ export default function CompanyVerifyEmailClient() {
             <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
               {t(lang, "We sent a 6-digit code to")} <strong>{email || t(lang, "your work email")}</strong>.
             </p>
+            {devCode && (
+              <p style={{ color: "#2563eb", fontSize: 13, background: "#eff6ff", padding: "8px 12px", borderRadius: 6, margin: "12px 0 0", border: "1px dashed #93c5fd", textAlign: "center" }}>
+                <Icon name="shield" size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />
+                <span>{t(lang, "Code sent to email.")} {t(lang, "Dev Code:")} <strong>{devCode}</strong></span>
+              </p>
+            )}
           </div>
 
           <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>

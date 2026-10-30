@@ -129,6 +129,10 @@ export default function CompanyRegisterClient() {
           logo: values.logo || "",
           description: values.description?.trim() || "",
         });
+        const vCode = regRes?.data?.verification_code || regRes?.verification_code;
+        if (vCode && typeof window !== "undefined") {
+          localStorage.setItem("lv360_company_dev_otp", vCode);
+        }
         setToast(t(lang, "Sending a verification code…"));
         setTimeout(() => router.push(`/company-verify-email?email=${encodeURIComponent(values.email.trim())}`), 700);
       } catch (error) {

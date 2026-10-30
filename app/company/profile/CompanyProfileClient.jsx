@@ -377,7 +377,7 @@ export default function CompanyProfileClient() {
                 placeholder="hr@company.com"
               />
               <Input
-                label={t(lang, "Contact Phone / Hotline")}
+                label={t(lang, "Contact Phone")}
                 value={company.contactPhone || company.phone || ""}
                 onChange={(e) =>
                   setCompany({ ...company, contactPhone: e.target.value, phone: e.target.value })
