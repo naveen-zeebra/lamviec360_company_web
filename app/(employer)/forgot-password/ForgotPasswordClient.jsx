@@ -117,7 +117,7 @@ export default function ForgotPasswordClient() {
       } catch (err) {
         setStatus(
           err.message ||
-            t(lang, "Invalid or expired verification code. (Hint: Use 123456)")
+            t(lang, "Invalid or expired verification code.")
         );
       } finally {
         setSubmitting(false);

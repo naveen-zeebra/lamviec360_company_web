@@ -61,7 +61,7 @@ export default function CompanyVerifyEmailClient() {
         setToast(t(lang, "Work email verified successfully!"));
         setTimeout(() => router.push("/company-pending-approval"), 800);
       } catch (error) {
-        setStatus(error.message || t(lang, "Invalid verification code. (Hint: Use 123456)"));
+        setStatus(error.message || t(lang, "Invalid verification code."));
       } finally {
         setSubmitting(false);
       }
