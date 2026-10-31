@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button, Input, Select } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Toast, { useToast } from "../../../components/ds/Toast";
+import RequirePermission from "../../../components/company/RequirePermission";
 import { useLang, t } from "../../../utils/lang";
 import { useMasterData } from "../../../lib/masterData";
 import { SEEKER_URL } from "../../../config";
@@ -52,7 +53,7 @@ const TOGGLE_ROW =
 const AI_TAG =
   "inline-flex items-center gap-1 rounded-pill px-2 py-[3px] text-[11px] font-bold tracking-[0.02em]";
 
-export default function CompanyProfileClient() {
+function CompanyProfileContent() {
   const [lang] = useLang();
   const { industries, companySizes, locations } = useMasterData();
   const [company, setCompany] = useState(null);
@@ -631,6 +632,14 @@ export default function CompanyProfileClient() {
 
       <Toast toast={toast} />
     </>
+  );
+}
+
+export default function CompanyProfileClient() {
+  return (
+    <RequirePermission action="settings.manage">
+      <CompanyProfileContent />
+    </RequirePermission>
   );
 }
 

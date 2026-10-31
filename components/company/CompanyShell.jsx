@@ -12,6 +12,8 @@ import {
   unreadNotificationCount,
   can,
   resolveCompanyLogoUrl,
+  getRoleDisplayName,
+  getRoleBadgeStyle,
 } from "../../lib/companyStore";
 
 const NAV = [
@@ -550,9 +552,9 @@ export default function CompanyShell({ children }) {
                         {t(lang, "Role")}
                       </span>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-sm bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                        <span className={`inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-semibold ${getRoleBadgeStyle(role || "Company Admin").badge}`}>
                           <Icon name="shield" size={12} />
-                          {t(lang, role || "Company Admin")}
+                          {t(lang, getRoleDisplayName(role || "Company Admin"))}
                         </span>
                       </div>
                     </div>
