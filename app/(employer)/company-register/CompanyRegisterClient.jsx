@@ -30,13 +30,15 @@ export default function CompanyRegisterClient() {
     co: Yup.string().trim().required(t(lang, "Company name is required")),
     taxId: Yup.string()
       .trim()
-      .required(t(lang, "Tax ID / Business code is required"))
+      .required(t(lang, "Business Registration Number is required"))
       .test(
-        "is-valid-mst",
-        t(lang, "Mã số thuế không hợp lệ (phải gồm 10 hoặc 13 chữ số)"),
+        "is-valid-mst-format",
+        t(lang, "Business Registration Number must be 10 or 13 digits (numeric only)"),
         (val) => {
           if (!val) return false;
-          const clean = val.replace(/[-\s]/g, "");
+          const trimmed = val.trim();
+          if (!/^(\d{10}|\d{13}|\d{10}-\d{3})$/.test(trimmed)) return false;
+          const clean = trimmed.replace(/[-\s]/g, "");
           return /^\d{10}$/.test(clean) || /^\d{13}$/.test(clean);
         }
       ),
@@ -165,6 +167,26 @@ export default function CompanyRegisterClient() {
     }
   };
 
+  // Asynchronous format & uniqueness validation on blur
+  const handleTaxIdBlur = async (e) => {
+    formik.handleBlur(e);
+    const val = formik.values.taxId?.trim();
+    if (!val) return;
+    const clean = val.replace(/[-\s]/g, "");
+    if (/^\d{10}$/.test(clean) || /^\d{13}$/.test(clean)) {
+      try {
+        const res = await companyAuth.validateCompanyTaxId(val);
+        if (res?.already_registered) {
+          formik.setFieldError("taxId", t(lang, "This Business Registration Number is already registered."));
+        } else if (res?.valid && res?.business?.name && !formik.values.co) {
+          formik.setFieldValue("co", res.business.name);
+        }
+      } catch (err) {
+        // Non-blocking
+      }
+    }
+  };
+
   // Step 1 -> Step 2 transition
   const handleNextStep = async () => {
     formik.setFieldTouched("co", true, false);
@@ -188,6 +210,15 @@ export default function CompanyRegisterClient() {
         },
         { abortEarly: false }
       );
+
+      // Business Registration Number (Vietnam MST) uniqueness validation
+      const cleanMst = formik.values.taxId.trim();
+      const checkRes = await companyAuth.validateCompanyTaxId(cleanMst);
+      if (checkRes?.already_registered) {
+        formik.setFieldError("taxId", t(lang, "This Business Registration Number is already registered."));
+        return;
+      }
+
       setStep(2);
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -266,8 +297,8 @@ export default function CompanyRegisterClient() {
               >
                 <span
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step === 1
-                      ? "bg-blue-600 text-white shadow-xs ring-4 ring-blue-50"
-                      : "bg-emerald-600 text-white shadow-xs"
+                    ? "bg-blue-600 text-white shadow-xs ring-4 ring-blue-50"
+                    : "bg-emerald-600 text-white shadow-xs"
                     }`}
                 >
                   {step > 1 ? <Icon name="check" size={16} /> : "1"}
@@ -300,8 +331,8 @@ export default function CompanyRegisterClient() {
               >
                 <span
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step === 2
-                      ? "bg-blue-600 text-white shadow-xs ring-4 ring-blue-50"
-                      : "bg-gray-100 text-gray-500 border border-gray-200"
+                    ? "bg-blue-600 text-white shadow-xs ring-4 ring-blue-50"
+                    : "bg-gray-100 text-gray-500 border border-gray-200"
                     }`}
                 >
                   2
@@ -415,13 +446,27 @@ export default function CompanyRegisterClient() {
                     <Input
                       id="taxId"
                       name="taxId"
-                      label={t(lang, "Tax ID / Business code")}
+                      label={
+                        <span className="inline-flex items-center gap-1.5">
+                          <span>{t(lang, "Business Registration Number")}</span>
+                          <span
+                            className="relative group/mst inline-flex items-center cursor-pointer"
+                          // title={t(lang, "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.")}
+                          >
+                            <Icon name="info" size={14} className="text-gray-400 hover:text-blue-600 transition-colors" />
+                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/mst:flex flex-col items-center w-64 p-2.5 bg-gray-900 text-white text-[11px] font-normal rounded-lg shadow-xl z-50 leading-relaxed text-left">
+                              <span>{t(lang, "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.")}</span>
+                              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                            </span>
+                          </span>
+                        </span>
+                      }
                       type="text"
                       autoComplete="off"
                       value={formik.values.taxId}
                       onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      placeholder={t(lang, "Tax ID / Business code")}
+                      onBlur={handleTaxIdBlur}
+                      placeholder={t(lang, "e.g. 0101234567")}
                       error={formik.touched.taxId && formik.errors.taxId}
                     />
                   </div>
@@ -528,7 +573,7 @@ export default function CompanyRegisterClient() {
                         {formik.values.co}
                       </p>
                       <p className="text-gray-500 text-[11px] truncate">
-                        {t(lang, "Tax ID")}: <span className="font-mono font-medium text-gray-700">{formik.values.taxId}</span>
+                        {t(lang, "Business Registration Number")}: <span className="font-mono font-medium text-gray-700">{formik.values.taxId}</span>
                         {formik.values.ind ? ` · ${formik.values.ind}` : ""}
                         {formik.values.size ? ` · ${formik.values.size}` : ""}
                         {formik.values.website ? ` · ${formik.values.website}` : ""}

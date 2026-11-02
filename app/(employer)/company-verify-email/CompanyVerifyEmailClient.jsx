@@ -100,12 +100,7 @@ export default function CompanyVerifyEmailClient() {
             <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
               {t(lang, "We sent a 6-digit code to")} <strong>{email || t(lang, "your work email")}</strong>.
             </p>
-            {devCode && (
-              <p style={{ color: "#2563eb", fontSize: 13, background: "#eff6ff", padding: "8px 12px", borderRadius: 6, margin: "12px 0 0", border: "1px dashed #93c5fd", textAlign: "center" }}>
-                <Icon name="shield" size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />
-                <span>{t(lang, "Code sent to email.")} {t(lang, "Dev Code:")} <strong>{devCode}</strong></span>
-              </p>
-            )}
+
           </div>
 
           <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>

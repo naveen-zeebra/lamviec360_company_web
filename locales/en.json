@@ -990,5 +990,11 @@
   "Reset Zoom to 100%": "Reset Zoom to 100%",
   "Printing and saving are disabled per PDPD Decree 13/2023/ND-CP": "Printing and saving are disabled per PDPD Decree 13/2023/ND-CP",
   "Right-click context menu is disabled for confidential documents": "Right-click context menu is disabled for confidential documents",
-  "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted.": "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted."
+  "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted.": "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted.",
+  "Business Registration Number is required": "Business Registration Number is required",
+  "Business Registration Number must be 10 or 13 digits (numeric only)": "Business Registration Number must be 10 or 13 digits (numeric only)",
+  "This Business Registration Number is already registered.": "This Business Registration Number is already registered.",
+  "10 or 13 digits (e.g. 0101234567 or 0101234567-001)": "10 or 13 digits (e.g. 0101234567 or 0101234567-001)",
+  "e.g. 0101234567": "e.g. 0101234567",
+  "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.": "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices."
 }

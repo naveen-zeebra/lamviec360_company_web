@@ -772,7 +772,7 @@
   "Pipeline": "Quy trình",
   "Pending verification": "Đang chờ xác minh",
   "Company Name": "Tên công ty",
-  "Business Registration Number": "Mã số đăng ký kinh doanh",
+  "Business Registration Number": "Mã số doanh nghiệp / MST",
   "Company Size": "Quy mô công ty",
   "Website URL": "Địa chỉ website",
   "Save changes": "Lưu thay đổi",
@@ -1229,5 +1229,11 @@
   "Reset Zoom to 100%": "Đặt lại thu phóng 100%",
   "Printing and saving are disabled per PDPD Decree 13/2023/ND-CP": "Tính năng in và lưu tệp bị vô hiệu hóa theo Nghị định 13/2023/NĐ-CP (PDPD)",
   "Right-click context menu is disabled for confidential documents": "Menu chuột phải bị khóa đối với tài liệu bảo mật",
-  "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted.": "Tuân thủ Nghị định Bảo vệ Dữ liệu Cá nhân (Nghị định 13/2023/NĐ-CP), tài liệu nhân sự của ứng viên là chỉ xem (View-Only). Nghiêm cấm tải xuống trực tiếp và sao chép trái phép."
+  "In compliance with Vietnam Personal Data Protection Decree (PDPD Decree 13/2023/ND-CP), candidate employment documents are view-only. Direct download and distribution are restricted.": "Tuân thủ Nghị định Bảo vệ Dữ liệu Cá nhân (Nghị định 13/2023/NĐ-CP), tài liệu nhân sự của ứng viên là chỉ xem (View-Only). Nghiêm cấm tải xuống trực tiếp và sao chép trái phép.",
+  "Business Registration Number is required": "Mã số doanh nghiệp là bắt buộc",
+  "Business Registration Number must be 10 or 13 digits (numeric only)": "Mã số doanh nghiệp phải gồm 10 hoặc 13 chữ số (chỉ bao gồm chữ số)",
+  "This Business Registration Number is already registered.": "Mã số doanh nghiệp này đã được đăng ký trên hệ thống.",
+  "10 or 13 digits (e.g. 0101234567 or 0101234567-001)": "10 hoặc 13 chữ số (VD: 0101234567 hoặc 0101234567-001)",
+  "e.g. 0101234567": "VD: 0101234567",
+  "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.": "Mã số doanh nghiệp / Mã số thuế (MST) do cơ quan nhà nước cấp. Gồm 10 chữ số cho doanh nghiệp hoặc 13 chữ số cho chi nhánh."
 }
