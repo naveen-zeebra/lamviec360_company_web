@@ -30,7 +30,6 @@ export default function CandidateDetailDrawer({
   contactVisible,
   showAiExplain,
   setShowAiExplain,
-  openScheduleModal,
   getNextStage,
   handleMoveStage,
   openResumeModal,
@@ -125,7 +124,7 @@ export default function CandidateDetailDrawer({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => openScheduleModal(open)}
+                  onClick={() => handleMoveStage(open.id, "Interview Scheduled", open.stage)}
                   className="gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100"
                 >
                   <Icon name="calendar" size={13} />

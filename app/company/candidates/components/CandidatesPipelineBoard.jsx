@@ -335,22 +335,10 @@ export default function CandidatesPipelineBoard({
                           </button>
 
                           {manage && (
-                            <select
-                              value={c.stage}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleMoveStage(c.id, e.target.value, c.stage);
-                              }}
-                              aria-label={`Move stage for ${c.name}`}
-                              className="rounded-md border border-line bg-sunken/60 px-1.5 py-0.5 text-[10px] font-semibold text-ink focus:border-brand focus:outline-none cursor-pointer max-w-[130px] truncate"
-                            >
-                              {FIXED_PIPELINE_STAGES.map((s) => (
-                                <option key={s} value={s}>
-                                  {t(lang, s)}
-                                </option>
-                              ))}
-                            </select>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-muted group-hover:text-brand transition-colors">
+                              <Icon name="move" size={11} />
+                              <span>{t(lang, "Drag to move")}</span>
+                            </span>
                           )}
                         </div>
                       </div>

@@ -14,6 +14,7 @@ import {
   setCandidateStage,
   bulkSetCandidateStage,
   scheduleCandidateInterview,
+  sendStageChangeEmail,
   fetchCandidatesPaginated,
   fetchStageCounts,
   listRejectionTemplates,
@@ -27,13 +28,11 @@ import CandidatesHeader from "./components/CandidatesHeader";
 import CandidatesFilters from "./components/CandidatesFilters";
 import CandidatesTableView from "./components/CandidatesTableView";
 import CandidatesPipelineBoard from "./components/CandidatesPipelineBoard";
-import CandidatesSpeedReview from "./components/CandidatesSpeedReview";
 import CandidateDetailDrawer from "./components/CandidateDetailDrawer";
-import CandidateRejectModal from "./components/CandidateRejectModal";
-import CandidateScheduleModal from "./components/CandidateScheduleModal";
 import CandidateDocViewerModal from "./components/CandidateDocViewerModal";
 import CandidateResumeModal from "./components/CandidateResumeModal";
 import CandidateBulkModal from "./components/CandidateBulkModal";
+import CandidatesJobsOverview from "./components/CandidatesJobsOverview";
 
 export { FIXED_PIPELINE_STAGES, PIPELINE_STAGES_CONFIG } from "./components/CandidatesConstants";
 
@@ -45,13 +44,14 @@ export default function CandidatesClient() {
   // Core state
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState("table"); // 'table' | 'pipeline' | 'speed'
+  const [viewMode, setViewMode] = useState("table"); // 'table' | 'pipeline'
   const [density, setDensity] = useState("comfortable"); // 'comfortable' | 'compact'
   const [role, setRole] = useState("Viewer");
 
   // Selection & Active Filters
   const [jobFilter, setJobFilter] = useState(jobParam);
   const [jobs, setJobs] = useState([]);
+  const [allCandidates, setAllCandidates] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [privacy, setPrivacy] = useState({
     contactVisibility: "always",
@@ -96,8 +96,7 @@ export default function CandidatesClient() {
   const [selected, setSelected] = useState([]);
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [openId, setOpenId] = useState(null);
-  const [speedIndex, setSpeedIndex] = useState(0);
-  const [noteDraft, setNoteDraft] = useState("");
+    const [noteDraft, setNoteDraft] = useState("");
   const [showAiExplain, setShowAiExplain] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -105,23 +104,7 @@ export default function CandidatesClient() {
   const [undo, setUndo] = useState(null);
 
   // Modal states
-  const [rejectTarget, setRejectTarget] = useState(null);
-  const [rejectReason, setRejectReason] = useState({ templateId: "", note: "" });
-  const [rejectDelayHours, setRejectDelayHours] = useState(24);
-  const [scheduleCandidate, setScheduleCandidate] = useState(null);
-  const [scheduleData, setScheduleData] = useState({
-    round: "First Round Technical & Product Interview",
-    mode: "video",
-    date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
-    time: "14:00",
-    durationMin: 45,
-    location: "Google Meet",
-    meetingLink: "https://meet.google.com/lv3-interview",
-    interviewerName: "Talent Acquisition Team",
-    interviewerRole: "Recruiter",
-    instructions: "Online video interview invitation from employer. Please join on time.",
-  });
-  const [resumeCandidate, setResumeCandidate] = useState(null);
+    const [resumeCandidate, setResumeCandidate] = useState(null);
   const [resumeModalTab, setResumeModalTab] = useState("pdf");
   const [viewingDoc, setViewingDoc] = useState(null);
   const [docViewerZoom, setDocViewerZoom] = useState(100);
@@ -149,17 +132,26 @@ export default function CandidatesClient() {
     setPrivacy(getSettings()?.privacy || {});
     setTemplates(listRejectionTemplates());
 
-    // Fetch jobs for switcher
-    import("../../../lib/companyStore").then(({ getStore }) => {
-      const storeJobs = getStore()?.jobs || [];
+    // Fetch jobs and candidates for switcher & overview
+    import("../../../lib/companyStore").then(({ getStore, syncCompanyWithBackend }) => {
+      const store = getStore();
+      const storeJobs = store?.jobs || [];
+      const storeCandidates = store?.candidates || [];
       setJobs(storeJobs);
-      if (storeJobs.length > 0) {
-        const initialJobId = jobParam && storeJobs.some((j) => String(j.id) === String(jobParam))
-          ? jobParam
-          : storeJobs[0].id;
-        setJobFilter(initialJobId);
+      setAllCandidates(storeCandidates);
+
+      if (jobParam && storeJobs.some((j) => String(j.id) === String(jobParam))) {
+        setJobFilter(jobParam);
+      } else {
+        setJobFilter("");
       }
       setReady(true);
+
+      syncCompanyWithBackend().then(() => {
+        const updated = getStore();
+        setJobs(updated?.jobs || []);
+        setAllCandidates(updated?.candidates || []);
+      }).catch(console.warn);
     });
   }, [jobParam]);
 
@@ -222,7 +214,15 @@ export default function CandidatesClient() {
     setSelected([]);
     setSelectAllMatching(false);
     setOpenId(null);
-    setSpeedIndex(0);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (newJobId) {
+        url.searchParams.set("job", newJobId);
+      } else {
+        url.searchParams.delete("job");
+      }
+      window.history.pushState({}, "", url.toString());
+    }
   };
 
   const getNextStage = (curr) => {
@@ -231,39 +231,9 @@ export default function CandidatesClient() {
     return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
   };
 
-  const openScheduleModal = (candidate) => {
-    if (!candidate) return;
-    setScheduleCandidate(candidate);
-    const defaultDate = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
-    setScheduleData({
-      round: "First Round Technical & Product Interview",
-      mode: "video",
-      date: defaultDate,
-      time: "14:00",
-      durationMin: 45,
-      location: "Google Meet",
-      meetingLink: `https://meet.google.com/lv3-${candidate.id}`,
-      interviewerName: "Talent Acquisition Team",
-      interviewerRole: "Recruiter",
-      instructions: "Online video interview invitation from employer. Please join on time.",
-    });
-  };
-
   const handleMoveStage = async (id, stage, prevStage) => {
     const candidate = candidates.find((c) => String(c.id) === String(id)) || getCandidate(id);
     const sourceStage = prevStage || candidate?.stage;
-
-    if (stage === "Rejected") {
-      setRejectTarget(id);
-      const rejTemplates = templates.filter((t) => (t.category || "rejection") === "rejection");
-      const defTpl = rejTemplates.find((t) => t.isDefault) || rejTemplates[0];
-      setRejectReason({ templateId: defTpl ? defTpl.id : (templates[0]?.id || ""), note: "" });
-      return;
-    }
-    if (stage === "Interview Scheduled") {
-      openScheduleModal(candidate);
-      return;
-    }
 
     // Set 5-minute Undo Window per EMP-FR-019b
     if (sourceStage && sourceStage !== stage) {
@@ -276,9 +246,28 @@ export default function CandidatesClient() {
       });
     }
 
+    const isRejection = stage === "Rejected";
+    const rejTemplates = templates.filter((t) => (t.category || "rejection") === "rejection");
+    const defTpl = rejTemplates.find((t) => t.isDefault) || rejTemplates[0];
+    const rejectionTemplateId = defTpl ? defTpl.id : "RT-1";
+    const reasonPayload = isRejection ? { templateId: rejectionTemplateId, note: "" } : undefined;
+
     // Optimistic candidate & counts update
     setCandidates((prev) =>
-      prev.map((c) => (String(c.id) === String(id) ? { ...c, stage } : c))
+      prev.map((c) =>
+        String(c.id) === String(id)
+          ? {
+              ...c,
+              stage,
+              ...(isRejection
+                ? {
+                    rejectionTemplateId,
+                    rejectedAt: new Date().toISOString().slice(0, 10),
+                  }
+                : {}),
+            }
+          : c
+      )
     );
     setStageCounts((prev) => {
       const next = { ...prev };
@@ -288,8 +277,12 @@ export default function CandidatesClient() {
     });
 
     try {
-      await setCandidateStage(id, stage);
-      setToast(`${t(lang, "Moved to")} ${t(lang, stage)}`);
+      await setCandidateStage(id, stage, reasonPayload);
+      await sendStageChangeEmail(candidate, stage, activeJob);
+      const emailNotice = candidate?.email
+        ? ` · ${t(lang, "Email notification sent to")} ${candidate.email}`
+        : "";
+      setToast(`${t(lang, "Moved to")} ${t(lang, stage)}${emailNotice}`);
     } catch (err) {
       console.warn("Failed to set candidate stage:", err);
       if (sourceStage) {
@@ -298,125 +291,7 @@ export default function CandidatesClient() {
         );
       }
       setToast(t(lang, "Failed to move stage"));
-    }
-  };
-
-  const confirmReject = async () => {
-    if (!rejectTarget) return;
-    const targetId = rejectTarget;
-    const rejTemplates = templates.filter((t) => (t.category || "rejection") === "rejection");
-    const finalTemplateId = rejectReason.templateId || (rejTemplates[0]?.id || "");
-    const reasonPayload = {
-      ...rejectReason,
-      templateId: finalTemplateId,
-      delayHours: rejectDelayHours,
-    };
-
-    const targetCand = candidates.find((c) => String(c.id) === String(targetId)) || getCandidate(targetId);
-    const sourceStage = targetCand?.stage || "Applied";
-
-    // 1. Optimistic candidate state update
-    setCandidates((prev) =>
-      prev.map((c) =>
-        String(c.id) === String(targetId)
-          ? {
-              ...c,
-              stage: "Rejected",
-              rejectionTemplateId: finalTemplateId,
-              rejectionNote: rejectReason.note,
-              rejectedAt: new Date().toISOString().slice(0, 10),
-            }
-          : c
-      )
-    );
-
-    // 2. Optimistic counts update
-    setStageCounts((prev) => {
-      const next = { ...prev };
-      if (sourceStage && next[sourceStage] && next[sourceStage] > 0) next[sourceStage]--;
-      next.Rejected = (next.Rejected || 0) + 1;
-      return next;
-    });
-
-    // 3. Close rejection modal immediately
-    setRejectTarget(null);
-
-    // 4. Set undo window
-    setUndo({
-      single: true,
-      id: targetId,
-      name: targetCand?.name || t(lang, "Candidate"),
-      prev: sourceStage,
-      stage: "Rejected",
-    });
-
-    try {
-      await setCandidateStage(targetId, "Rejected", reasonPayload);
-      setToast(t(lang, "Candidate moved to Rejected"));
-    } catch (err) {
-      console.warn("Failed to set candidate rejection in backend:", err);
-      setToast(t(lang, "Candidate moved to Rejected"));
     } finally {
-      loadData();
-    }
-  };
-
-  const handleScheduleSubmit = async (e) => {
-    e.preventDefault();
-    if (!scheduleCandidate) return;
-
-    const candidateId = scheduleCandidate.id;
-    const scheduledAt = `${scheduleData.date}T${scheduleData.time}:00`;
-    const payload = {
-      roundName: scheduleData.round,
-      round: scheduleData.round,
-      scheduledAt,
-      durationMin: Number(scheduleData.durationMin) || 45,
-      mode: scheduleData.mode,
-      location: scheduleData.location,
-      meetingLink: scheduleData.meetingLink,
-      locationOrLink:
-        scheduleData.mode === "video"
-          ? scheduleData.meetingLink || scheduleData.location
-          : scheduleData.location,
-      interviewerName: scheduleData.interviewerName,
-      interviewerRole: scheduleData.interviewerRole,
-      interviewers: [
-        scheduleData.interviewerName
-          ? `${scheduleData.interviewerName} (${scheduleData.interviewerRole || "Recruiter"})`
-          : "Talent Acquisition Team",
-      ],
-      instructions: scheduleData.instructions,
-    };
-
-    // Optimistic update
-    setCandidates((prev) =>
-      prev.map((c) =>
-        String(c.id) === String(candidateId)
-          ? {
-              ...c,
-              stage: "Interview Scheduled",
-              interview: {
-                round: scheduleData.round,
-                at: scheduledAt,
-                status: "invited",
-                mode: scheduleData.mode,
-                meetingLink: scheduleData.meetingLink,
-                location: scheduleData.location,
-              },
-            }
-          : c
-      )
-    );
-
-    setScheduleCandidate(null);
-
-    try {
-      await scheduleCandidateInterview(candidateId, payload);
-    } catch (err) {
-      console.warn("Failed to schedule interview in backend:", err);
-    } finally {
-      setToast(t(lang, "Interview scheduled successfully!"));
       loadData();
     }
   };
@@ -539,109 +414,30 @@ export default function CandidatesClient() {
 
   return (
     <div className="space-y-4 max-w-[1600px] mx-auto p-4 md:p-6">
-      {/* ── Top Header & Mode Toggle ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-black tracking-tight text-ink md:text-3xl">
-              {t(lang, "Candidate Pipeline")}
-            </h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {(stageCounts.Total || 0).toLocaleString()} {t(lang, "Applications")}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-muted">
-            {t(
-              lang,
-              "Screen candidates, manage stage progression, and execute bulk actions job-by-job."
-            )}
-          </p>
-        </div>
+      {!jobFilter ? (
+        <CandidatesJobsOverview
+          jobs={jobs}
+          allCandidates={allCandidates}
+          onSelectJob={handleJobChange}
+          lang={lang}
+          t={t}
+        />
+      ) : (
+        <>
+      {/* ── Unified Single Job Applications Header ── */}
+          <CandidatesHeader
+            lang={lang}
+            t={t}
+            activeJob={activeJob}
+            handleJobChange={handleJobChange}
+            stageCounts={stageCounts}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            loading={loading}
+            loadData={loadData}
+          />
 
-        {/* View Toggle & Quick Refresh */}
-        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
-          <div className="inline-flex rounded-lg border border-line bg-card p-1 shadow-xs">
-            <button
-              onClick={() => setViewMode("table")}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "table"
-                  ? "bg-brand text-white shadow-xs"
-                  : "text-muted hover:text-ink hover:bg-sunken"
-              }`}
-              title="High-density list view for 1,000+ candidates"
-            >
-              <Icon name="list" size={14} />
-              {t(lang, "Table View")}
-            </button>
-            <button
-              onClick={() => setViewMode("pipeline")}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "pipeline"
-                  ? "bg-brand text-white shadow-xs"
-                  : "text-muted hover:text-ink hover:bg-sunken"
-              }`}
-              title="Kanban stage columns"
-            >
-              <Icon name="columns" size={14} />
-              {t(lang, "Pipeline Board")}
-            </button>
-            <button
-              onClick={() => setViewMode("speed")}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
-                viewMode === "speed"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs"
-                  : "text-amber-700 bg-amber-50/70 hover:bg-amber-100 hover:text-amber-900 border border-amber-200/50"
-              }`}
-              title="Speed Reviewer mode with keyboard shortcuts for 10x faster screening"
-            >
-              <Icon
-                name="zap"
-                size={14}
-                className={
-                  viewMode === "speed"
-                    ? "text-yellow-200 fill-current"
-                    : "text-amber-600"
-                }
-              />
-              {t(lang, "Speed Reviewer")}
-            </button>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={loadData}
-            disabled={loading}
-            className="border border-line bg-card hover:bg-sunken"
-            title="Refresh candidate data"
-          >
-            <Icon
-              name="rotate-ccw"
-              size={14}
-              className={loading ? "animate-spin" : ""}
-            />
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Job-Wise Context Bar & Conversion Funnel ── */}
-      <CandidatesHeader
-        lang={lang}
-        t={t}
-        jobs={jobs}
-        activeJob={activeJob}
-        jobFilter={jobFilter}
-        handleJobChange={handleJobChange}
-        stageCounts={stageCounts}
-        activeStage={activeStage}
-        setActiveStage={setActiveStage}
-        setPage={setPage}
-        showFunnel={showFunnel}
-        setShowFunnel={setShowFunnel}
-      />
-
-      {/* ── Filters & Search Toolbar ── */}
+          {/* ── Filters & Search Toolbar ── */}
       <CandidatesFilters
         lang={lang}
         t={t}
@@ -757,24 +553,7 @@ export default function CandidatesClient() {
         />
       )}
 
-      {viewMode === "speed" && (
-        <CandidatesSpeedReview
-          lang={lang}
-          t={t}
-          manage={manage}
-          activeJob={activeJob}
-          candidates={candidates}
-          speedIndex={speedIndex}
-          setSpeedIndex={setSpeedIndex}
-          page={page}
-          setPage={setPage}
-          pagination={pagination}
-          selected={selected}
-          setSelected={setSelected}
-          handleMoveStage={handleMoveStage}
-          openScheduleModal={openScheduleModal}
-          getNextStage={getNextStage}
-        />
+      </>
       )}
 
       {/* ── Slide-over Candidate Profile Drawer ── */}
@@ -789,7 +568,6 @@ export default function CandidatesClient() {
         contactVisible={contactVisible}
         showAiExplain={showAiExplain}
         setShowAiExplain={setShowAiExplain}
-        openScheduleModal={openScheduleModal}
         getNextStage={getNextStage}
         handleMoveStage={handleMoveStage}
         openResumeModal={openResumeModal}
@@ -801,38 +579,7 @@ export default function CandidatesClient() {
         setToast={setToast}
       />
 
-      {/* ── Rejection Modal (Screen e09 / EMP-FR-025b) ── */}
-      <CandidateRejectModal
-        lang={lang}
-        t={t}
-        rejectTarget={rejectTarget}
-        setRejectTarget={setRejectTarget}
-        targetCand={
-          rejectTarget
-            ? candidates.find((c) => String(c.id) === String(rejectTarget)) ||
-              getCandidate(rejectTarget)
-            : null
-        }
-        templates={templates}
-        rejectReason={rejectReason}
-        setRejectReason={setRejectReason}
-        rejectDelayHours={rejectDelayHours}
-        setRejectDelayHours={setRejectDelayHours}
-        confirmReject={confirmReject}
-      />
-
-      {/* ── Schedule Interview Modal ── */}
-      <CandidateScheduleModal
-        lang={lang}
-        t={t}
-        scheduleCandidate={scheduleCandidate}
-        setScheduleCandidate={setScheduleCandidate}
-        activeJob={activeJob}
-        scheduleData={scheduleData}
-        setScheduleData={setScheduleData}
-        handleScheduleSubmit={handleScheduleSubmit}
-      />
-
+      
       {/* ── Bulk Action Confirmation Modal ── */}
       <CandidateBulkModal
         lang={lang}

@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Input, Select } from "../../../components/ds";
@@ -16,7 +18,7 @@ import { getCompanyJobDetail } from "../../../lib/api/companyApi";
 
 const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Temporary"];
 const EDU_LEVELS = ["Not required", "High School", "Associate Degree", "Bachelor's Degree", "Master's Degree", "PhD"];
-const DOC_OPTIONS = ["CV / Resume", "Cover Letter", "Portfolio", "References", "Certifications"];
+
 
 function getDefaultDeadline() {
   const d = new Date();
@@ -127,24 +129,24 @@ const EXPERIENCE_CARDS = [
 function getActiveExperienceCardId(val) {
   if (val === undefined || val === null || val === "") return null;
   const s = String(val).trim().toLowerCase();
-  if (s === "0" || s === "fresher" || s.includes("intern")) return "fresher";
-  if (s === "0-1" || s === "1" || s.includes("entry")) return "0-1";
-  if (s === "1-3" || s === "2" || s === "3") return "1-3";
+  if (s === "10+" || s.includes("+") || parseInt(s, 10) >= 10 || s.includes("lead") || s.includes("director")) return "10+";
+  if (s === "5-10" || (parseInt(s, 10) >= 6 && parseInt(s, 10) < 10)) return "5-10";
   if (s === "3-5" || s === "4" || s === "5") return "3-5";
-  if (s === "5-10" || (parseInt(s, 10) >= 6 && parseInt(s, 10) <= 10)) return "5-10";
-  if (s === "10+" || parseInt(s, 10) > 10 || s.includes("lead") || s.includes("director")) return "10+";
+  if (s === "1-3" || s === "2" || s === "3") return "1-3";
+  if (s === "0-1" || s === "1" || s.includes("entry")) return "0-1";
+  if (s === "0" || s === "fresher" || s.includes("intern")) return "fresher";
   return null;
 }
 
 function getExperienceSliderValue(val) {
   if (val === undefined || val === null || val === "") return 0;
   const s = String(val).trim().toLowerCase();
+  if (s === "10+" || s.includes("+") || parseInt(s, 10) >= 10) return 10;
+  if (s === "5-10" || (parseInt(s, 10) >= 6 && parseInt(s, 10) < 10)) return 7;
+  if (s === "3-5" || s === "4" || s === "5") return 4;
+  if (s === "1-3" || s === "2" || s === "3") return 2;
+  if (s === "0-1" || s === "1") return 1;
   if (s === "0" || s === "fresher") return 0;
-  if (s === "0-1") return 1;
-  if (s === "1-3") return 2;
-  if (s === "3-5") return 4;
-  if (s === "5-10") return 7;
-  if (s === "10+" || s.includes("+")) return 10;
   const num = parseInt(s, 10);
   return isNaN(num) ? 0 : Math.min(10, Math.max(0, num));
 }
@@ -152,25 +154,28 @@ function getExperienceSliderValue(val) {
 function formatExperienceLabel(val, lang) {
   if (val === undefined || val === null || val === "") return lang === "VN" || lang === "VI" ? "Chưa chỉ định" : "Not specified";
   const s = String(val).trim();
+  if (s === "10+" || s.includes("+") || parseInt(s, 10) >= 10) return lang === "VN" || lang === "VI" ? "Trên 10 Năm kinh nghiệm" : "10+ Years experience";
+  if (s === "5-10" || (parseInt(s, 10) >= 6 && parseInt(s, 10) < 10)) return lang === "VN" || lang === "VI" ? "5 - 10 Năm kinh nghiệm" : "5 - 10 Years experience";
+  if (s === "3-5" || s === "4" || s === "5") return lang === "VN" || lang === "VI" ? "3 - 5 Năm kinh nghiệm" : "3 - 5 Years experience";
+  if (s === "1-3" || s === "2" || s === "3") return lang === "VN" || lang === "VI" ? "1 - 3 Năm kinh nghiệm" : "1 - 3 Years experience";
+  if (s === "0-1" || s === "1") return lang === "VN" || lang === "VI" ? "0 - 1 Năm kinh nghiệm" : "0 - 1 Year experience";
   if (s === "0" || s.toLowerCase() === "fresher") return lang === "VN" || lang === "VI" ? "Fresher (0 năm kinh nghiệm)" : "Fresher (0 yrs experience)";
-  if (s === "0-1") return lang === "VN" || lang === "VI" ? "0 - 1 Năm kinh nghiệm" : "0 - 1 Year experience";
-  if (s === "1-3") return lang === "VN" || lang === "VI" ? "1 - 3 Năm kinh nghiệm" : "1 - 3 Years experience";
-  if (s === "3-5") return lang === "VN" || lang === "VI" ? "3 - 5 Năm kinh nghiệm" : "3 - 5 Years experience";
-  if (s === "5-10") return lang === "VN" || lang === "VI" ? "5 - 10 Năm kinh nghiệm" : "5 - 10 Years experience";
-  if (s === "10+") return lang === "VN" || lang === "VI" ? "Trên 10 Năm kinh nghiệm" : "10+ Years experience";
   return s + " " + (lang === "VN" || lang === "VI" ? "năm kinh nghiệm" : "years experience");
 }
 
 function calculateCompletion(f) {
-  let hasBasic = Boolean(f.title?.trim() && f.department?.trim() && f.location?.trim());
-  let hasTerms = Boolean((f.salaryMin || f.negotiable) && f.type && (f.experience || f.education));
-  let hasContent = Boolean(f.description?.trim()?.length >= 30 && f.skills?.length > 0 && (f.deadline || f.openUntilClosed));
-  let hasDetails = Boolean(f.vacancies && f.education);
+  if (!f) return 0;
+  const hasBasic = Boolean(f.title?.trim() && f.title?.trim().length <= 100 && f.department?.trim() && f.location?.trim());
+  const hasTerms = Boolean((f.salaryMin || f.negotiable) && f.type);
+  const hasContent = Boolean(f.description?.trim()?.length >= 200 && f.skills?.length > 0);
+  const hasPublishReady = Boolean(hasBasic && hasTerms && hasContent && f.vacancies && f.education && (f.deadline || f.openUntilClosed));
 
-  if (hasBasic && hasTerms && hasContent && hasDetails) return 100;
-  if (hasBasic && hasTerms && hasContent) return 75;
-  if (hasBasic && (hasTerms || hasContent)) return 50;
-  return 25;
+  let score = 0;
+  if (hasBasic) score += 25;
+  if (hasTerms) score += 25;
+  if (hasContent) score += 25;
+  if (hasPublishReady) score += 25;
+  return score;
 }
 
 function normalizeJobData(data) {
@@ -305,15 +310,66 @@ function JobForm({ mode, jobId }) {
   const [lang] = useLang();
   const { jobTypes, departments, locations } = useMasterData();
   const router = useRouter();
-  const [form, setForm] = useState(EMPTY);
+  const [initialData, setInitialData] = useState(EMPTY);
   const [skillDraft, setSkillDraft] = useState("");
   const [quota, setQuota] = useState(null);
   const [isLoading, setIsLoading] = useState(mode === "edit");
   const [viewMode, setViewMode] = useState("edit");
   const [notFound, setNotFound] = useState(false);
-  const [errors, setErrors] = useState({});
   const [toast, setToast] = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Formik Validation Schema using Yup
+  const validationSchema = Yup.object().shape({
+    title: Yup.string()
+      .trim()
+      .required(t(lang, "Job title is required."))
+      .max(100, lang === "VN" || lang === "VI" ? "Tiêu đề công việc tối đa 100 ký tự." : "Job title must not exceed 100 characters."),
+    department: Yup.string().trim().required(t(lang, "Department is required.")),
+    type: Yup.string().required(t(lang, "Job type is required.")),
+    location: Yup.string().trim().required(t(lang, "Location is required.")),
+    description: Yup.string()
+      .trim()
+      .required(t(lang, "A job description is required."))
+      .min(200, (param) => lang === "VN" || lang === "VI"
+        ? `Mô tả công việc phải có ít nhất 200 ký tự (hiện có ${param.value?.length || 0} ký tự).`
+        : `Job description must be at least 200 characters (currently ${param.value?.length || 0} characters).`),
+    deadline: Yup.string().when("openUntilClosed", {
+      is: false,
+      then: (schema) => schema.required(t(lang, "Please set an application deadline or check 'Open until manually closed'.")),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+    salaryMin: Yup.mixed().test("salary-min-valid", t(lang, "Salary must be a positive number."), function (val) {
+      if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
+      return Number(val) >= 0;
+    }),
+    salaryMax: Yup.mixed()
+      .test("salary-max-valid", t(lang, "Salary must be a positive number."), function (val) {
+        if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
+        return Number(val) >= 0;
+      })
+      .test("salary-max-gte-min", t(lang, "Maximum salary must be greater than or equal to minimum salary."), function (val) {
+        if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
+        const min = this.parent.salaryMin;
+        if (min === "" || min === undefined || min === null) return true;
+        return Number(val) >= Number(min);
+      }),
+  });
+
+  const formik = useFormik({
+    initialValues: initialData,
+    enableReinitialize: true,
+    validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      // Submission routed via persist()
+    },
+  });
+
+  const form = formik.values;
+  const errors = formik.errors;
+  const set = (k, v) => formik.setFieldValue(k, v);
 
   // EMP-FR-010: Purely UI & UI functionality AI JD state
   const [aiOpen, setAiOpen] = useState(false);
@@ -322,6 +378,114 @@ function JobForm({ mode, jobId }) {
   const [aiAttempts, setAiAttempts] = useState(0); // 0 initial, max 2 retries (total 3 attempts)
   const [aiError, setAiError] = useState(false);
   const aiCache = useRef("");
+  const textareaRef = useRef(null);
+
+  const applyFormat = (formatType) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
+    const fullText = form.description || "";
+    const selected = fullText.substring(start, end);
+
+    let replacement = "";
+    let cursorOffset = 0;
+    let newCursorPos = start;
+
+    switch (formatType) {
+      case "bold": {
+        const text = selected || (lang === "VN" || lang === "VI" ? "Văn bản in đậm" : "Bold text");
+        replacement = `**${text}**`;
+        newCursorPos = selected ? start + replacement.length : start + 2;
+        cursorOffset = selected ? 0 : text.length;
+        break;
+      }
+      case "italic": {
+        const text = selected || (lang === "VN" || lang === "VI" ? "Văn bản in nghiêng" : "Italic text");
+        replacement = `*${text}*`;
+        newCursorPos = selected ? start + replacement.length : start + 1;
+        cursorOffset = selected ? 0 : text.length;
+        break;
+      }
+      case "underline": {
+        const text = selected || (lang === "VN" || lang === "VI" ? "Văn bản gạch chân" : "Underlined text");
+        replacement = `<u>${text}</u>`;
+        newCursorPos = selected ? start + replacement.length : start + 3;
+        cursorOffset = selected ? 0 : text.length;
+        break;
+      }
+      case "h2": {
+        const text = selected || (lang === "VN" || lang === "VI" ? "Tiêu đề mục lớn" : "Main Heading");
+        replacement = `\n## ${text}\n`;
+        newCursorPos = start + replacement.length;
+        break;
+      }
+      case "h3": {
+        const text = selected || (lang === "VN" || lang === "VI" ? "Tiêu đề mục nhỏ" : "Subheading");
+        replacement = `\n### ${text}\n`;
+        newCursorPos = start + replacement.length;
+        break;
+      }
+      case "bullets": {
+        if (selected) {
+          const lines = selected.split("\n");
+          replacement = lines
+            .map((l) => (l.trim().startsWith("•") || l.trim().startsWith("-") ? l : `• ${l}`))
+            .join("\n");
+        } else {
+          replacement = lang === "VN" || lang === "VI"
+            ? `\n• Trách nhiệm hoặc yêu cầu 1\n• Trách nhiệm hoặc yêu cầu 2\n`
+            : `\n• Key responsibility or requirement 1\n• Key responsibility or requirement 2\n`;
+        }
+        newCursorPos = start + replacement.length;
+        break;
+      }
+      case "numbered": {
+        if (selected) {
+          const lines = selected.split("\n");
+          replacement = lines.map((l, i) => `${i + 1}. ${l.replace(/^\d+\.\s*/, "")}`).join("\n");
+        } else {
+          replacement = lang === "VN" || lang === "VI"
+            ? `\n1. Bước hoặc nhiệm vụ 1\n2. Bước hoặc nhiệm vụ 2\n`
+            : `\n1. Step or task 1\n2. Step or task 2\n`;
+        }
+        newCursorPos = start + replacement.length;
+        break;
+      }
+      case "quote": {
+        const text = selected || (lang === "VN" || lang === "VI" ? "Đoạn trích dẫn hoặc lưu ý đặc biệt" : "Important quote or note");
+        replacement = `\n> ${text}\n`;
+        newCursorPos = start + replacement.length;
+        break;
+      }
+      case "link": {
+        const url = prompt(lang === "VN" || lang === "VI" ? "Nhập địa chỉ liên kết (URL):" : "Enter URL:", "https://");
+        if (!url) return;
+        const text = selected || (lang === "VN" || lang === "VI" ? "Tên liên kết" : "Link text");
+        replacement = `[${text}](${url})`;
+        newCursorPos = start + replacement.length;
+        break;
+      }
+      default:
+        return;
+    }
+
+    const nextText = fullText.substring(0, start) + replacement + fullText.substring(end);
+    set("description", nextText);
+    if (form.aiGenerated) set("aiGenerated", false);
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        if (cursorOffset > 0) {
+          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos + cursorOffset);
+        } else {
+          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }
+    }, 10);
+  };
 
   const [showUpgrade, setShowUpgrade] = useState(false);
 
@@ -331,7 +495,7 @@ function JobForm({ mode, jobId }) {
       try {
         const cached = sessionStorage.getItem("lv360_cached_ai_jd");
         if (cached) aiCache.current = cached;
-      } catch (_) {}
+      } catch (_) { }
     }
   }, []);
 
@@ -340,7 +504,7 @@ function JobForm({ mode, jobId }) {
     if (mode === "edit" && jobId) {
       const localJob = getJob(jobId);
       if (localJob) {
-        setForm(normalizeJobData(localJob));
+        setInitialData(normalizeJobData(localJob));
         setIsLoading(false);
       }
 
@@ -349,7 +513,7 @@ function JobForm({ mode, jobId }) {
           .then((res) => {
             const data = res?.data || res;
             if (data && data.id) {
-              setForm(normalizeJobData(data));
+              setInitialData(normalizeJobData(data));
               setNotFound(false);
             } else if (!localJob) {
               setNotFound(true);
@@ -369,37 +533,31 @@ function JobForm({ mode, jobId }) {
     }
   }, [mode, jobId]);
 
-  const set = (k, v) => {
-    setForm((f) => ({ ...f, [k]: v }));
-    setErrors((e) => ({ ...e, [k]: undefined }));
-  };
-
   const addSkill = () => {
     const v = skillDraft.trim();
     if (v && !form.skills.includes(v)) set("skills", [...form.skills, v]);
     setSkillDraft("");
   };
 
-  const toggleDoc = (d) => set("documents", form.documents.includes(d) ? form.documents.filter((x) => x !== d) : [...form.documents, d]);
-
-  const validate = () => {
-    const e = {};
-    if (!form.title.trim()) e.title = t(lang, "Job title is required.");
-    if (!form.department.trim()) e.department = t(lang, "Department is required.");
-    if (!form.location.trim()) e.location = t(lang, "Location is required.");
-    if (!form.description.trim()) e.description = t(lang, "A job description is required.");
-    // EMP-FR-009: Default 30 days, or open until manually closed
-    if (!form.openUntilClosed && !form.deadline) {
-      e.deadline = t(lang, "Please set an application deadline or check 'Open until manually closed'.");
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const persist = async (targetStatus) => {
     if (isSubmitting) return;
-    if (!validate()) {
-      setToast(t(lang, "Please fill in the required fields."));
+
+    // Validate with Formik
+    const formErrors = await formik.validateForm();
+    if (Object.keys(formErrors).length > 0) {
+      formik.setTouched(
+        Object.keys(formErrors).reduce((acc, curr) => ({ ...acc, [curr]: true }), {})
+      );
+      setToast(t(lang, "Please fill in all required fields."));
+      if (typeof document !== "undefined") {
+        setTimeout(() => {
+          const firstErr = document.querySelector(".border-danger, textarea.border-danger");
+          if (firstErr) {
+            firstErr.scrollIntoView({ behavior: "smooth", block: "center" });
+            firstErr.focus?.();
+          }
+        }, 100);
+      }
       return;
     }
     const finalStatus = (targetStatus || form.status || "published").toLowerCase();
@@ -457,7 +615,7 @@ function JobForm({ mode, jobId }) {
     if (typeof window !== "undefined") {
       try {
         sessionStorage.setItem("lv360_cached_ai_jd", aiDraft);
-      } catch (_) {}
+      } catch (_) { }
     }
     set("description", aiDraft);
     set("aiGenerated", true);
@@ -504,6 +662,10 @@ function JobForm({ mode, jobId }) {
   ])).map((x) => ({ value: x, label: t(lang, x) }));
 
   const completionRate = calculateCompletion(form);
+  const milestone1 = Boolean(form.title?.trim() && form.title?.trim().length <= 100 && form.department?.trim() && form.location?.trim());
+  const milestone2 = Boolean((form.salaryMin || form.negotiable) && form.type);
+  const milestone3 = Boolean(form.description?.trim()?.length >= 200 && form.skills?.length > 0);
+  const milestone4 = completionRate === 100;
 
   if (isLoading) {
     return (
@@ -596,10 +758,10 @@ function JobForm({ mode, jobId }) {
             {completionRate === 100
               ? t(lang, "Excellent! Job posting has all required details and is ready to publish.")
               : completionRate >= 75
-              ? t(lang, "Great progress. Complete all details to reach 100%.")
-              : completionRate >= 50
-              ? t(lang, "Add description & skills to reach 75%.")
-              : t(lang, "Fill in role details & compensation to advance.")}
+                ? t(lang, "Great progress. Complete all details to reach 100%.")
+                : completionRate >= 50
+                  ? t(lang, "Add description & skills to reach 75%.")
+                  : t(lang, "Fill in role details & compensation to advance.")}
           </span>
         </div>
 
@@ -610,17 +772,16 @@ function JobForm({ mode, jobId }) {
             return (
               <div key={tier} className="flex flex-col gap-1.5">
                 <div
-                  className={`h-2 w-full rounded-pill transition-all duration-300 ${
-                    active
+                  className={`h-2 w-full rounded-pill transition-all duration-300 ${active
                       ? tier === 100
                         ? "bg-emerald-500"
                         : tier === 75
-                        ? "bg-brand"
-                        : tier === 50
-                        ? "bg-amber-500"
-                        : "bg-blue-500"
+                          ? "bg-brand"
+                          : tier === 50
+                            ? "bg-amber-500"
+                            : "bg-blue-500"
                       : "bg-sunken"
-                  }`}
+                    }`}
                 />
                 <span className={`text-[11px] font-semibold text-center ${active ? "text-ink font-bold" : "text-faint"}`}>
                   {tier}%
@@ -632,17 +793,17 @@ function JobForm({ mode, jobId }) {
 
         {/* Actionable Milestones */}
         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-line text-xs">
-          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${form.title && form.department && form.location ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
-            <Icon name={form.title && form.department && form.location ? "check" : "circle"} size={11} /> 25% Title & Location
+          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${milestone1 ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
+            <Icon name={milestone1 ? "check" : "circle"} size={11} /> 25% Title & Location
           </span>
-          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${(form.salaryMin || form.negotiable) && form.type ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
-            <Icon name={(form.salaryMin || form.negotiable) && form.type ? "check" : "circle"} size={11} /> 50% Compensation & Terms
+          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${milestone2 ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
+            <Icon name={milestone2 ? "check" : "circle"} size={11} /> 50% Compensation & Terms
           </span>
-          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${form.description?.length >= 30 && form.skills?.length > 0 ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
-            <Icon name={form.description?.length >= 30 && form.skills?.length > 0 ? "check" : "circle"} size={11} /> 75% JD & Skills
+          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${milestone3 ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
+            <Icon name={milestone3 ? "check" : "circle"} size={11} /> 75% JD (Min 200 chars) & Skills
           </span>
-          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${form.vacancies && form.education && (form.deadline || form.openUntilClosed) ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
-            <Icon name={form.vacancies && form.education && (form.deadline || form.openUntilClosed) ? "check" : "circle"} size={11} /> 100% Ready to Publish
+          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ${milestone4 ? "bg-emerald-50 text-emerald-700 font-semibold" : "bg-sunken text-muted"}`}>
+            <Icon name={milestone4 ? "check" : "circle"} size={11} /> 100% Ready to Publish
           </span>
         </div>
       </div>
@@ -727,8 +888,8 @@ function JobForm({ mode, jobId }) {
                 {form.negotiable
                   ? t(lang, "Negotiable")
                   : form.salaryMin && form.salaryMax
-                  ? `${Number(form.salaryMin).toLocaleString()} – ${Number(form.salaryMax).toLocaleString()} VND (${form.salaryType})`
-                  : t(lang, "Negotiable")}
+                    ? `${Number(form.salaryMin).toLocaleString()} – ${Number(form.salaryMax).toLocaleString()} VND (${form.salaryType})`
+                    : t(lang, "Negotiable")}
               </strong>
             </div>
             <div>
@@ -774,14 +935,22 @@ function JobForm({ mode, jobId }) {
         <div className={CARD}>
           <div className={FORM_GRID}>
             <Input
-              label={t(lang, "Job Title")}
+              label={
+                <div className="flex items-center justify-between w-full">
+                  <span>{t(lang, "Job Title")} <span className="text-danger">*</span></span>
+                  <span className={`text-[11px] font-normal ${form.title?.length > 100 ? "text-danger font-bold" : "text-muted"}`}>
+                    {form.title?.length || 0}/100
+                  </span>
+                </div>
+              }
+              maxLength={100}
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
               error={errors.title}
               placeholder={t(lang, "e.g. Senior Frontend Engineer")}
             />
             <Select
-              label={t(lang, "Department")}
+              label={<>{t(lang, "Department")} <span className="text-danger">*</span></>}
               value={form.department}
               onChange={(e) => set("department", e.target.value)}
               error={errors.department}
@@ -789,7 +958,7 @@ function JobForm({ mode, jobId }) {
               placeholder={t(lang, "Select Department")}
             />
             <Select
-              label={t(lang, "Job Type")}
+              label={<>{t(lang, "Job Type")} <span className="text-danger">*</span></>}
               value={form.type}
               onChange={(e) => set("type", e.target.value)}
               error={errors.type}
@@ -797,7 +966,7 @@ function JobForm({ mode, jobId }) {
               placeholder={t(lang, "Select Job Type")}
             />
             <Select
-              label={t(lang, "Location")}
+              label={<>{t(lang, "Location")} <span className="text-danger">*</span></>}
               value={form.location}
               onChange={(e) => set("location", e.target.value)}
               error={errors.location}
@@ -865,7 +1034,12 @@ function JobForm({ mode, jobId }) {
           {/* Job Description (EMP-FR-009 & EMP-FR-010 AI Generate JD) */}
           <div className="mt-5">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <label className="text-sm font-bold text-ink">{t(lang, "Job Description")}</label>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-bold text-ink">{t(lang, "Job Description")} <span className="text-danger">*</span></label>
+                <span className={`text-xs ${form.description?.trim().length < 200 ? "text-amber-600 font-medium" : "text-emerald-600 font-semibold"}`}>
+                  ({form.description?.trim().length || 0}/200 {lang === "VN" || lang === "VI" ? "ký tự tối thiểu" : "chars min"})
+                </span>
+              </div>
               <div className="flex items-center gap-2.5">
                 {form.aiGenerated && (
                   <span className={AI_TAG}>
@@ -883,25 +1057,123 @@ function JobForm({ mode, jobId }) {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-line focus-within:border-brand focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-              <div className="flex items-center gap-3.5 border-b border-line bg-sunken/60 px-3.5 py-2 text-xs font-semibold text-muted">
-                <span className="font-bold cursor-pointer hover:text-ink">B</span>
-                <span className="italic cursor-pointer hover:text-ink">I</span>
-                <span className="underline cursor-pointer hover:text-ink">U</span>
-                <span className="text-line">•</span>
-                <span className="cursor-pointer hover:text-ink flex items-center gap-1">
-                  <Icon name="list" size={13} /> Bullets
-                </span>
-                <span className="cursor-pointer hover:text-ink flex items-center gap-1">
-                  <Icon name="link" size={13} /> Link
-                </span>
+            <div className={`overflow-hidden rounded-xl border transition-all ${errors.description ? "border-danger ring-2 ring-red-100" : "border-line focus-within:border-brand focus-within:ring-2 focus-within:ring-blue-100"}`}>
+              {/* Rich Text Formatting Toolbar */}
+              <div className="flex flex-wrap items-center gap-1 border-b border-line bg-sunken/60 px-3 py-1.5 text-xs font-semibold text-muted">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("bold")}
+                  title={lang === "VN" || lang === "VI" ? "In đậm (Ctrl+B)" : "Bold (Ctrl+B)"}
+                  className="flex h-7 w-7 items-center justify-center rounded font-extrabold hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink"
+                >
+                  B
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("italic")}
+                  title={lang === "VN" || lang === "VI" ? "In nghiêng (Ctrl+I)" : "Italic (Ctrl+I)"}
+                  className="flex h-7 w-7 items-center justify-center rounded italic font-serif hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink text-sm"
+                >
+                  I
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("underline")}
+                  title={lang === "VN" || lang === "VI" ? "Gạch chân" : "Underline"}
+                  className="flex h-7 w-7 items-center justify-center rounded underline hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink"
+                >
+                  U
+                </button>
+
+                <div className="mx-1 h-4 w-px bg-line" />
+
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("h2")}
+                  title={lang === "VN" || lang === "VI" ? "Tiêu đề lớn (H2)" : "Heading 2"}
+                  className="flex h-7 px-1.5 items-center justify-center rounded font-bold hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink text-xs"
+                >
+                  H2
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("h3")}
+                  title={lang === "VN" || lang === "VI" ? "Tiêu đề nhỏ (H3)" : "Heading 3"}
+                  className="flex h-7 px-1.5 items-center justify-center rounded font-bold hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink text-xs"
+                >
+                  H3
+                </button>
+
+                <div className="mx-1 h-4 w-px bg-line" />
+
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("bullets")}
+                  title={lang === "VN" || lang === "VI" ? "Danh sách dấu chấm" : "Bullet list"}
+                  className="flex h-7 items-center gap-1 px-2 rounded hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink text-xs"
+                >
+                  <Icon name="list" size={13} />
+                  <span>{lang === "VN" || lang === "VI" ? "Dấu đầu dòng" : "Bullets"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("numbered")}
+                  title={lang === "VN" || lang === "VI" ? "Danh sách đánh số" : "Numbered list"}
+                  className="flex h-7 items-center gap-1 px-2 rounded hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink text-xs"
+                >
+                  <Icon name="list-ordered" size={13} />
+                  <span>{lang === "VN" || lang === "VI" ? "Số thứ tự" : "Numbered"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("quote")}
+                  title={lang === "VN" || lang === "VI" ? "Trích dẫn" : "Quote"}
+                  className="flex h-7 items-center gap-1 px-2 rounded hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink text-xs"
+                >
+                  <Icon name="quote" size={13} />
+                  <span>{lang === "VN" || lang === "VI" ? "Trích dẫn" : "Quote"}</span>
+                </button>
+
+                <div className="mx-1 h-4 w-px bg-line" />
+
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormat("link")}
+                  title={lang === "VN" || lang === "VI" ? "Chèn liên kết" : "Insert link"}
+                  className="flex h-7 items-center gap-1 px-2 rounded hover:bg-card hover:text-brand hover:shadow-2xs transition-colors cursor-pointer text-ink text-xs"
+                >
+                  <Icon name="link" size={13} />
+                  <span>{lang === "VN" || lang === "VI" ? "Liên kết" : "Link"}</span>
+                </button>
               </div>
+
               <textarea
-                className="min-h-[240px] w-full resize-y border-none p-4 font-body text-sm leading-relaxed text-ink outline-none"
+                ref={textareaRef}
+                className="min-h-[260px] w-full resize-y border-none p-4 font-body text-sm leading-relaxed text-ink outline-none"
                 value={form.description}
                 onChange={(e) => {
                   set("description", e.target.value);
                   if (form.aiGenerated) set("aiGenerated", false);
+                }}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+                    e.preventDefault();
+                    applyFormat("bold");
+                  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") {
+                    e.preventDefault();
+                    applyFormat("italic");
+                  }
                 }}
                 placeholder={t(lang, "Describe the role, key responsibilities, requirements, and benefits…")}
               />
@@ -978,24 +1250,21 @@ function JobForm({ mode, jobId }) {
                     key={card.id}
                     type="button"
                     onClick={() => set("experience", card.years)}
-                    className={`group relative flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
+                    className={`group relative flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer ${isSelected
                         ? "border-brand bg-brand/5 shadow-xs ring-2 ring-brand/20 text-ink"
                         : "border-line bg-card hover:border-slate-300 hover:bg-sunken/40 text-muted hover:text-ink"
-                    }`}
+                      }`}
                   >
                     <div className="flex w-full items-center justify-between gap-1 mb-2">
                       <div
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-                          isSelected ? "bg-brand text-white" : "bg-sunken text-muted group-hover:text-brand"
-                        }`}
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${isSelected ? "bg-brand text-white" : "bg-sunken text-muted group-hover:text-brand"
+                          }`}
                       >
                         <Icon name={card.icon} size={15} />
                       </div>
                       <span
-                        className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                          isSelected ? "bg-brand/15 text-brand font-extrabold" : "bg-sunken text-faint"
-                        }`}
+                        className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isSelected ? "bg-brand/15 text-brand font-extrabold" : "bg-sunken text-faint"
+                          }`}
                       >
                         {card.badge}
                       </span>
@@ -1074,7 +1343,7 @@ function JobForm({ mode, jobId }) {
 
             <div>
               <Input
-                label={t(lang, "Application Deadline (Default: 30 days)")}
+                label={<>{t(lang, "Application Deadline (Default: 30 days)")} {!form.openUntilClosed && <span className="text-danger">*</span>}</>}
                 type="date"
                 disabled={form.openUntilClosed}
                 value={form.openUntilClosed ? "" : form.deadline}
@@ -1113,15 +1382,7 @@ function JobForm({ mode, jobId }) {
             />
           </div>
 
-          {/* Required Verification Documents */}
-          <div className="mt-5">
-            <label className="mb-2 block text-sm font-semibold text-ink">{t(lang, "Required Candidate Documents (PDPD Compliant)")}</label>
-            <div className="flex flex-wrap gap-4">
-              {DOC_OPTIONS.map((d) => (
-                <Check key={d} label={t(lang, d)} checked={form.documents.includes(d)} onChange={() => toggleDoc(d)} />
-              ))}
-            </div>
-          </div>
+
 
           {/* Quota Notice */}
           {quota && quota.limit !== Infinity && (
@@ -1133,16 +1394,24 @@ function JobForm({ mode, jobId }) {
             </p>
           )}
 
-          {/* Action Bar (EMP-FR-011 Draft vs Published & EMP-FR-013 sub-2-minute posting) */}
+          {/* Action Bar */}
           <div className={`${ACTIONS} mt-8 flex flex-wrap items-center justify-between border-t border-line pt-5`}>
             <div className="flex gap-3">
-              <Button variant="secondary" disabled={isSubmitting} onClick={() => persist("draft")}>
-                <Icon name="file-text" size={14} style={{ marginRight: 6 }} />
-                {t(lang, isSubmitting ? "Saving..." : "Save as Draft")}
-              </Button>
-              <Button variant="primary" disabled={isSubmitting} onClick={() => persist("published")}>
+              <Link href="/company/jobs">
+                <Button variant="secondary" type="button" disabled={isSubmitting}>
+                  {t(lang, "Cancel")}
+                </Button>
+              </Link>
+              <Button variant="primary" type="button" disabled={isSubmitting} onClick={() => persist()}>
                 <Icon name="check" size={14} style={{ marginRight: 6 }} />
-                {t(lang, isSubmitting ? "Publishing..." : "Publish Job")}
+                {t(lang, isSubmitting
+                  ? "Saving..."
+                  : mode === "edit"
+                    ? "Update Job"
+                    : form.status === "draft"
+                      ? "Save as Draft"
+                      : "Publish Job"
+                )}
               </Button>
             </div>
 

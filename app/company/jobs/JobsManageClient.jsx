@@ -155,7 +155,20 @@ export default function JobsManageClient() {
                       )}
                     </td>
                     <td className={td}>{j.department || "—"}</td>
-                    <td className={td}>{count}</td>
+                    <td className={td}>
+                      {count > 0 ? (
+                        <Link
+                          href={`/company/candidates?job=${j.id}`}
+                          className="inline-flex items-center gap-1 font-bold text-brand hover:underline"
+                          title={t(lang, "View applicants for this job")}
+                        >
+                          <span>{count}</span>
+                          <Icon name="arrow-right" size={12} />
+                        </Link>
+                      ) : (
+                        <span className="text-muted">0</span>
+                      )}
+                    </td>
                     <td className={td}>{j.deadline || "—"}</td>
                     <td className={td}>
                       <StatusBadge kind="job" value={j.status} lang={lang} />

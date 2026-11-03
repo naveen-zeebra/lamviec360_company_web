@@ -25,7 +25,6 @@ export default function CandidatesSpeedReview({
   selected,
   setSelected,
   handleMoveStage,
-  openScheduleModal,
   getNextStage,
 }) {
   const [speedTab, setSpeedTab] = useState("pdf"); // 'pdf' | 'profile'
@@ -77,7 +76,7 @@ export default function CandidatesSpeedReview({
         }
       } else if (key === "i") {
         e.preventDefault();
-        if (manage) openScheduleModal(currentCand);
+        if (manage) handleMoveStage(currentCand.id, "Interview Scheduled", currentCand.stage);
       }
     };
 
@@ -91,7 +90,6 @@ export default function CandidatesSpeedReview({
     pagination.totalPages,
     selected,
     handleMoveStage,
-    openScheduleModal,
   ]);
 
   return (
@@ -456,7 +454,7 @@ export default function CandidatesSpeedReview({
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => openScheduleModal(speedCandidate)}
+                      onClick={() => handleMoveStage(speedCandidate.id, "Interview Scheduled", speedCandidate.stage)}
                       className="gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100"
                       title="[I] Schedule interview"
                     >
