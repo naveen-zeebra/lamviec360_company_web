@@ -1,17 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Icon from "../../../../components/ds/Icon";
 import Button from "../../../../components/ds/Button";
 import { getCompany, getAuth, renderEmailTemplate } from "../../../../lib/companyStore";
 
 export default function CandidateRejectModal({
-  lang,
-  t,
+  lang = "EN",
+  t = (l, k) => k,
   rejectTarget,
   setRejectTarget,
   targetCand,
-  templates,
+  templates = [],
   rejectReason,
   setRejectReason,
   rejectDelayHours,
@@ -20,20 +20,49 @@ export default function CandidateRejectModal({
 }) {
   if (!rejectTarget) return null;
 
-  const rejTemplates = (templates || []).filter(
-    (t) => (t.category || "rejection") === "rejection"
+  // Initialize language preference based on candidate record (employee/seeker level preference)
+  const initialCandidateLang = (
+    targetCand?.preferred_language ||
+    targetCand?.preferredLanguage ||
+    targetCand?.lang ||
+    "vi"
+  ).toLowerCase().startsWith("en") ? "en" : "vi";
+
+  const [modalLang, setModalLang] = useState(initialCandidateLang);
+
+  // Filter templates strictly by category "rejection" and selected language
+  const availableTemplates = (templates || []).filter(
+    (item) => (item.category || "rejection") === "rejection" && (item.lang || "vi") === modalLang
   );
+
+  // Active template selection
   const currentTpl =
-    rejTemplates.find(
-      (t) => String(t.id) === String(rejectReason.templateId)
-    ) || rejTemplates[0];
+    availableTemplates.find(
+      (item) => String(item.id) === String(rejectReason?.templateId)
+    ) ||
+    availableTemplates.find(
+      (item) => item.code === rejectReason?.templateId
+    ) ||
+    availableTemplates.find((item) => item.isDefault) ||
+    availableTemplates[0];
+
+  // Update rejectReason templateId when switching language if needed
+  useEffect(() => {
+    if (currentTpl && rejectReason?.templateId !== currentTpl.id) {
+      setRejectReason((prev) => ({
+        ...prev,
+        templateId: currentTpl.id,
+        lang: modalLang,
+      }));
+    }
+  }, [modalLang, currentTpl]);
 
   const comp = getCompany() || {};
   const auth = getAuth() || {};
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-2xl border border-line space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-2xl border border-line space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-line pb-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
@@ -56,26 +85,56 @@ export default function CandidateRejectModal({
           </button>
         </div>
 
-        <p className="text-xs text-muted leading-relaxed">
-          {t(
-            lang,
-            "Select a standardized rejection template. The parameterized rejection email will be queued per your delivery preference."
-          )}
-        </p>
+        {/* Preferred Language Detection & Recruiter Switcher */}
+        <div className="flex items-center justify-between rounded-xl bg-sunken p-3 border border-line">
+          <div>
+            <span className="text-xs font-bold text-ink block">
+              {t(lang, "Candidate Email Language")}
+            </span>
+            <span className="text-[11px] text-muted">
+              {t(lang, "Auto-detected based on candidate profile preference")}
+            </span>
+          </div>
+
+          <div className="inline-flex rounded-lg border border-line bg-card p-0.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setModalLang("vi")}
+              className={`rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
+                modalLang === "vi"
+                  ? "bg-brand text-white shadow-xs"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              🇻🇳 Tiếng Việt
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalLang("en")}
+              className={`rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
+                modalLang === "en"
+                  ? "bg-brand text-white shadow-xs"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              🇬🇧 English
+            </button>
+          </div>
+        </div>
 
         {/* Template selector */}
         <div>
           <label className="block text-xs font-bold text-ink mb-1.5">
-            {t(lang, "Rejection Template (EMP-FR-025b)")}
+            {t(lang, "Rejection Reason Template")}
           </label>
           <select
-            value={rejectReason.templateId || (currentTpl ? currentTpl.id : "")}
+            value={currentTpl?.id || ""}
             onChange={(e) =>
-              setRejectReason({ ...rejectReason, templateId: e.target.value })
+              setRejectReason({ ...rejectReason, templateId: e.target.value, lang: modalLang })
             }
             className="w-full rounded-lg border border-line bg-card p-2 text-xs font-semibold text-ink focus:border-brand focus:outline-none"
           >
-            {rejTemplates.map((tpl) => (
+            {availableTemplates.map((tpl) => (
               <option key={tpl.id} value={tpl.id}>
                 {tpl.title} {tpl.isDefault ? `(${t(lang, "Default")})` : ""}
               </option>
@@ -83,7 +142,7 @@ export default function CandidateRejectModal({
           </select>
         </div>
 
-        {/* Delivery Timing Configuration (Screen e09 / EMP-FR-025b) */}
+        {/* Delivery Timing Configuration */}
         <div>
           <label className="block text-xs font-bold text-ink mb-1.5">
             {t(lang, "Email Delivery Schedule")}
@@ -114,24 +173,30 @@ export default function CandidateRejectModal({
                 {t(lang, "Candidate Email Preview:")}
               </span>
               <span className="text-brand font-semibold">
-                {currentTpl.title}
+                {modalLang === "vi" ? "Tiếng Việt" : "English"}
               </span>
             </div>
 
             <div className="rounded-lg bg-card border border-line p-3 text-[11px] space-y-1.5">
               <div className="text-slate-800 dark:text-slate-200">
                 <strong className="text-muted">Subject: </strong>
-                {renderEmailTemplate(currentTpl.subject, {
-                  candidateName: targetCand?.name || "Candidate",
-                  jobTitle: targetCand?.jobTitle || "Engineer",
-                  companyName: comp?.name || "Tech Corp Vietnam",
-                })}
+                {renderEmailTemplate(
+                  currentTpl.subject ||
+                    (modalLang === "en"
+                      ? "Update regarding your application for {{job_title}} at {{company_name}}"
+                      : "Cập nhật về hồ sơ ứng tuyển {{job_title}} tại {{company_name}}"),
+                  {
+                    candidateName: targetCand?.name || "Candidate",
+                    jobTitle: targetCand?.jobTitle || "Position",
+                    companyName: comp?.name || "LàmViệc360",
+                  }
+                )}
               </div>
-              <div className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line pt-1 text-[11px] border-t border-line/60">
-                {renderEmailTemplate(currentTpl.body, {
+              <div className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line pt-1 text-[11px] border-t border-line/60 max-h-[140px] overflow-y-auto">
+                {renderEmailTemplate(currentTpl.body || currentTpl.body_text || "", {
                   candidateName: targetCand?.name || "Candidate",
-                  jobTitle: targetCand?.jobTitle || "Engineer",
-                  companyName: comp?.name || "Tech Corp Vietnam",
+                  jobTitle: targetCand?.jobTitle || "Position",
+                  companyName: comp?.name || "LàmViệc360",
                   senderName: auth?.name || "Hiring Team",
                 })}
               </div>
@@ -146,7 +211,7 @@ export default function CandidateRejectModal({
           </label>
           <textarea
             rows={2}
-            value={rejectReason.note || ""}
+            value={rejectReason?.note || ""}
             onChange={(e) =>
               setRejectReason({ ...rejectReason, note: e.target.value })
             }
@@ -172,7 +237,18 @@ export default function CandidateRejectModal({
             >
               {t(lang, "Cancel")}
             </Button>
-            <Button variant="danger" size="sm" onClick={confirmReject}>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                confirmReject({
+                  templateId: currentTpl?.id,
+                  lang: modalLang,
+                  note: rejectReason?.note || "",
+                  delayHours: rejectDelayHours,
+                });
+              }}
+            >
               {t(lang, "Confirm Rejection")}
             </Button>
           </div>
@@ -181,4 +257,3 @@ export default function CandidateRejectModal({
     </div>
   );
 }
-

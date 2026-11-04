@@ -32,6 +32,7 @@ import CandidateDetailDrawer from "./components/CandidateDetailDrawer";
 import CandidateDocViewerModal from "./components/CandidateDocViewerModal";
 import CandidateResumeModal from "./components/CandidateResumeModal";
 import CandidateBulkModal from "./components/CandidateBulkModal";
+import CandidateRejectModal from "./components/CandidateRejectModal";
 import CandidatesJobsOverview from "./components/CandidatesJobsOverview";
 
 export { FIXED_PIPELINE_STAGES, PIPELINE_STAGES_CONFIG } from "./components/CandidatesConstants";
@@ -109,6 +110,9 @@ export default function CandidatesClient() {
   const [viewingDoc, setViewingDoc] = useState(null);
   const [docViewerZoom, setDocViewerZoom] = useState(100);
   const [confirmBulk, setConfirmBulk] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectReason, setRejectReason] = useState({ templateId: "", note: "" });
+  const [rejectDelayHours, setRejectDelayHours] = useState(0);
   const [toast, setToast] = useToast();
 
   const manage = can(role, "candidates.manage");
@@ -231,9 +235,17 @@ export default function CandidatesClient() {
     return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
   };
 
-  const handleMoveStage = async (id, stage, prevStage) => {
+  const handleMoveStage = async (id, stage, prevStage, explicitReason = null) => {
     const candidate = candidates.find((c) => String(c.id) === String(id)) || getCandidate(id);
     const sourceStage = prevStage || candidate?.stage;
+
+    if (stage === "Rejected" && !explicitReason) {
+      const rejTemplates = templates.filter((t) => (t.category || "rejection") === "rejection");
+      const defTpl = rejTemplates.find((t) => t.isDefault) || rejTemplates[0];
+      setRejectReason({ templateId: defTpl?.id || "RT-1", note: "" });
+      setRejectTarget({ id, prevStage: sourceStage, candidate });
+      return;
+    }
 
     // Set 5-minute Undo Window per EMP-FR-019b
     if (sourceStage && sourceStage !== stage) {
@@ -250,7 +262,7 @@ export default function CandidatesClient() {
     const rejTemplates = templates.filter((t) => (t.category || "rejection") === "rejection");
     const defTpl = rejTemplates.find((t) => t.isDefault) || rejTemplates[0];
     const rejectionTemplateId = defTpl ? defTpl.id : "RT-1";
-    const reasonPayload = isRejection ? { templateId: rejectionTemplateId, note: "" } : undefined;
+    const reasonPayload = isRejection ? (explicitReason || { templateId: rejectionTemplateId, note: "" }) : undefined;
 
     // Optimistic candidate & counts update
     setCandidates((prev) =>
@@ -278,8 +290,8 @@ export default function CandidatesClient() {
 
     try {
       await setCandidateStage(id, stage, reasonPayload);
-      await sendStageChangeEmail(candidate, stage, activeJob);
-      const emailNotice = candidate?.email
+      const emailResult = await sendStageChangeEmail(candidate, stage, activeJob, reasonPayload);
+      const emailNotice = emailResult && candidate?.email
         ? ` · ${t(lang, "Email notification sent to")} ${candidate.email}`
         : "";
       setToast(`${t(lang, "Moved to")} ${t(lang, stage)}${emailNotice}`);
@@ -294,6 +306,19 @@ export default function CandidatesClient() {
     } finally {
       loadData();
     }
+  };
+
+  const confirmReject = async (customPayload = null) => {
+    if (!rejectTarget) return;
+    const { id, prevStage } = rejectTarget;
+    const payload = customPayload || {
+      templateId: rejectReason.templateId,
+      lang: rejectReason.lang,
+      note: rejectReason.note || "",
+      delayHours: rejectDelayHours,
+    };
+    setRejectTarget(null);
+    await handleMoveStage(id, "Rejected", prevStage, payload);
   };
 
   const handleRating = async (id, rating) => {
@@ -580,6 +605,21 @@ export default function CandidatesClient() {
       />
 
       
+      {/* ── Candidate Rejection Modal with Standardized Template (EMP-FR-025b) ── */}
+      <CandidateRejectModal
+        lang={lang}
+        t={t}
+        rejectTarget={rejectTarget}
+        setRejectTarget={setRejectTarget}
+        targetCand={rejectTarget?.candidate}
+        templates={templates}
+        rejectReason={rejectReason}
+        setRejectReason={setRejectReason}
+        rejectDelayHours={rejectDelayHours}
+        setRejectDelayHours={setRejectDelayHours}
+        confirmReject={confirmReject}
+      />
+
       {/* ── Bulk Action Confirmation Modal ── */}
       <CandidateBulkModal
         lang={lang}

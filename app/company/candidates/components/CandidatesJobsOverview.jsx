@@ -211,132 +211,79 @@ export default function CandidatesJobsOverview({
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line bg-card shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[840px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-line bg-sunken/60 text-[11px] font-bold uppercase tracking-wider text-muted">
-                  <th className="px-5 py-3 text-left">{tr(lang, "Vị trí tuyển dụng", "Job Posting")}</th>
-                  <th className="px-4 py-3 text-left">{tr(lang, "Phòng ban", "Department")}</th>
-                  <th className="px-4 py-3 text-left">{tr(lang, "Trạng thái", "Status")}</th>
-                  <th className="px-4 py-3 text-left">{tr(lang, "Ứng viên", "Applicants")}</th>
-                  <th className="px-4 py-3 text-left">{tr(lang, "Giai đoạn phỏng vấn", "Pipeline Breakdown")}</th>
-                  <th className="px-4 py-3 text-left">{tr(lang, "Hạn nộp", "Deadline")}</th>
-                  <th className="px-5 py-3 text-right">{tr(lang, "Thao tác", "Action")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {filteredJobs.map((job) => {
-                  const metrics = jobMetricsMap[job.id] || { total: 0, applied: 0, inReview: 0, hired: 0 };
+        <div className="overflow-hidden rounded-xl border border-line bg-card shadow-xs divide-y divide-line">
+          {filteredJobs.map((job) => {
+            const metrics = jobMetricsMap[job.id] || { total: 0, applied: 0, inReview: 0, hired: 0 };
 
-                  return (
-                    <tr
-                      key={job.id}
-                      onClick={() => onSelectJob(job.id)}
-                      className="group hover:bg-brand/5 hover:border-brand/40 transition-colors cursor-pointer"
-                      title={tr(lang, "Nhấn để xem ứng viên của vị trí này", "Click to view applications for this job")}
-                    >
-                      {/* Job Title & Meta */}
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-ink group-hover:text-brand transition-colors text-sm">
-                            {job.title}
-                          </span>
-                          {job.aiGenerated && (
-                            <span className="inline-flex items-center gap-1 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold text-brand">
-                              <Icon name="sparkles" size={9} /> AI
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
-                          {job.type && <span className="font-medium">{job.type}</span>}
-                          {job.location && (
-                            <>
-                              <span>•</span>
-                              <span>📍 {job.location}</span>
-                            </>
-                          )}
-                          {job.createdAt && (
-                            <>
-                              <span>•</span>
-                              <span>{tr(lang, "Đăng:", "Posted:")} {job.createdAt}</span>
-                            </>
-                          )}
-                        </div>
-                      </td>
+            return (
+              <div
+                key={job.id}
+                onClick={() => onSelectJob(job.id)}
+                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 hover:bg-brand/5 transition-all cursor-pointer border-l-4 border-l-transparent hover:border-l-brand"
+                title={tr(lang, "Nhấn để xem ứng viên của vị trí này", "Click to view applications for this job")}
+              >
+                {/* Left: Job Title & Clean Metadata */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-base font-extrabold text-ink group-hover:text-brand transition-colors">
+                      {job.title}
+                    </span>
+                    {job.aiGenerated && (
+                      <span className="inline-flex items-center gap-1 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold text-brand">
+                        <Icon name="sparkles" size={9} /> AI
+                      </span>
+                    )}
+                  </div>
 
-                      {/* Department */}
-                      <td className="px-4 py-3.5 text-xs font-semibold text-slate-700">
-                        {job.department || "—"}
-                      </td>
+                  {/* Subtitle Meta */}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
+                    {job.department && <span className="font-semibold text-slate-700">{job.department}</span>}
+                    {job.location && (
+                      <>
+                        <span>•</span>
+                        <span>📍 {job.location}</span>
+                      </>
+                    )}
+                    {job.type && (
+                      <>
+                        <span>•</span>
+                        <span>{job.type}</span>
+                      </>
+                    )}
+                    {job.createdAt && (
+                      <>
+                        <span>•</span>
+                        <span>{tr(lang, "Đăng:", "Posted:")} {job.createdAt}</span>
+                      </>
+                    )}
+                    {job.deadline && (
+                      <>
+                        <span>•</span>
+                        <span>{tr(lang, "Hạn:", "Deadline:")} {job.deadline}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                      {/* Status */}
-                      <td className="px-4 py-3.5">
-                        <StatusBadge kind="job" value={job.status || "Published"} lang={lang} />
-                      </td>
+                {/* Right: Status, Applicant Count & Sleek Chevron */}
+                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                  <StatusBadge kind="job" value={job.status || "Published"} lang={lang} />
 
-                      {/* Applicant Count */}
-                      <td className="px-4 py-3.5">
-                        <div className="inline-flex items-center gap-1.5 rounded-lg bg-brand/10 px-2.5 py-1 text-xs font-black text-brand">
-                          <Icon name="users" size={13} />
-                          <span>{metrics.total}</span>
-                          <span className="text-[10px] font-bold uppercase">{tr(lang, "hồ sơ", "apps")}</span>
-                        </div>
-                      </td>
+                  <div className="inline-flex items-center gap-1.5 rounded-lg bg-brand/10 px-3 py-1.5 text-xs font-black text-brand shadow-2xs">
+                    <Icon name="users" size={13} />
+                    <span>{metrics.total}</span>
+                    <span className="text-[10px] font-bold uppercase">{tr(lang, "hồ sơ", "apps")}</span>
+                  </div>
 
-                      {/* Micro-Funnel Breakdown */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <span
-                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/50"
-                            title={tr(lang, "Hồ sơ mới nộp", "New applicants")}
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                            {metrics.applied} {tr(lang, "Mới", "New")}
-                          </span>
-                          <span
-                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/50"
-                            title={tr(lang, "Đang sàng lọc hoặc phỏng vấn", "In review or interview")}
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            {metrics.inReview} {tr(lang, "Xử lý", "Review")}
-                          </span>
-                          <span
-                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/50"
-                            title={tr(lang, "Đã tuyển thành công", "Hired candidates")}
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            {metrics.hired} {tr(lang, "Tuyển", "Hired")}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Deadline */}
-                      <td className="px-4 py-3.5 text-xs text-muted">
-                        {job.deadline ? (
-                          <span className="font-medium text-slate-700">{job.deadline}</span>
-                        ) : (
-                          <span className="text-faint">{tr(lang, "Không hạn", "Open")}</span>
-                        )}
-                      </td>
-
-                      {/* Action */}
-                      <td className="px-5 py-3.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => onSelectJob(job.id)}
-                          className="group/btn inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-brand/90 transition-all cursor-pointer"
-                        >
-                          <span>{tr(lang, "Xem Ứng viên", "View Applications")}</span>
-                          <Icon name="arrow-right" size={12} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  <Icon
+                    name="chevron-right"
+                    size={18}
+                    className="text-slate-400 group-hover:text-brand group-hover:translate-x-1 transition-transform ml-1"
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
