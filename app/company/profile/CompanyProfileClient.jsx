@@ -346,7 +346,7 @@ function CompanyProfileContent() {
               />
               <div className="col-span-2 max-md:col-span-1">
                 <Input
-                  label={t(lang, "Tax Code / Business Reg Number")}
+                  label={t(lang, "Business Reg Number")}
                   value={company.taxCode || company.regNumber || ""}
                   readOnly
                   disabled
