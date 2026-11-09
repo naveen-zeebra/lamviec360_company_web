@@ -26,7 +26,6 @@ export default function CandidatesTableView({
   jumpPage,
   setJumpPage,
   handleJumpPage,
-  density,
   privacy,
   sortBy,
   setSortBy,
@@ -66,7 +65,7 @@ export default function CandidatesTableView({
     );
   };
 
-  const cellPy = density === "compact" ? "py-2" : "py-3.5";
+  const cellPy = "py-3.5";
 
   return (
     <div className="flex flex-col gap-3">

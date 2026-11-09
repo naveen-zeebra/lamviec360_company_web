@@ -34,8 +34,6 @@ export default function CandidatesFilters({
   pagination,
   resetFilters,
   viewMode,
-  density,
-  setDensity,
   handleExportCsv,
   isExporting,
 }) {
@@ -55,19 +53,17 @@ export default function CandidatesFilters({
             setActiveStage("All");
             setPage(1);
           }}
-          className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
-            activeStage === "All"
+          className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${activeStage === "All"
               ? "border-brand bg-brand text-white shadow-xs"
               : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
-          }`}
+            }`}
         >
           <span>{t(lang, "All Stages")}</span>
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
-              activeStage === "All"
+            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${activeStage === "All"
                 ? "bg-white/20 text-white"
                 : "bg-sunken text-ink"
-            }`}
+              }`}
           >
             {(stageCounts.Total || 0).toLocaleString()}
           </span>
@@ -85,22 +81,19 @@ export default function CandidatesFilters({
                 setActiveStage(stg);
                 setPage(1);
               }}
-              className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
-                isSelected
+              className={`group flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${isSelected
                   ? "border-brand bg-brand text-white shadow-xs"
                   : "border-line bg-card text-muted hover:border-brand/40 hover:text-ink"
-              }`}
+                }`}
             >
               <span
-                className={`h-2 w-2 rounded-full ${
-                  isSelected ? "bg-white" : color.dot
-                }`}
+                className={`h-2 w-2 rounded-full ${isSelected ? "bg-white" : color.dot
+                  }`}
               />
               <span>{t(lang, stg)}</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
-                  isSelected ? "bg-white/20 text-white" : color.bg
-                }`}
+                className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${isSelected ? "bg-white/20 text-white" : color.bg
+                  }`}
               >
                 {count.toLocaleString()}
               </span>
@@ -180,7 +173,7 @@ export default function CandidatesFilters({
           </div>
         </div>
 
-        {/* Sub-toolbar row: Reset, Density Toggle, CSV Export, and Rows per page */}
+        {/* Sub-toolbar row: Reset, CSV Export, and Rows per page */}
         <div className="mt-3 flex flex-wrap items-center justify-between border-t border-line/60 pt-3 text-xs text-muted gap-2">
           <div className="flex items-center gap-3 flex-wrap">
             <span>
@@ -213,36 +206,6 @@ export default function CandidatesFilters({
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Density switch */}
-            {viewMode === "table" && (
-              <div className="inline-flex rounded-md border border-line bg-sunken/40 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setDensity("compact")}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
-                    density === "compact"
-                      ? "bg-card text-ink shadow-xs"
-                      : "text-muted hover:text-ink"
-                  }`}
-                  title="Compact rows for high density"
-                >
-                  {t(lang, "Compact")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDensity("comfortable")}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
-                    density === "comfortable"
-                      ? "bg-card text-ink shadow-xs"
-                      : "text-muted hover:text-ink"
-                  }`}
-                  title="Comfortable row padding"
-                >
-                  {t(lang, "Comfortable")}
-                </button>
-              </div>
-            )}
-
             {/* Export CSV Button */}
             <Button
               variant="secondary"

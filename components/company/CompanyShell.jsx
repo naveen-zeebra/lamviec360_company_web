@@ -33,6 +33,7 @@ const NAV = [
   },
   { href: "/company/billing", icon: "credit-card", labelKey: "Subscription & Billing", perm: "billing.manage" },
   { href: "/company/settings", icon: "settings", labelKey: "Settings", perm: "settings.manage" },
+  { href: "/company/support", icon: "life-buoy", labelKey: "Support & Help", perm: "overview.view" },
 ];
 
 const MOBILE_TABS = NAV.slice(0, 4);
@@ -588,6 +589,17 @@ export default function CompanyShell({ children }) {
                     <button
                       type="button"
                       role="menuitem"
+                      className={menuItem}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        router.push("/company/support");
+                      }}
+                    >
+                      <Icon name="life-buoy" size={14} style={{ marginRight: 8 }} /> {t(lang, "Support & Help")}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
                       className={`${menuItem} text-danger hover:bg-danger-bg hover:text-danger-fg`}
                       onClick={() => {
                         logout();
@@ -604,8 +616,24 @@ export default function CompanyShell({ children }) {
         </header>
 
         {/* Page Content Body */}
-        <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pb-20 pt-8 max-[900px]:pb-24 max-md:px-4 max-md:pt-5">
-          {children}
+        <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col px-6 pb-12 pt-8 max-[900px]:pb-24 max-md:px-4 max-md:pt-5">
+          <div className="flex-1">{children}</div>
+          <footer className="mt-12 border-t border-line/60 pt-6 pb-2 text-xs text-faint flex flex-wrap items-center justify-between gap-4">
+            <div>{t(lang, "© LàmViệc360. All rights reserved.")}</div>
+            <div className="flex items-center gap-4">
+              <Link href="/company/support" className="hover:text-brand font-medium transition-colors">
+                {t(lang, "Support & Help")}
+              </Link>
+              <span>•</span>
+              <Link href="/employer-resources" className="hover:text-brand transition-colors">
+                {t(lang, "Resources")}
+              </Link>
+              <span>•</span>
+              <Link href="/employers#terms" className="hover:text-brand transition-colors">
+                {t(lang, "Terms of Service")}
+              </Link>
+            </div>
+          </footer>
         </main>
       </div>
 

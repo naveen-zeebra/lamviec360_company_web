@@ -5,6 +5,7 @@ import { Button } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Skeleton from "../../../components/ds/Skeleton";
 import StatusBadge from "../../../components/company/StatusBadge";
+import EmployerDashboardBanner from "../../../components/company/EmployerDashboardBanner";
 import { useLang, t } from "../../../utils/lang";
 import {
   getAuth,
@@ -77,6 +78,8 @@ export default function OverviewClient() {
         <p className="text-base text-muted">{t(lang, "Here's what's happening with your hiring.")}</p>
       </div>
 
+      <EmployerDashboardBanner lang={lang} />
+
       <div className="mb-8 grid grid-cols-3 gap-3 max-lg:grid-cols-2">
         <div className={stat}>
           <span className={statLabel}>{t(lang, "Active Jobs")}</span>
@@ -124,7 +127,7 @@ export default function OverviewClient() {
       )}
 
       {/* Super Admin Configurable Banner Slot (EMP-FR-005) */}
-      <div className="mb-8 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* <div className="mb-8 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-blue-200 backdrop-blur-xs">
             <Icon name="sparkles" size={12} />
@@ -143,7 +146,7 @@ export default function OverviewClient() {
             </Button>
           </Link>
         )}
-      </div>
+      </div> */}
 
       <section className="mb-8">
         <div className={sectionHead}>

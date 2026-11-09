@@ -23,6 +23,7 @@ export default function Footer({ lang, setLang, app = "seeker" }) {
             [["Tài nguyên", "Resources"], "/employer-resources"],
             [["Đăng nhập Doanh nghiệp", "Employer Login"], "/employer-login"],
             [["Đăng ký doanh nghiệp", "Company Registration"], "/company-register"],
+            [["Hỗ trợ Doanh nghiệp", "Employer Support"], "/company/support"],
           ],
         },
         {
@@ -41,6 +42,7 @@ export default function Footer({ lang, setLang, app = "seeker" }) {
             [["Điều khoản dịch vụ", "Terms of Service"], "/employers#terms"],
             [["Bảo vệ dữ liệu", "Data Protection"], "/employers#data"],
             [["Minh bạch về AI", "AI Transparency"], "/employers#ai"],
+            [["Hỗ trợ & Trợ giúp", "Help & Support"], "/company/support"],
           ],
         },
       ]

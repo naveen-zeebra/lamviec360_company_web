@@ -46,7 +46,6 @@ export default function CandidatesClient() {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("table"); // 'table' | 'pipeline'
-  const [density, setDensity] = useState("comfortable"); // 'comfortable' | 'compact'
   const [role, setRole] = useState("Viewer");
 
   // Selection & Active Filters
@@ -97,7 +96,7 @@ export default function CandidatesClient() {
   const [selected, setSelected] = useState([]);
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [openId, setOpenId] = useState(null);
-    const [noteDraft, setNoteDraft] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
   const [showAiExplain, setShowAiExplain] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -105,7 +104,7 @@ export default function CandidatesClient() {
   const [undo, setUndo] = useState(null);
 
   // Modal states
-    const [resumeCandidate, setResumeCandidate] = useState(null);
+  const [resumeCandidate, setResumeCandidate] = useState(null);
   const [resumeModalTab, setResumeModalTab] = useState("pdf");
   const [viewingDoc, setViewingDoc] = useState(null);
   const [docViewerZoom, setDocViewerZoom] = useState(100);
@@ -269,15 +268,15 @@ export default function CandidatesClient() {
       prev.map((c) =>
         String(c.id) === String(id)
           ? {
-              ...c,
-              stage,
-              ...(isRejection
-                ? {
-                    rejectionTemplateId,
-                    rejectedAt: new Date().toISOString().slice(0, 10),
-                  }
-                : {}),
-            }
+            ...c,
+            stage,
+            ...(isRejection
+              ? {
+                rejectionTemplateId,
+                rejectedAt: new Date().toISOString().slice(0, 10),
+              }
+              : {}),
+          }
           : c
       )
     );
@@ -330,7 +329,7 @@ export default function CandidatesClient() {
     try {
       const { updateCandidateRating } = await import("../../../lib/api/companyApi");
       await updateCandidateRating(id, rating);
-    } catch (_) {}
+    } catch (_) { }
     setToast(t(lang, "Rating updated"));
   };
 
@@ -449,7 +448,7 @@ export default function CandidatesClient() {
         />
       ) : (
         <>
-      {/* ── Unified Single Job Applications Header ── */}
+          {/* ── Unified Single Job Applications Header ── */}
           <CandidatesHeader
             lang={lang}
             t={t}
@@ -463,122 +462,119 @@ export default function CandidatesClient() {
           />
 
           {/* ── Filters & Search Toolbar ── */}
-      <CandidatesFilters
-        lang={lang}
-        t={t}
-        activeStage={activeStage}
-        setActiveStage={setActiveStage}
-        setPage={setPage}
-        stageCounts={stageCounts}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        minScoreFilter={minScoreFilter}
-        setMinScoreFilter={setMinScoreFilter}
-        expFilter={expFilter}
-        setExpFilter={setExpFilter}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        candidatesCount={candidates.length}
-        pageSize={pageSize}
-        setPageSize={setPageSize}
-        pagination={pagination}
-        resetFilters={resetFilters}
-        viewMode={viewMode}
-        density={density}
-        setDensity={setDensity}
-        handleExportCsv={handleExportCsv}
-        isExporting={isExporting}
-      />
+          <CandidatesFilters
+            lang={lang}
+            t={t}
+            activeStage={activeStage}
+            setActiveStage={setActiveStage}
+            setPage={setPage}
+            stageCounts={stageCounts}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            minScoreFilter={minScoreFilter}
+            setMinScoreFilter={setMinScoreFilter}
+            expFilter={expFilter}
+            setExpFilter={setExpFilter}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            candidatesCount={candidates.length}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            pagination={pagination}
+            resetFilters={resetFilters}
+            viewMode={viewMode}
+            handleExportCsv={handleExportCsv}
+            isExporting={isExporting}
+          />
 
-      {/* ── Undo Banner (5-minute safety window per EMP-FR-019b) ── */}
-      {undo && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm text-amber-900 animate-in fade-in slide-in-from-top-1 duration-200">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 shrink-0">
-              <Icon name="rotate-ccw" size={16} />
-            </span>
-            <span className="text-xs sm:text-sm">
-              {undo.single ? (
-                <>
-                  <strong>{undo.name}</strong> {t(lang, "moved to")}{" "}
-                  <strong>{t(lang, undo.stage)}</strong>.{" "}
-                </>
-              ) : (
-                <>
-                  <strong>{undo.ids?.length || 0}</strong>{" "}
-                  {t(lang, "candidates moved to")}{" "}
-                  <strong>{t(lang, undo.stage)}</strong>.{" "}
-                </>
-              )}
-              <span className="text-amber-700/80">
-                {t(lang, "You have 5 minutes to revert this change.")}
-              </span>
-            </span>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={doUndo}
-            className="border-amber-300 font-bold bg-white text-amber-900 hover:bg-amber-100 shrink-0"
-          >
-            <Icon name="rotate-ccw" size={13} />
-            {t(lang, "Undo Action")}
-          </Button>
-        </div>
-      )}
+          {/* ── Undo Banner (5-minute safety window per EMP-FR-019b) ── */}
+          {undo && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 shadow-sm text-amber-900 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 shrink-0">
+                  <Icon name="rotate-ccw" size={16} />
+                </span>
+                <span className="text-xs sm:text-sm">
+                  {undo.single ? (
+                    <>
+                      <strong>{undo.name}</strong> {t(lang, "moved to")}{" "}
+                      <strong>{t(lang, undo.stage)}</strong>.{" "}
+                    </>
+                  ) : (
+                    <>
+                      <strong>{undo.ids?.length || 0}</strong>{" "}
+                      {t(lang, "candidates moved to")}{" "}
+                      <strong>{t(lang, undo.stage)}</strong>.{" "}
+                    </>
+                  )}
+                  <span className="text-amber-700/80">
+                    {t(lang, "You have 5 minutes to revert this change.")}
+                  </span>
+                </span>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={doUndo}
+                className="border-amber-300 font-bold bg-white text-amber-900 hover:bg-amber-100 shrink-0"
+              >
+                <Icon name="rotate-ccw" size={13} />
+                {t(lang, "Undo Action")}
+              </Button>
+            </div>
+          )}
 
-      {/* ── View Modes ── */}
-      {viewMode === "table" && (
-        <CandidatesTableView
-          lang={lang}
-          t={t}
-          manage={manage}
-          candidates={candidates}
-          loading={loading}
-          selected={selected}
-          setSelected={setSelected}
-          selectAllMatching={selectAllMatching}
-          setSelectAllMatching={setSelectAllMatching}
-          pagination={pagination}
-          page={page}
-          setPage={setPage}
-          jumpPage={jumpPage}
-          setJumpPage={setJumpPage}
-          handleJumpPage={handleJumpPage}
-          density={density}
-          privacy={privacy}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          handleMoveStage={handleMoveStage}
-          handleRating={handleRating}
-          openResumeModal={openResumeModal}
-          setOpenId={setOpenId}
-          setNoteDraft={setNoteDraft}
-          getNextStage={getNextStage}
-          setConfirmBulk={setConfirmBulk}
-          runBulk={runBulk}
-        />
-      )}
+          {/* ── View Modes ── */}
+          {viewMode === "table" && (
+            <CandidatesTableView
+              lang={lang}
+              t={t}
+              manage={manage}
+              candidates={candidates}
+              loading={loading}
+              selected={selected}
+              setSelected={setSelected}
+              selectAllMatching={selectAllMatching}
+              setSelectAllMatching={setSelectAllMatching}
+              pagination={pagination}
+              page={page}
+              setPage={setPage}
+              jumpPage={jumpPage}
+              setJumpPage={setJumpPage}
+              handleJumpPage={handleJumpPage}
+              privacy={privacy}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              handleMoveStage={handleMoveStage}
+              handleRating={handleRating}
+              openResumeModal={openResumeModal}
+              setOpenId={setOpenId}
+              setNoteDraft={setNoteDraft}
+              getNextStage={getNextStage}
+              setConfirmBulk={setConfirmBulk}
+              runBulk={runBulk}
+            />
+          )}
 
-      {viewMode === "pipeline" && (
-        <CandidatesPipelineBoard
-          lang={lang}
-          t={t}
-          manage={manage}
-          activeJob={activeJob}
-          candidates={candidates}
-          stageCounts={stageCounts}
-          selected={selected}
-          setSelected={setSelected}
-          handleMoveStage={handleMoveStage}
-          setOpenId={setOpenId}
-          setNoteDraft={setNoteDraft}
-          setShowAiExplain={setShowAiExplain}
-          openResumeModal={openResumeModal}
-        />
-      )}
+          {viewMode === "pipeline" && (
+            <CandidatesPipelineBoard
+              lang={lang}
+              t={t}
+              manage={manage}
+              activeJob={activeJob}
+              candidates={candidates}
+              stageCounts={stageCounts}
+              selected={selected}
+              setSelected={setSelected}
+              handleMoveStage={handleMoveStage}
+              setOpenId={setOpenId}
+              setNoteDraft={setNoteDraft}
+              setShowAiExplain={setShowAiExplain}
+              openResumeModal={openResumeModal}
+            />
+          )}
 
-      </>
+        </>
       )}
 
       {/* ── Slide-over Candidate Profile Drawer ── */}
@@ -604,7 +600,7 @@ export default function CandidatesClient() {
         setToast={setToast}
       />
 
-      
+
       {/* ── Candidate Rejection Modal with Standardized Template (EMP-FR-025b) ── */}
       <CandidateRejectModal
         lang={lang}
