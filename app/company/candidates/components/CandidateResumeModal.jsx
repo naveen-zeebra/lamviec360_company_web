@@ -287,6 +287,67 @@ export default function CandidateResumeModal({
                 </div>
               </div>
 
+              {/* Bio / Summary */}
+              {resumeCandidate.bio && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-muted">
+                    {t(lang, "Professional Summary & Bio")}
+                  </h3>
+                  <div className="rounded-xl border border-line bg-sunken/30 p-4 text-xs text-ink/90 leading-relaxed whitespace-pre-wrap font-sans">
+                    {resumeCandidate.bio}
+                  </div>
+                </div>
+              )}
+
+              {/* Overview Details */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="rounded-lg border border-line bg-sunken/30 p-2.5">
+                  <span className="text-[10px] text-muted block">{t(lang, "Education")}</span>
+                  <strong className="text-ink font-bold">{resumeCandidate.educationLevel || "Bachelor's Degree"}</strong>
+                </div>
+                <div className="rounded-lg border border-line bg-sunken/30 p-2.5">
+                  <span className="text-[10px] text-muted block">{t(lang, "Location")}</span>
+                  <strong className="text-ink font-bold">{resumeCandidate.city ? `${resumeCandidate.city}, ${resumeCandidate.country || "Vietnam"}` : "Vietnam"}</strong>
+                </div>
+                <div className="rounded-lg border border-line bg-sunken/30 p-2.5">
+                  <span className="text-[10px] text-muted block">{t(lang, "Stage")}</span>
+                  <strong className="text-brand font-bold">{resumeCandidate.stage}</strong>
+                </div>
+                <div className="rounded-lg border border-line bg-sunken/30 p-2.5">
+                  <span className="text-[10px] text-muted block">{t(lang, "Applied Date")}</span>
+                  <strong className="text-ink font-bold">{resumeCandidate.appliedDate}</strong>
+                </div>
+              </div>
+
+              {/* Social / Portfolio Links */}
+              {(resumeCandidate.githubUrl || resumeCandidate.github_url || resumeCandidate.linkedinUrl || resumeCandidate.linkedin_url) && (
+                <div className="flex items-center gap-3 pt-2">
+                  <span className="text-xs text-muted font-medium">{t(lang, "Links")}:</span>
+                  {(resumeCandidate.githubUrl || resumeCandidate.github_url) && (
+                    <a
+                      href={resumeCandidate.githubUrl || resumeCandidate.github_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1 text-xs font-bold text-ink hover:bg-sunken"
+                    >
+                      <Icon name="code" size={12} />
+                      <span>GitHub</span>
+                    </a>
+                  )}
+                  {(resumeCandidate.linkedinUrl || resumeCandidate.linkedin_url) && (
+                    <a
+                      href={resumeCandidate.linkedinUrl || resumeCandidate.linkedin_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                    >
+                      <Icon name="globe" size={12} />
+                      <span>LinkedIn</span>
+                    </a>
+                  )}
+                </div>
+              )}
+
               {/* Cover Letter */}
               {resumeCandidate.coverLetter && (
                 <div className="space-y-2">

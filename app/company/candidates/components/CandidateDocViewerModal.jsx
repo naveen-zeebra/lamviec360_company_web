@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Icon from "../../../../components/ds/Icon";
 import { getCompany } from "../../../../lib/companyStore";
+import { getCompanyToken, API_BASE_URL } from "../../../../lib/api/client";
+import { getBackendAssetUrl } from "../../../../lib/api/companyApi";
 import { formatBytes } from "../../../../utils/format";
 
 export default function CandidateDocViewerModal({
@@ -14,6 +16,67 @@ export default function CandidateDocViewerModal({
   setDocViewerZoom,
   setToast,
 }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loadingDoc, setLoadingDoc] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+
+  useEffect(() => {
+    if (!viewingDoc || !viewingDoc.doc) {
+      setBlobUrl(null);
+      setLoadError(null);
+      return;
+    }
+
+    const { doc, applicationId } = viewingDoc;
+    let active = true;
+    let createdUrl = null;
+
+    async function loadDocument() {
+      setLoadingDoc(true);
+      setLoadError(null);
+      try {
+        const token = getCompanyToken();
+        const url = `${API_BASE_URL}/applicants/${applicationId}/verification-documents/${doc.id}/download`;
+        const res = await fetch(url, {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!res.ok) {
+          if (doc.file_url) {
+            setBlobUrl(getBackendAssetUrl(doc.file_url));
+            return;
+          }
+          throw new Error("Unable to decrypt document from server.");
+        }
+
+        const blob = await res.blob();
+        if (!active) return;
+        createdUrl = URL.createObjectURL(blob);
+        setBlobUrl(createdUrl);
+      } catch (err) {
+        if (!active) return;
+        console.warn("Failed to stream decrypted document:", err);
+        if (doc.file_url) {
+          setBlobUrl(getBackendAssetUrl(doc.file_url));
+        } else {
+          setLoadError(err.message || "Failed to load document");
+        }
+      } finally {
+        if (active) setLoadingDoc(false);
+      }
+    }
+
+    loadDocument();
+
+    return () => {
+      active = false;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [viewingDoc]);
+
   if (!viewingDoc) return null;
 
   const doc = viewingDoc.doc || {};
@@ -22,6 +85,16 @@ export default function CandidateDocViewerModal({
   const currentComp = getCompany() || {};
   const compName = currentComp.name || "Doanh nghiệp / Employer";
   const todayStr = new Date().toLocaleDateString("vi-VN");
+
+  const isPdf =
+    doc.mime_type === "application/pdf" ||
+    doc.file_name?.toLowerCase().endsWith(".pdf") ||
+    doc.title?.toLowerCase().endsWith(".pdf");
+
+  const isImage =
+    doc.mime_type?.startsWith("image/") ||
+    /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name || "") ||
+    /\.(png|jpe?g|webp|gif)$/i.test(doc.title || "");
 
   const getCatBadge = () => {
     if (cat.includes("payslip"))
@@ -85,8 +158,7 @@ export default function CandidateDocViewerModal({
                 </span>
               </div>
               <span className="text-[11px] text-muted block truncate mt-0.5">
-                {candName} · {doc.file_name} (
-                {formatBytes(doc.size_bytes || 0)})
+                {candName} · {doc.file_name} ({formatBytes(doc.size_bytes || 0)})
               </span>
             </div>
           </div>
@@ -165,85 +237,72 @@ export default function CandidateDocViewerModal({
           </div>
 
           {/* Document Content Canvas */}
-          <div
-            className="relative z-10 w-full max-w-3xl rounded-xl bg-card border border-line shadow-lg p-8 sm:p-12 space-y-6 transition-transform duration-150"
-            style={{
-              transform: `scale(${docViewerZoom / 100})`,
-              transformOrigin: "center top",
-            }}
-          >
-            {/* Header section in doc */}
-            <div className="border-b border-line pb-4 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-muted">
-                  VERIFIED ATTACHMENT
-                </span>
-                <h2 className="text-lg font-black text-ink">
-                  {doc.title || doc.file_name}
-                </h2>
-                <span className="text-xs text-muted">
-                  Applicant: {candName}
-                </span>
+          <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+            {loadingDoc ? (
+              <div className="py-12 text-center text-xs text-muted space-y-3">
+                <Icon
+                  name="loader"
+                  size={32}
+                  className="animate-spin mx-auto text-emerald-600"
+                />
+                <p className="font-semibold text-ink text-sm">
+                  {t(lang, "Decrypting and loading verified document...")}
+                </p>
+                <p className="text-muted text-[11px]">
+                  AES-256 Stream · Personal Data Protection Decree 13/2023/ND-CP
+                </p>
               </div>
-              <div className="text-right">
-                <span className="inline-block rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                  VERIFIED
-                </span>
-                <span className="block text-[10px] text-muted mt-1 font-mono">
-                  DOC-{doc.id || "001"}
-                </span>
-              </div>
-            </div>
-
-            {/* Document summary representation */}
-            <div className="space-y-4 text-xs text-ink/80 leading-relaxed font-sans">
-              <div className="rounded-lg bg-sunken/40 p-4 border border-line/60 space-y-2">
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div>
-                    <span className="text-muted block">Document Category:</span>
-                    <strong className="font-semibold text-ink">
-                      {doc.category || "Professional Verification"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-muted block">File Type / MIME:</span>
-                    <strong className="font-semibold text-ink">
-                      {doc.mime_type || "application/pdf"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-muted block">
-                      Encryption Standard:
-                    </span>
-                    <strong className="font-semibold text-ink font-mono">
-                      AES-256 (At-Rest)
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-muted block">File Size:</span>
-                    <strong className="font-semibold text-ink">
-                      {formatBytes(doc.size_bytes || 0)}
-                    </strong>
-                  </div>
+            ) : loadError ? (
+              <div className="max-w-md p-6 rounded-2xl bg-card border border-line shadow-sm text-center space-y-3">
+                <Icon name="alert-triangle" size={32} className="mx-auto text-amber-500" />
+                <h4 className="font-bold text-ink text-sm">
+                  {t(lang, "Document Preview Unavailable")}
+                </h4>
+                <p className="text-xs text-muted leading-relaxed">
+                  {loadError}
+                </p>
+                <div className="text-[11px] bg-sunken rounded-lg p-2 font-mono text-muted">
+                  {doc.file_name} ({formatBytes(doc.size_bytes || 0)})
                 </div>
               </div>
-
-              <div className="p-4 rounded-lg border border-dashed border-line text-center text-muted text-xs space-y-2">
-                <Icon name="file-text" size={32} className="mx-auto text-muted/60" />
-                <p className="font-semibold">
-                  {t(
-                    lang,
-                    "Document securely rendered in View-Only Protected Sandbox."
-                  )}
-                </p>
-                <p className="text-[11px] text-muted/80 max-w-md mx-auto">
-                  {t(
-                    lang,
-                    "Per Vietnam Personal Data Protection Decree 13/2023/ND-CP, downloads, screenshots, printing, and unauthorized exports of this candidate verification document are monitored and logged to the tenant compliance audit trail."
-                  )}
+            ) : blobUrl ? (
+              isPdf ? (
+                <div className="w-full h-full rounded-xl overflow-hidden border border-line shadow-md bg-white">
+                  <iframe
+                    src={`${blobUrl}#toolbar=1`}
+                    className="w-full h-full border-0"
+                    title={doc.title || doc.file_name}
+                  />
+                </div>
+              ) : isImage ? (
+                <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
+                  <img
+                    src={blobUrl}
+                    alt={doc.title || doc.file_name}
+                    style={{
+                      transform: `scale(${docViewerZoom / 100})`,
+                      transformOrigin: "center center",
+                    }}
+                    className="max-w-full max-h-full object-contain rounded-xl shadow-lg border border-line bg-white transition-transform duration-150"
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-full rounded-xl overflow-hidden border border-line shadow-md bg-white">
+                  <iframe
+                    src={blobUrl}
+                    className="w-full h-full border-0"
+                    title={doc.title || doc.file_name}
+                  />
+                </div>
+              )
+            ) : (
+              <div className="p-8 rounded-xl bg-card border border-line text-center text-xs text-muted space-y-2">
+                <Icon name="file-text" size={36} className="mx-auto text-muted/60" />
+                <p className="font-semibold text-ink">
+                  {t(lang, "No document preview stream available.")}
                 </p>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -266,4 +325,3 @@ export default function CandidateDocViewerModal({
     </div>
   );
 }
-

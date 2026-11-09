@@ -1,3 +1,5 @@
+import { getBackendAssetUrl } from "../../../../lib/api/companyApi";
+
 export const SHORTLIST_PLUS = [
   "Shortlisted",
   "Interview Scheduled",
@@ -179,15 +181,15 @@ export function getScoreBadgeClass(score) {
 }
 
 export function getCandidatePdfUrl(candidate) {
-  if (!candidate) return "/uploads/resumes/Candidate_Resume.pdf";
+  if (!candidate) return getBackendAssetUrl("/uploads/resumes/Candidate_Resume.pdf");
   const rawUrl = candidate.resumeUrl || candidate.resume_url;
   if (rawUrl && typeof rawUrl === "string") {
     const trimmed = rawUrl.trim();
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:") || trimmed.startsWith("data:")) {
       return trimmed;
     }
     if (trimmed.startsWith("/uploads/")) {
-      return trimmed;
+      return getBackendAssetUrl(trimmed);
     }
   }
 
@@ -198,7 +200,7 @@ export function getCandidatePdfUrl(candidate) {
     .trim()
     .replace(/\s+/g, "_");
 
-  return `/uploads/resumes/${clean}_CV.pdf`;
+  return getBackendAssetUrl(`/uploads/resumes/${clean}_CV.pdf`);
 }
 
 export function getResumeFileInfo(candidate) {
@@ -207,7 +209,7 @@ export function getResumeFileInfo(candidate) {
       fileType: "none",
       isIframeRenderable: false,
       fileName: "Candidate_Resume.pdf",
-      fileUrl: "/uploads/resumes/Candidate_Resume.pdf",
+      fileUrl: getBackendAssetUrl("/uploads/resumes/Candidate_Resume.pdf"),
     };
   }
   const raw = (candidate.resumeUrl || candidate.resume_url || candidate.resumeFileName || "").toLowerCase();
@@ -215,7 +217,7 @@ export function getResumeFileInfo(candidate) {
   const isPdf = raw.endsWith(".pdf") || (!isDocx && Boolean(candidate.resumeUrl || candidate.resume_url));
   const cleanName = candidate.name ? candidate.name.trim().replace(/\s+/g, "_") : "Candidate";
   const fileName = candidate.resumeFileName || (isDocx ? `${cleanName}_CV.docx` : `${cleanName}_CV.pdf`);
-  const fileUrl = isDocx ? (candidate.resumeUrl || candidate.resume_url || "#") : getCandidatePdfUrl(candidate);
+  const fileUrl = isDocx ? getBackendAssetUrl(candidate.resumeUrl || candidate.resume_url || "#") : getCandidatePdfUrl(candidate);
 
   return {
     fileType: isDocx ? "docx" : isPdf ? "pdf" : "profile",
