@@ -339,12 +339,20 @@ function JobForm({ mode, jobId }) {
       then: (schema) => schema.required(t(lang, "Please set an application deadline or check 'Open until manually closed'.")),
       otherwise: (schema) => schema.notRequired(),
     }),
-    salaryMin: Yup.mixed().test("salary-min-valid", t(lang, "Salary must be a positive number."), function (val) {
-      if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
-      return Number(val) >= 0;
-    }),
+    salaryMin: Yup.mixed()
+      .test("salary-min-valid", t(lang, "Minimum salary cannot be negative."), function (val) {
+        if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
+        return Number(val) >= 0;
+      })
+      .test("salary-min-lte-max", t(lang, "Minimum salary cannot be greater than maximum salary."), function (val) {
+        if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
+        const max = this.parent.salaryMax;
+        if (max === "" || max === undefined || max === null) return true;
+        if (Number(val) < 0 || Number(max) < 0) return true;
+        return Number(val) <= Number(max);
+      }),
     salaryMax: Yup.mixed()
-      .test("salary-max-valid", t(lang, "Salary must be a positive number."), function (val) {
+      .test("salary-max-valid", t(lang, "Maximum salary cannot be negative."), function (val) {
         if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
         return Number(val) >= 0;
       })
@@ -352,6 +360,7 @@ function JobForm({ mode, jobId }) {
         if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
         const min = this.parent.salaryMin;
         if (min === "" || min === undefined || min === null) return true;
+        if (Number(val) < 0 || Number(min) < 0) return true;
         return Number(val) >= Number(min);
       }),
   });
@@ -548,7 +557,11 @@ function JobForm({ mode, jobId }) {
       formik.setTouched(
         Object.keys(formErrors).reduce((acc, curr) => ({ ...acc, [curr]: true }), {})
       );
-      setToast(t(lang, "Please fill in all required fields."));
+      if (formErrors.salaryMin || formErrors.salaryMax) {
+        setToast(formErrors.salaryMin || formErrors.salaryMax);
+      } else {
+        setToast(t(lang, "Please fill in all required fields."));
+      }
       if (typeof document !== "undefined") {
         setTimeout(() => {
           const firstErr = document.querySelector(".border-danger, textarea.border-danger");
@@ -887,7 +900,7 @@ function JobForm({ mode, jobId }) {
               <strong className="text-sm text-ink">
                 {form.negotiable
                   ? t(lang, "Negotiable")
-                  : form.salaryMin && form.salaryMax
+                  : form.salaryMin && form.salaryMax && Number(form.salaryMin) >= 0 && Number(form.salaryMax) >= Number(form.salaryMin)
                     ? `${Number(form.salaryMin).toLocaleString()} – ${Number(form.salaryMax).toLocaleString()} VND (${form.salaryType})`
                     : t(lang, "Negotiable")}
               </strong>
@@ -1002,17 +1015,39 @@ function JobForm({ mode, jobId }) {
 
             <div className={FORM_GRID}>
               <Input
+                name="salaryMin"
                 label={t(lang, "Minimum Salary (VND)")}
                 value={form.salaryMin}
                 disabled={form.negotiable}
-                onChange={(e) => set("salaryMin", e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/(?!^)-|[^\d-]/g, "");
+                  set("salaryMin", val);
+                  if (form.salaryMax !== "") formik.validateField("salaryMax");
+                }}
+                onBlur={() => {
+                  formik.setFieldTouched("salaryMin", true);
+                  formik.validateField("salaryMin");
+                  if (form.salaryMax !== "") formik.validateField("salaryMax");
+                }}
+                error={errors.salaryMin}
                 placeholder={t(lang, "e.g. 20000000")}
               />
               <Input
+                name="salaryMax"
                 label={t(lang, "Maximum Salary (VND)")}
                 value={form.salaryMax}
                 disabled={form.negotiable}
-                onChange={(e) => set("salaryMax", e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/(?!^)-|[^\d-]/g, "");
+                  set("salaryMax", val);
+                  if (form.salaryMin !== "") formik.validateField("salaryMin");
+                }}
+                onBlur={() => {
+                  formik.setFieldTouched("salaryMax", true);
+                  formik.validateField("salaryMax");
+                  if (form.salaryMin !== "") formik.validateField("salaryMin");
+                }}
+                error={errors.salaryMax}
                 placeholder={t(lang, "e.g. 35000000")}
               />
             </div>
@@ -1024,9 +1059,18 @@ function JobForm({ mode, jobId }) {
                 onChange={() => set("negotiable", !form.negotiable)}
               />
               {!form.negotiable && (form.salaryMin || form.salaryMax) && (
-                <span className="text-xs font-bold text-brand bg-brand-subtle px-2.5 py-1 rounded-md">
+                Number(form.salaryMin) < 0 || Number(form.salaryMax) < 0 || (form.salaryMin && form.salaryMax && Number(form.salaryMin) > Number(form.salaryMax)) ? (
+                  <span className="text-xs font-bold text-danger bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                    <Icon name="alert-circle" size={14} />
+                    {Number(form.salaryMin) < 0 || Number(form.salaryMax) < 0
+                      ? t(lang, "Salary cannot be negative")
+                      : t(lang, "Invalid range: Min salary exceeds Max salary")}
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold text-brand bg-brand-subtle px-2.5 py-1 rounded-md">
                   {form.salaryMin ? Number(form.salaryMin).toLocaleString() : "0"} – {form.salaryMax ? Number(form.salaryMax).toLocaleString() : "—"} VND ({form.salaryType})
                 </span>
+              )
               )}
             </div>
           </div>
