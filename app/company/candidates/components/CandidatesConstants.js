@@ -99,6 +99,16 @@ export const PIPELINE_STAGES_CONFIG = [
     bg: "bg-rose-50 text-rose-700 border-rose-200",
     dropRing: "ring-2 ring-rose-400 border-rose-400 bg-rose-50/50",
   },
+  {
+    id: "Withdrawn",
+    labelKey: "Withdrawn",
+    icon: "undo-2",
+    color: "gray",
+    border: "border-t-gray-400",
+    dot: "bg-gray-400",
+    bg: "bg-gray-50 text-gray-600 border-gray-200",
+    dropRing: "ring-2 ring-gray-300 border-gray-300 bg-gray-50/50",
+  },
 ];
 
 export const FIXED_PIPELINE_STAGES = PIPELINE_STAGES_CONFIG.map((s) => s.id);
@@ -203,6 +213,27 @@ export function getCandidatePdfUrl(candidate) {
   return getBackendAssetUrl(`/uploads/resumes/${clean}_CV.pdf`);
 }
 
+// Clean human-readable filename by removing storage UUID / timestamp prefixes
+export function cleanResumeFileName(rawName) {
+  if (!rawName || typeof rawName !== "string") return "resume.pdf";
+  let name = rawName.split("?")[0].split("#")[0];
+  try {
+    name = decodeURIComponent(name);
+  } catch (e) {}
+  name = name.split("/").pop().split("\\").pop().replace(/\+/g, " ");
+
+  let prev;
+  do {
+    prev = name;
+    name = name
+      .replace(/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}[_-]/, "")
+      .replace(/^[a-fA-F0-9]{8,64}[_-]/, "")
+      .replace(/^\d{10,14}[_-]/, "");
+  } while (name !== prev);
+
+  return name.trim() || "resume.pdf";
+}
+
 export function getResumeFileInfo(candidate) {
   if (!candidate) {
     return {
@@ -216,7 +247,9 @@ export function getResumeFileInfo(candidate) {
   const isDocx = raw.endsWith(".docx") || raw.endsWith(".doc");
   const isPdf = raw.endsWith(".pdf") || (!isDocx && Boolean(candidate.resumeUrl || candidate.resume_url));
   const cleanName = candidate.name ? candidate.name.trim().replace(/\s+/g, "_") : "Candidate";
-  const fileName = candidate.resumeFileName || (isDocx ? `${cleanName}_CV.docx` : `${cleanName}_CV.pdf`);
+  const rawResumeName = candidate.resumeFileName || candidate.resume_file_name || candidate.resume_name || (candidate.resumeUrl || candidate.resume_url ? (candidate.resumeUrl || candidate.resume_url).split("/").pop() : "");
+  const defaultFallback = isDocx ? `${cleanName}_CV.docx` : `${cleanName}_CV.pdf`;
+  const fileName = rawResumeName ? cleanResumeFileName(rawResumeName) : defaultFallback;
   const fileUrl = isDocx ? getBackendAssetUrl(candidate.resumeUrl || candidate.resume_url || "#") : getCandidatePdfUrl(candidate);
 
   return {

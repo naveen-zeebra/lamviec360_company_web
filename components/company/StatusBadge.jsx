@@ -17,6 +17,7 @@ const STAGE = {
   "Offer Sent": { tone: "success", icon: "gift" },
   Hired: { tone: "success", icon: "check-circle" },
   Rejected: { tone: "error", icon: "x-circle" },
+  Withdrawn: { tone: "neutral", icon: "undo-2" },
 };
 
 const MEMBER = {
@@ -39,6 +40,7 @@ const STAGE_SYNONYMS = {
   offer_sent: "Offer Sent",
   hired: "Hired",
   rejected: "Rejected",
+  withdrawn: "Withdrawn",
 };
 
 const MAPS = { job: JOB, stage: STAGE, member: MEMBER };

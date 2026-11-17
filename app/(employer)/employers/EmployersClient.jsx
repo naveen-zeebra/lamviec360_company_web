@@ -8,6 +8,7 @@ import { useLang, t } from "../../../utils/lang";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Testimonials from "../../../components/marketing/Testimonials";
+import EmployerEventsSection from "../../../components/marketing/EmployerEventsSection";
 import { JOBS, FILTER_VI } from "../../../lib/data";
 
 function PipelineVisual({ lang }) {
@@ -374,6 +375,7 @@ export default function EmployersClient() {
         <DashboardPreview lang={lang} />
         <CandidateDiscovery lang={lang} />
         <Benefits lang={lang} />
+        <EmployerEventsSection lang={lang} />
         <Testimonials lang={lang} items={quotes} eyebrow={t(lang, "CLIENT STORIES")} title={t(lang, "Companies hiring with LàmViệc360")} />
         <FinalCTA lang={lang} />
       </main>
