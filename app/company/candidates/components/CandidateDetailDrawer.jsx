@@ -361,6 +361,134 @@ export default function CandidateDetailDrawer({
                 </div>
               )}
 
+              {/* Portfolio & Project Showcase (LV360-FSD-004, EMP-FR-021, JSP-FR-014) */}
+              {(() => {
+                const portfolioList = Array.isArray(cand.portfolio?.items)
+                  ? cand.portfolio.items
+                  : Array.isArray(cand.portfolioItems)
+                  ? cand.portfolioItems
+                  : Array.isArray(cand.projects)
+                  ? cand.projects
+                  : [];
+                const hasSingleLinkOrFile = !!(cand.portfolio?.url || cand.portfolioUrl || cand.portfolio?.fileName || cand.portfolioFileName);
+
+                if (portfolioList.length === 0 && !hasSingleLinkOrFile) return null;
+
+                return (
+                  <div className="rounded-2xl border border-line bg-card p-5 space-y-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-200">
+                          <Icon name="briefcase" size={14} />
+                        </div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-muted">
+                          {t(lang, "Portfolio & Project Showcase")}
+                        </h3>
+                      </div>
+                      {portfolioList.length > 0 && (
+                        <span className="text-[11px] text-muted font-bold">
+                          {portfolioList.length} {t(lang, "projects")}
+                        </span>
+                      )}
+                    </div>
+
+                    {portfolioList.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 pt-1">
+                        {portfolioList.map((item, idx) => (
+                          <div
+                            key={item.id || idx}
+                            className="rounded-xl border border-line/80 bg-sunken/30 p-4 space-y-2 hover:border-line transition-all"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <h4 className="text-xs font-bold text-ink flex items-center gap-2 m-0">
+                                  <span>{item.title}</span>
+                                  {item.role && (
+                                    <span className="inline-flex items-center rounded-full bg-brand-subtle text-brand border border-brand/20 px-2 py-0.5 text-[10px] font-bold">
+                                      {item.role}
+                                    </span>
+                                  )}
+                                </h4>
+                                {(item.fromDate || item.toDate) && (
+                                  <span className="text-[11px] text-muted flex items-center gap-1 mt-0.5 font-medium">
+                                    <Icon name="calendar" size={11} className="text-faint" />
+                                    <span>
+                                      {item.fromDate} {item.fromDate && item.toDate ? "–" : ""} {item.isOngoing || item.toDate === "Present" ? t(lang, "Present") : item.toDate}
+                                    </span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {item.url && (
+                                <a
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-link hover:text-brand transition-colors"
+                                >
+                                  <span>{t(lang, "Live Demo / Repo")}</span>
+                                  <Icon name="external-link" size={11} />
+                                </a>
+                              )}
+                            </div>
+
+                            {item.description && (
+                              <p className="text-xs text-ink/80 leading-relaxed font-sans whitespace-pre-wrap m-0">
+                                {item.description}
+                              </p>
+                            )}
+
+                            {item.fileName && (
+                              <div className="pt-1.5 flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1 text-[11px] font-semibold text-ink shadow-2xs">
+                                  <Icon name="paperclip" size={12} className="text-muted" />
+                                  <span className="truncate max-w-[200px]">{item.fileName}</span>
+                                  {item.fileSize ? (
+                                    <span className="text-[10px] text-muted">({(item.fileSize / 1024).toFixed(0)} KB)</span>
+                                  ) : null}
+                                </span>
+                                {item.fileDataUrl && (
+                                  <a
+                                    href={item.fileDataUrl}
+                                    download={item.fileName}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-brand hover:underline"
+                                  >
+                                    <Icon name="download" size={11} />
+                                    <span>{t(lang, "Download")}</span>
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Fallback to single portfolio link/file if present */
+                      <div className="flex flex-wrap items-center gap-3">
+                        {(cand.portfolio?.url || cand.portfolioUrl) && (
+                          <a
+                            href={cand.portfolio?.url || cand.portfolioUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-sunken px-3 py-1.5 text-xs font-bold text-ink hover:bg-card transition-colors shadow-2xs"
+                          >
+                            <Icon name="globe" size={13} className="text-blue-600" />
+                            <span>{t(lang, "Portfolio Website")}</span>
+                            <Icon name="external-link" size={11} className="text-muted" />
+                          </a>
+                        )}
+                        {(cand.portfolio?.fileName || cand.portfolioFileName) && (
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-sunken px-3 py-1.5 text-xs font-medium text-ink">
+                            <Icon name="paperclip" size={13} className="text-muted" />
+                            <span>{cand.portfolio?.fileName || cand.portfolioFileName}</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Cover Letter */}
               {(cand.coverLetter || cand.cover_letter) && (
                 <div className="rounded-2xl border border-line bg-card p-5 space-y-3 shadow-xs">
