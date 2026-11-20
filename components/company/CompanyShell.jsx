@@ -21,6 +21,7 @@ const NAV = [
   { href: "/company/profile", icon: "building-2", labelKey: "Company Profile", perm: "settings.manage" },
   { href: "/company/jobs", icon: "briefcase", labelKey: "Job Management", perm: "overview.view" },
   { href: "/company/candidates", icon: "users", labelKey: "Candidate Pipeline", perm: "candidates.view" },
+  { href: "/company/talent", icon: "search", labelKey: "Talent Search", perm: "talent.search" },
   {
     href: "/company/team",
     icon: "user-cog",
@@ -320,6 +321,40 @@ export default function CompanyShell({ children }) {
                           </Link>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const isTalentItem = n.href === "/company/talent";
+            const appStatus = (company.approvalStatus || "").toLowerCase();
+            const isCompanyApproved = company.verified || appStatus === "verified" || appStatus === "approved";
+            const isTalentDisabled = isTalentItem && !isCompanyApproved;
+
+            const disabledTitle = isTalentDisabled
+              ? appStatus === "pending"
+                ? (lang === "VI" ? "Chờ duyệt: Cần được Super Admin phê duyệt để sử dụng Tìm kiếm tài năng." : "Pending Approval: Talent Search is available once your company account is approved.")
+                : (lang === "VI" ? "Tài khoản bị tạm ngưng hoặc từ chối không có quyền truy cập Tìm kiếm tài năng." : "Suspended or rejected accounts cannot access Talent Search.")
+              : undefined;
+
+            if (isTalentDisabled) {
+              return (
+                <div
+                  key={n.href}
+                  title={disabledTitle}
+                  className={`flex items-center rounded-sm text-sm font-medium transition-colors opacity-50 cursor-not-allowed select-none ${sidebarCollapsed
+                    ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
+                    : "gap-[11px] px-[11px] py-2.5"
+                    } text-white/50`}
+                >
+                  <Icon name={n.icon} size={18} />
+                  {(!sidebarCollapsed || mobileNavOpen) && (
+                    <div className="flex items-center justify-between w-full min-w-0 gap-1.5">
+                      <span className="truncate">{t(lang, n.labelKey)}</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                        {appStatus === "pending" ? (lang === "VI" ? "Chờ duyệt" : "Pending") : (lang === "VI" ? "Khóa" : "Locked")}
+                      </span>
                     </div>
                   )}
                 </div>

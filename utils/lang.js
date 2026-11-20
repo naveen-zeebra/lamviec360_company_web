@@ -2,12 +2,13 @@
 import { useEffect, useState } from "react";
 import enDict from "../locales/en.json";
 import vnDict from "../locales/vn.json";
+import { AppStorage, STORAGE_CONFIG } from "../lib/storage/index";
 
 export function useLang() {
   const [lang, setLangState] = useState("EN");
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("lv360-lang");
+      const saved = AppStorage.get(STORAGE_CONFIG.keys.APP_LANGUAGE);
       if (saved) setLangState(saved);
     } catch (e) {}
   }, []);
@@ -15,7 +16,7 @@ export function useLang() {
   const setLang = (l) => {
     setLangState(l);
     try {
-      localStorage.setItem("lv360-lang", l);
+      AppStorage.set(STORAGE_CONFIG.keys.APP_LANGUAGE, l);
     } catch (e) {}
   };
 

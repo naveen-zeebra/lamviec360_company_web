@@ -151,10 +151,7 @@ export default function EmployerEventsSection({ lang = "VN" }) {
   };
 
   const getTitle = (event) => {
-    if (isVi) {
-      return event.title_vi || event.headline || event.title;
-    }
-    return event.headline_en || event.title || event.title_vi;
+    return event.title || event.title_vi || event.headline || "";
   };
 
   const getSubtitle = (event) => {
@@ -256,7 +253,7 @@ export default function EmployerEventsSection({ lang = "VN" }) {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-body font-semibold text-link hover:text-brand-hover transition-colors whitespace-nowrap cursor-pointer group/link"
                       >
-                        <span>{isVi ? "Xem chi tiết" : "View details"}</span>
+                        <span>{event.cta_label || event.cta_label_vi || (isVi ? "Xem chi tiết" : "View details")}</span>
                         <Icon
                           name="external-link"
                           size={13}

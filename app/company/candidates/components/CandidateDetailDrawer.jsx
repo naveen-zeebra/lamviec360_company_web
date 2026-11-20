@@ -20,6 +20,7 @@ import {
   fetchApplicantDetail,
 } from "../../../../lib/companyStore";
 import { formatBytes } from "../../../../utils/format";
+import RequestPriorEmploymentDocsModal from "./RequestPriorEmploymentDocsModal";
 
 export default function CandidateDetailDrawer({
   lang,
@@ -48,6 +49,7 @@ export default function CandidateDetailDrawer({
   const [verificationDocs, setVerificationDocs] = useState([]);
   const [loadingVerificationDocs, setLoadingVerificationDocs] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
+  const [isRequestDocModalOpen, setIsRequestDocModalOpen] = useState(false);
 
   const isShortlistedPlus = (stg) => SHORTLIST_PLUS.includes(stg);
 
@@ -757,15 +759,28 @@ export default function CandidateDetailDrawer({
                     </div>
                   </div>
 
-                  {isShortlistedPlus(cand.stage) ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-bold">
-                      <Icon name="unlock" size={12} /> {t(lang, "Unlocked")}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 text-xs font-bold">
-                      <Icon name="lock" size={12} /> {t(lang, "Locked")}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isShortlistedPlus(cand.stage) && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setIsRequestDocModalOpen(true)}
+                        className="text-xs font-bold gap-1.5 text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100"
+                      >
+                        <Icon name="file-text" size={13} />
+                        {t(lang, "Request Documents")}
+                      </Button>
+                    )}
+                    {isShortlistedPlus(cand.stage) ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-bold">
+                        <Icon name="unlock" size={12} /> {t(lang, "Unlocked")}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 text-xs font-bold">
+                        <Icon name="lock" size={12} /> {t(lang, "Locked")}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {!isShortlistedPlus(cand.stage) ? (
@@ -848,6 +863,20 @@ export default function CandidateDetailDrawer({
             </div>
           )}
         </div>
+
+        <RequestPriorEmploymentDocsModal
+          isOpen={isRequestDocModalOpen}
+          onClose={() => setIsRequestDocModalOpen(false)}
+          applicationId={cand.id}
+          candidateName={cand.name}
+          onSuccess={() => {
+            getApplicantVerificationDocuments(cand.id, cand.name)
+              .then((docs) => setVerificationDocs(docs || []))
+              .catch(() => {});
+          }}
+          lang={lang}
+          t={t}
+        />
       </aside>
     </div>
   );

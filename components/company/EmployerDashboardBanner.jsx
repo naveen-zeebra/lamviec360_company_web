@@ -31,17 +31,9 @@ export default function EmployerDashboardBanner({ lang = "VN" }) {
 
   const banner = visibleBanners[0];
 
-  const headline = isVi
-    ? banner.headline || banner.title
-    : banner.headline_en || banner.headline || banner.title;
-
-  const description = isVi
-    ? banner.description
-    : banner.description_en || banner.description;
-
-  const ctaLabel = isVi
-    ? banner.cta_label || "Xem chi tiết"
-    : banner.cta_label_en || banner.cta_label || "View Details";
+  const headline = banner.headline || banner.title || banner.headline_en || "";
+  const description = banner.description || banner.description_en || "";
+  const ctaLabel = banner.cta_label || banner.cta_label_en || (isVi ? "Xem chi tiết" : "View Details");
 
   const handleDismiss = () => {
     setDismissedIds((prev) => [...prev, banner.id]);

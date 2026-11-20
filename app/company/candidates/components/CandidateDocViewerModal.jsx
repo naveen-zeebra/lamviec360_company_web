@@ -36,7 +36,7 @@ export default function CandidateDocViewerModal({
       setLoadError(null);
       try {
         const token = getCompanyToken();
-        const url = `${API_BASE_URL}/applicants/${applicationId}/verification-documents/${doc.id}/download`;
+        const url = `${API_BASE_URL}/applicants/${applicationId}/verification-documents/${doc.id}/view`;
         const res = await fetch(url, {
           method: "GET",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
