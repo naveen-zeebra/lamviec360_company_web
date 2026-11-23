@@ -89,6 +89,30 @@ export default function CandidateResumeModal({
               <Icon name="user" size={13} />
               <span>{t(lang, "Profile & AI Summary")}</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setResumeModalTab("answers")}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                resumeModalTab === "answers"
+                  ? "bg-brand text-white shadow-xs"
+                  : "text-muted hover:text-ink hover:bg-sunken"
+              }`}
+            >
+              <Icon name="help-circle" size={13} />
+              <span>{t(lang, "Screening Answers")}</span>
+              {(resumeCandidate.answers || resumeCandidate.hasAnswers) && (
+                <span
+                  className={`rounded px-1.5 py-0.2 text-[10px] font-black ${
+                    resumeModalTab === "answers"
+                      ? "bg-white/20 text-white"
+                      : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  {typeof resumeCandidate.answers === "object" && resumeCandidate.answers ? Object.keys(resumeCandidate.answers).length : "✓"}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Action Buttons */}
@@ -134,7 +158,93 @@ export default function CandidateResumeModal({
         </div>
 
         {/* Modal Body */}
-        {resumeModalTab === "pdf" ? (
+        {resumeModalTab === "answers" ? (
+          <div className="flex-1 w-full h-full overflow-y-auto p-6 md:p-8 bg-sunken/30">
+            <div className="mx-auto max-w-3xl space-y-6">
+              <div className="rounded-2xl border border-line bg-card p-6 shadow-sm">
+                <div className="flex items-center justify-between pb-4 border-b border-line">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+                      <Icon name="help-circle" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-ink">
+                        {t(lang, "Candidate Screening Questions & Answers")}
+                      </h3>
+                      <p className="text-xs text-muted">
+                        {resumeCandidate.name} · {activeJob?.title || "Job Position"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {(() => {
+                  let rawAnswers = resumeCandidate.answers;
+                  if (typeof rawAnswers === "string") {
+                    try { rawAnswers = JSON.parse(rawAnswers); } catch (e) {}
+                  }
+
+                  let rawQuestions = resumeCandidate.questions || activeJob?.questions || [];
+                  if (typeof rawQuestions === "string") {
+                    try { rawQuestions = JSON.parse(rawQuestions); } catch (e) {}
+                  }
+                  const qMap = {};
+                  if (Array.isArray(rawQuestions)) {
+                    for (const q of rawQuestions) {
+                      if (q && q.id) qMap[q.id] = q.question || q.text || q.label;
+                    }
+                  }
+
+                  if (!rawAnswers || (typeof rawAnswers === "object" && Object.keys(rawAnswers).length === 0)) {
+                    return (
+                      <div className="py-12 text-center text-muted text-sm">
+                        <Icon name="info" size={32} className="mx-auto text-muted/60 mb-2" />
+                        <p>{t(lang, "No screening question answers were recorded for this candidate.")}</p>
+                      </div>
+                    );
+                  }
+
+                  const entries = typeof rawAnswers === "object" ? Object.entries(rawAnswers) : [["answers", rawAnswers]];
+
+                  return (
+                    <div className="mt-6 space-y-4">
+                      {entries.map(([key, val], idx) => {
+                        let qText = qMap[key] || (typeof val === "object" && val?.question ? val.question : null);
+                        if (!qText) {
+                          qText = !key.startsWith("q_") ? key : `${t(lang, "Question")} ${idx + 1}`;
+                        }
+                        const ansText = typeof val === "object" && val !== null
+                          ? (val.answer !== undefined ? String(val.answer) : JSON.stringify(val))
+                          : String(val);
+
+                        return (
+                          <div
+                            key={key}
+                            className="rounded-xl border border-line bg-sunken/40 p-4 space-y-2 hover:border-emerald-300 transition-colors"
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand text-[11px] font-bold">
+                                {idx + 1}
+                              </span>
+                              <h4 className="text-xs md:text-sm font-bold text-ink leading-snug">
+                                {qText}
+                              </h4>
+                            </div>
+                            <div className="pl-7">
+                              <div className="inline-block rounded-lg border border-line bg-card px-3.5 py-1.5 text-xs md:text-sm font-semibold text-ink shadow-2xs">
+                                {ansText || <span className="text-muted italic">{t(lang, "No response provided")}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        ) : resumeModalTab === "pdf" ? (
           <div className="flex-1 w-full h-full flex flex-col bg-slate-900/5 overflow-hidden">
             <div className="flex flex-wrap items-center justify-between border-b border-line bg-card/90 px-6 py-2.5 text-xs">
               <div className="flex items-center gap-2">

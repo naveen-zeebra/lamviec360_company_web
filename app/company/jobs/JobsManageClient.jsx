@@ -431,6 +431,98 @@ export default function JobsManageClient() {
               </div>
             )}
 
+            {/* Selection Criteria */}
+            {(viewingJob.attitude_type || viewingJob.attitudeType || viewingJob.social_type || viewingJob.socialType || viewingJob.personality_type || viewingJob.personalityType || viewingJob.overtime_willingness || viewingJob.overtimeWillingness || viewingJob.project_work_reqs || viewingJob.projectWorkReqs) && (
+              <div className="mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2 flex items-center gap-1.5">
+                  <Icon name="user-check" size={13} className="text-brand" /> {t(lang, "Selection Criteria & Work Culture")}
+                </h4>
+                <div className="rounded-lg border border-line bg-sunken/30 p-3.5 text-xs text-ink space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+                    {(viewingJob.attitude_type || viewingJob.attitudeType) && (
+                      <div>
+                        <span className="text-muted block text-[11px] mb-0.5">{t(lang, "Attitude Type")}:</span>
+                        <span className="font-semibold text-brand bg-brand-subtle px-2 py-0.5 rounded text-xs inline-block">
+                          {viewingJob.attitude_type || viewingJob.attitudeType}
+                        </span>
+                      </div>
+                    )}
+                    {(viewingJob.social_type || viewingJob.socialType) && (
+                      <div>
+                        <span className="text-muted block text-[11px] mb-0.5">{t(lang, "Social Type")}:</span>
+                        <span className="font-semibold text-ink bg-card border border-line px-2 py-0.5 rounded text-xs inline-block">
+                          {viewingJob.social_type || viewingJob.socialType}
+                        </span>
+                      </div>
+                    )}
+                    {(viewingJob.personality_type || viewingJob.personalityType) && (
+                      <div>
+                        <span className="text-muted block text-[11px] mb-0.5">{t(lang, "Personality Type")}:</span>
+                        <span className="font-semibold text-ink bg-card border border-line px-2 py-0.5 rounded text-xs inline-block">
+                          {viewingJob.personality_type || viewingJob.personalityType}
+                        </span>
+                      </div>
+                    )}
+                    {(viewingJob.overtime_willingness || viewingJob.overtimeWillingness) && (
+                      <div>
+                        <span className="text-muted block text-[11px] mb-0.5">{t(lang, "Overtime Willingness")}:</span>
+                        <span className="font-semibold text-ink bg-card border border-line px-2 py-0.5 rounded text-xs inline-block">
+                          {viewingJob.overtime_willingness || viewingJob.overtimeWillingness}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {(viewingJob.project_work_reqs || viewingJob.projectWorkReqs) && (
+                    <div className="pt-2 border-t border-line/60">
+                      <span className="text-muted block text-[11px] mb-1 font-semibold">{t(lang, "Project Work Requirements")}:</span>
+                      <p className="text-xs text-ink whitespace-pre-wrap leading-relaxed">
+                        {viewingJob.project_work_reqs || viewingJob.projectWorkReqs}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Screening Questions */}
+            {viewingJob.questions && Array.isArray(viewingJob.questions) && viewingJob.questions.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2 flex items-center gap-1.5">
+                  <Icon name="help-circle" size={13} className="text-brand" /> {t(lang, "Screening Questions")} ({viewingJob.questions.length})
+                </h4>
+                <div className="space-y-2">
+                  {viewingJob.questions.map((q, idx) => (
+                    <div key={q.id || idx} className="rounded-lg border border-line bg-card p-3 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-bold text-ink">
+                          {idx + 1}. {q.question}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {q.required && (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                              {t(lang, "Required")}
+                            </span>
+                          )}
+                          <span className="rounded bg-sunken px-1.5 py-0.5 text-[10px] font-medium text-muted uppercase">
+                            {q.type}
+                          </span>
+                        </div>
+                      </div>
+                      {q.type === "choice" && q.options && q.options.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5 pl-3">
+                          {q.options.map((opt, oIdx) => (
+                            <span key={oIdx} className="rounded-full bg-sunken px-2 py-0.5 text-[10px] text-muted">
+                              ○ {opt}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
               <div>
                 {editable && (

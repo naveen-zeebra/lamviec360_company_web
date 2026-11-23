@@ -375,6 +375,21 @@ export default function CandidatesTableView({
                             <Icon name="file-text" size={14} />
                           </Button>
 
+                          {(c.answers || c.hasAnswers) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openResumeModal(c, "answers")}
+                              className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50"
+                              title={t(
+                                lang,
+                                "View Screening Question Answers"
+                              )}
+                            >
+                              <Icon name="help-circle" size={14} />
+                            </Button>
+                          )}
+
                           <Button
                             variant="ghost"
                             size="sm"

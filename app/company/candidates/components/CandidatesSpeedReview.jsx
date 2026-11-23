@@ -302,6 +302,17 @@ export default function CandidatesSpeedReview({
                     >
                       {t(lang, "Profile & Summary")}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpeedTab("answers")}
+                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                        speedTab === "answers"
+                          ? "bg-brand text-white shadow-xs"
+                          : "text-muted hover:text-ink hover:bg-sunken"
+                      }`}
+                    >
+                      {t(lang, "Screening Answers")}
+                    </button>
                   </div>
 
                   <a
@@ -318,7 +329,72 @@ export default function CandidatesSpeedReview({
 
               {/* Main Preview Content Area */}
               <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4">
-                {speedTab === "pdf" ? (
+                {speedTab === "answers" ? (
+                  <div className="mx-auto max-w-2xl space-y-4">
+                    <div className="rounded-xl border border-line bg-card p-6 shadow-xs">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-line">
+                        <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200">
+                          <Icon name="help-circle" size={18} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-ink">{t(lang, "Screening Question Answers")}</h4>
+                          <p className="text-xs text-muted">{speedCandidate?.name} · {activeJob?.title || "Role"}</p>
+                        </div>
+                      </div>
+
+                      {(() => {
+                        let rawAnswers = speedCandidate?.answers;
+                        if (typeof rawAnswers === "string") {
+                          try { rawAnswers = JSON.parse(rawAnswers); } catch (e) {}
+                        }
+                        let rawQuestions = speedCandidate?.questions || activeJob?.questions || [];
+                        if (typeof rawQuestions === "string") {
+                          try { rawQuestions = JSON.parse(rawQuestions); } catch (e) {}
+                        }
+                        const qMap = {};
+                        if (Array.isArray(rawQuestions)) {
+                          for (const q of rawQuestions) {
+                            if (q && q.id) qMap[q.id] = q.question || q.text || q.label;
+                          }
+                        }
+
+                        if (!rawAnswers || (typeof rawAnswers === "object" && Object.keys(rawAnswers).length === 0)) {
+                          return (
+                            <div className="py-8 text-center text-muted text-xs">
+                              <p>{t(lang, "No screening question answers were recorded for this candidate.")}</p>
+                            </div>
+                          );
+                        }
+
+                        const entries = typeof rawAnswers === "object" ? Object.entries(rawAnswers) : [["answers", rawAnswers]];
+                        return (
+                          <div className="mt-4 space-y-3">
+                            {entries.map(([key, val], idx) => {
+                              let qText = qMap[key] || (typeof val === "object" && val?.question ? val.question : null);
+                              if (!qText) qText = !key.startsWith("q_") ? key : `${t(lang, "Question")} ${idx + 1}`;
+                              const ansText = typeof val === "object" && val !== null ? (val.answer !== undefined ? String(val.answer) : JSON.stringify(val)) : String(val);
+                              return (
+                                <div key={key} className="rounded-lg border border-line bg-sunken/40 p-3.5 space-y-1.5">
+                                  <div className="flex items-start gap-2">
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand text-[10px] font-bold">
+                                      {idx + 1}
+                                    </span>
+                                    <h5 className="text-xs font-bold text-ink leading-snug">{qText}</h5>
+                                  </div>
+                                  <div className="pl-7">
+                                    <div className="inline-block rounded-md border border-line bg-card px-3 py-1 text-xs font-semibold text-ink shadow-2xs">
+                                      {ansText}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : speedTab === "pdf" ? (
                   getResumeFileInfo(speedCandidate).fileType === "docx" ? (
                     <div className="mx-auto max-w-lg space-y-4 rounded-xl border border-line bg-card p-8 text-center shadow-xs">
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mx-auto border border-blue-200">

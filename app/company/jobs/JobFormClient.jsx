@@ -12,12 +12,50 @@ import Toast, { useToast } from "../../../components/ds/Toast";
 import StatusBadge from "../../../components/company/StatusBadge";
 import RequirePermission from "../../../components/company/RequirePermission";
 import { useLang, t } from "../../../utils/lang";
-import { useMasterData } from "../../../lib/masterData";
+import { useMasterData, DEFAULT_MASTER_DATA } from "../../../lib/masterData";
 import { getJob, saveJob, deleteJob, getQuota, setJobStatus } from "../../../lib/companyStore";
 import { getCompanyJobDetail } from "../../../lib/api/companyApi";
 
 const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Temporary"];
 const EDU_LEVELS = ["Not required", "High School", "Associate Degree", "Bachelor's Degree", "Master's Degree", "PhD"];
+
+const QUESTION_TEMPLATES = [
+  {
+    label: "Work Authorization",
+    question: "Are you legally authorized to work in Vietnam?",
+    type: "yes_no",
+    required: true,
+    options: ["Yes", "No"],
+  },
+  {
+    label: "Years of Experience",
+    question: "How many years of relevant professional experience do you have for this role?",
+    type: "number",
+    required: true,
+    options: [],
+  },
+  {
+    label: "On-site / Hybrid Availability",
+    question: "Are you able to commute and work on-site/hybrid at our designated office?",
+    type: "yes_no",
+    required: false,
+    options: ["Yes", "No"],
+  },
+  {
+    label: "Notice Period",
+    question: "What is your earliest possible start date or notice period (in days)?",
+    type: "number",
+    required: false,
+    options: [],
+  },
+  {
+    label: "Highest Education",
+    question: "Which best describes your highest completed level of education?",
+    type: "choice",
+    required: false,
+    options: ["High School", "Associate Degree", "Bachelor's Degree", "Master's Degree or PhD"],
+  },
+];
 
 
 function getDefaultDeadline() {
@@ -48,6 +86,7 @@ const EMPTY = {
   personalityType: "",
   overtimeWillingness: "",
   projectWorkReqs: "",
+  questions: [],
   aiGenerated: false,
   status: "published",
 };
@@ -163,6 +202,18 @@ function formatExperienceLabel(val, lang) {
   return s + " " + (lang === "VN" || lang === "VI" ? "năm kinh nghiệm" : "years experience");
 }
 
+function formatVndNumber(val) {
+  if (val === undefined || val === null || val === "") return "";
+  const digits = String(val).replace(/\D/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("en-US");
+}
+
+function parseVndNumber(val) {
+  if (val === undefined || val === null || val === "") return "";
+  return String(val).replace(/,/g, "");
+}
+
 function calculateCompletion(f) {
   if (!f) return 0;
   const hasBasic = Boolean(f.title?.trim() && f.title?.trim().length <= 100 && f.department?.trim() && f.location?.trim());
@@ -189,8 +240,8 @@ function normalizeJobData(data) {
     type: data.type || data.job_type || "Full-time",
     location: data.location || data.city || "",
     salaryType: data.salaryType || data.salary_type || "Gross",
-    salaryMin: data.salaryMin !== undefined && data.salaryMin !== null ? String(data.salaryMin).split(".")[0] : (data.salary_min ? String(data.salary_min).split(".")[0] : ""),
-    salaryMax: data.salaryMax !== undefined && data.salaryMax !== null ? String(data.salaryMax) : (data.salary_max ? String(data.salary_max).split(".")[0] : ""),
+    salaryMin: data.salaryMin !== undefined && data.salaryMin !== null ? formatVndNumber(String(data.salaryMin).split(".")[0]) : (data.salary_min ? formatVndNumber(String(data.salary_min).split(".")[0]) : ""),
+    salaryMax: data.salaryMax !== undefined && data.salaryMax !== null ? formatVndNumber(String(data.salaryMax).split(".")[0]) : (data.salary_max ? formatVndNumber(String(data.salary_max).split(".")[0]) : ""),
     negotiable: Boolean(data.negotiable || data.is_negotiable),
     vacancies: data.vacancies !== undefined && data.vacancies !== null ? String(data.vacancies) : "1",
     education: data.education || "Bachelor's Degree",
@@ -208,6 +259,11 @@ function normalizeJobData(data) {
     personalityType: data.personalityType || data.personality_type || "",
     overtimeWillingness: data.overtimeWillingness || data.overtime_willingness || "",
     projectWorkReqs: data.projectWorkReqs || data.project_work_reqs || "",
+    questions: Array.isArray(data.questions)
+      ? data.questions
+      : (typeof data.questions === "string" && data.questions.trim()
+          ? (() => { try { return JSON.parse(data.questions); } catch (e) { return []; } })()
+          : []),
     description: data.description || data.jd || "",
     status: (data.status || "published").toLowerCase(),
     aiGenerated: Boolean(data.aiGenerated || data.ai_generated),
@@ -318,6 +374,25 @@ function JobForm({ mode, jobId }) {
   const [notFound, setNotFound] = useState(false);
   const [toast, setToast] = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkedCriteria, setCheckedCriteria] = useState({
+    attitude: false,
+    social: false,
+    personality: false,
+    overtime: false,
+    project: false,
+  });
+
+  useEffect(() => {
+    if (initialData) {
+      setCheckedCriteria({
+        attitude: Boolean(initialData.attitudeType),
+        social: Boolean(initialData.socialType),
+        personality: Boolean(initialData.personalityType),
+        overtime: Boolean(initialData.overtimeWillingness),
+        project: Boolean(initialData.projectWorkReqs),
+      });
+    }
+  }, [initialData]);
 
   // Formik Validation Schema using Yup
   const validationSchema = Yup.object().shape({
@@ -342,26 +417,32 @@ function JobForm({ mode, jobId }) {
     salaryMin: Yup.mixed()
       .test("salary-min-valid", t(lang, "Minimum salary cannot be negative."), function (val) {
         if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
-        return Number(val) >= 0;
+        const num = Number(parseVndNumber(val));
+        return !isNaN(num) && num >= 0;
       })
       .test("salary-min-lte-max", t(lang, "Minimum salary cannot be greater than maximum salary."), function (val) {
         if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
         const max = this.parent.salaryMax;
         if (max === "" || max === undefined || max === null) return true;
-        if (Number(val) < 0 || Number(max) < 0) return true;
-        return Number(val) <= Number(max);
+        const numMin = Number(parseVndNumber(val));
+        const numMax = Number(parseVndNumber(max));
+        if (isNaN(numMin) || isNaN(numMax) || numMin < 0 || numMax < 0) return true;
+        return numMin <= numMax;
       }),
     salaryMax: Yup.mixed()
       .test("salary-max-valid", t(lang, "Maximum salary cannot be negative."), function (val) {
         if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
-        return Number(val) >= 0;
+        const num = Number(parseVndNumber(val));
+        return !isNaN(num) && num >= 0;
       })
       .test("salary-max-gte-min", t(lang, "Maximum salary must be greater than or equal to minimum salary."), function (val) {
         if (this.parent.negotiable || val === "" || val === undefined || val === null) return true;
         const min = this.parent.salaryMin;
         if (min === "" || min === undefined || min === null) return true;
-        if (Number(val) < 0 || Number(min) < 0) return true;
-        return Number(val) >= Number(min);
+        const numMin = Number(parseVndNumber(min));
+        const numMax = Number(parseVndNumber(val));
+        if (isNaN(numMin) || isNaN(numMax) || numMin < 0 || numMax < 0) return true;
+        return numMax >= numMin;
       }),
   });
 
@@ -548,6 +629,77 @@ function JobForm({ mode, jobId }) {
     setSkillDraft("");
   };
 
+  const addQuestion = (template) => {
+    const newQ = template
+      ? {
+          id: "q_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+          question: template.question,
+          type: template.type,
+          required: Boolean(template.required),
+          options: Array.isArray(template.options) ? [...template.options] : [],
+        }
+      : {
+          id: "q_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+          question: "",
+          type: "text",
+          required: false,
+          options: [],
+        };
+    set("questions", [...(form.questions || []), newQ]);
+  };
+
+  const updateQuestion = (index, patch) => {
+    const list = [...(form.questions || [])];
+    list[index] = { ...list[index], ...patch };
+    set("questions", list);
+  };
+
+  const removeQuestion = (index) => {
+    const list = [...(form.questions || [])];
+    list.splice(index, 1);
+    set("questions", list);
+  };
+
+  const moveQuestion = (index, dir) => {
+    const list = [...(form.questions || [])];
+    const targetIdx = index + dir;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+    const temp = list[index];
+    list[index] = list[targetIdx];
+    list[targetIdx] = temp;
+    set("questions", list);
+  };
+
+  const addOptionToQuestion = (qIndex, optVal) => {
+    const val = (optVal || "").trim();
+    if (!val) return;
+    const q = (form.questions || [])[qIndex];
+    if (!q) return;
+    const options = Array.isArray(q.options) ? [...q.options] : [];
+    if (!options.includes(val)) {
+      options.push(val);
+      updateQuestion(qIndex, { options });
+    }
+  };
+
+  const removeOptionFromQuestion = (qIndex, optIndex) => {
+    const q = (form.questions || [])[qIndex];
+    if (!q) return;
+    const options = Array.isArray(q.options) ? [...q.options] : [];
+    options.splice(optIndex, 1);
+    updateQuestion(qIndex, { options });
+  };
+
+  const toggleCriterion = (key, formField) => {
+    setCheckedCriteria((prev) => {
+      const nextVal = !prev[key];
+      if (!nextVal) {
+        set(formField, "");
+      }
+      return { ...prev, [key]: nextVal };
+    });
+  };
+
   const persist = async (targetStatus) => {
     if (isSubmitting) return;
 
@@ -580,8 +732,12 @@ function JobForm({ mode, jobId }) {
     }
     setIsSubmitting(true);
     try {
+      const rawMin = parseVndNumber(form.salaryMin);
+      const rawMax = parseVndNumber(form.salaryMax);
       const jobData = {
         ...form,
+        salaryMin: rawMin ? Number(rawMin) : null,
+        salaryMax: rawMax ? Number(rawMax) : null,
         deadline: form.openUntilClosed ? null : form.deadline,
         expires_at: form.openUntilClosed ? null : form.deadline,
         description: form.description,
@@ -637,32 +793,15 @@ function JobForm({ mode, jobId }) {
   };
 
   const retriesLeft = Math.max(0, 2 - Math.max(0, aiAttempts - 1));
-  const departmentList = departments && departments.length > 0 ? departments : [
-    "Engineering & Technology",
-    "Product & Design",
-    "Marketing & Communications",
-    "Sales & Business Development",
-    "Human Resources & Talent",
-    "Finance & Accounting",
-    "Customer Success & Operations",
-    "Legal & Compliance",
-    "Administration",
-  ];
-  const departmentOptions = Array.from(new Set([
-    ...(form.department ? [form.department] : []),
-    ...departmentList,
-  ])).map((d) => ({ value: d, label: t(lang, d) }));
 
-  const locationList = locations && locations.length > 0 ? locations : [
+  const locationList = locations && locations.length > 0 ? locations : (DEFAULT_MASTER_DATA.locations || [
     "Ho Chi Minh City",
-    "Hanoi",
+    "Ha Noi",
     "Da Nang",
-    "Can Tho",
     "Hai Phong",
-    "Binh Duong",
-    "Dong Nai",
+    "Can Tho",
     "Remote",
-  ];
+  ]);
   const locationOptions = Array.from(new Set([
     ...(form.location ? [form.location] : []),
     ...locationList,
@@ -900,8 +1039,8 @@ function JobForm({ mode, jobId }) {
               <strong className="text-sm text-ink">
                 {form.negotiable
                   ? t(lang, "Negotiable")
-                  : form.salaryMin && form.salaryMax && Number(form.salaryMin) >= 0 && Number(form.salaryMax) >= Number(form.salaryMin)
-                    ? `${Number(form.salaryMin).toLocaleString()} – ${Number(form.salaryMax).toLocaleString()} VND (${form.salaryType})`
+                  : form.salaryMin || form.salaryMax
+                    ? `${form.salaryMin || "0"} – ${form.salaryMax || "—"} VND (${form.salaryType})`
                     : t(lang, "Negotiable")}
               </strong>
             </div>
@@ -942,6 +1081,98 @@ function JobForm({ mode, jobId }) {
               {form.description || t(lang, "No description provided.")}
             </div>
           </div>
+
+          {/* Selection Criteria Preview */}
+          {(form.attitudeType || form.socialType || form.personalityType || form.overtimeWillingness || form.projectWorkReqs) && (
+            <div className="mt-6 rounded-xl border border-line bg-sunken/40 p-4">
+              <h4 className="mb-3 text-sm font-bold text-ink flex items-center gap-2">
+                <Icon name="user-check" size={16} className="text-brand" />
+                {t(lang, "Selection Criteria & Work Culture")}
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-xs max-sm:grid-cols-1 mb-3">
+                {form.attitudeType && (
+                  <div>
+                    <span className="text-muted font-semibold block mb-0.5">{t(lang, "Attitude Type")}:</span>
+                    <p className="text-ink bg-card p-2.5 rounded-md border border-line whitespace-pre-wrap leading-relaxed m-0">
+                      {form.attitudeType}
+                    </p>
+                  </div>
+                )}
+                {form.socialType && (
+                  <div>
+                    <span className="text-muted font-semibold block mb-0.5">{t(lang, "Social Type")}:</span>
+                    <p className="text-ink bg-card p-2.5 rounded-md border border-line whitespace-pre-wrap leading-relaxed m-0">
+                      {form.socialType}
+                    </p>
+                  </div>
+                )}
+                {form.personalityType && (
+                  <div>
+                    <span className="text-muted font-semibold block mb-0.5">{t(lang, "Personality Type")}:</span>
+                    <p className="text-ink bg-card p-2.5 rounded-md border border-line whitespace-pre-wrap leading-relaxed m-0">
+                      {form.personalityType}
+                    </p>
+                  </div>
+                )}
+                {form.overtimeWillingness && (
+                  <div>
+                    <span className="text-muted font-semibold block mb-0.5">{t(lang, "Overtime Willingness")}:</span>
+                    <p className="text-ink bg-card p-2.5 rounded-md border border-line whitespace-pre-wrap leading-relaxed m-0">
+                      {form.overtimeWillingness}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {form.projectWorkReqs && (
+                <div className="mt-2 pt-2 border-t border-line/60 text-xs">
+                  <span className="text-muted block mb-1 font-semibold">{t(lang, "Project Work Requirements")}:</span>
+                  <p className="text-ink bg-card p-2.5 rounded-md border border-line whitespace-pre-wrap leading-relaxed">
+                    {form.projectWorkReqs}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Custom Screening Questions Preview */}
+          {form.questions && form.questions.length > 0 && (
+            <div className="mt-6 rounded-xl border border-line bg-sunken/40 p-4">
+              <h4 className="mb-3 text-sm font-bold text-ink flex items-center gap-2">
+                <Icon name="help-circle" size={16} className="text-brand" />
+                {t(lang, "Screening Questions")} ({form.questions.length})
+              </h4>
+              <div className="space-y-2.5">
+                {form.questions.map((q, idx) => (
+                  <div key={q.id || idx} className="rounded-lg border border-line bg-card p-3 text-xs">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <span className="font-bold text-ink">
+                        {idx + 1}. {q.question || "Untitled question"}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {q.required && (
+                          <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                            {t(lang, "Required")}
+                          </span>
+                        )}
+                        <span className="rounded bg-sunken px-1.5 py-0.5 text-[10px] font-medium text-muted uppercase">
+                          {q.type}
+                        </span>
+                      </div>
+                    </div>
+                    {q.type === "choice" && q.options && q.options.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5 pl-4">
+                        {q.options.map((opt, oIdx) => (
+                          <span key={oIdx} className="rounded-full bg-sunken px-2 py-0.5 text-[11px] text-muted">
+                            ○ {opt}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Edit Form */
@@ -962,13 +1193,12 @@ function JobForm({ mode, jobId }) {
               error={errors.title}
               placeholder={t(lang, "e.g. Senior Frontend Engineer")}
             />
-            <Select
+            <Input
               label={<>{t(lang, "Department")} <span className="text-danger">*</span></>}
               value={form.department}
               onChange={(e) => set("department", e.target.value)}
               error={errors.department}
-              options={departmentOptions}
-              placeholder={t(lang, "Select Department")}
+              placeholder={t(lang, "e.g. Engineering, Sales, Human Resources...")}
             />
             <Select
               label={<>{t(lang, "Job Type")} <span className="text-danger">*</span></>}
@@ -978,14 +1208,23 @@ function JobForm({ mode, jobId }) {
               options={jobTypeOptions}
               placeholder={t(lang, "Select Job Type")}
             />
-            <Select
-              label={<>{t(lang, "Location")} <span className="text-danger">*</span></>}
-              value={form.location}
-              onChange={(e) => set("location", e.target.value)}
-              error={errors.location}
-              options={locationOptions}
-              placeholder={t(lang, "Select Location")}
-            />
+            <div className="w-full">
+              <Input
+                list="vietnam-locations-list"
+                label={<>{t(lang, "Location")} <span className="text-danger">*</span></>}
+                value={form.location}
+                onChange={(e) => set("location", e.target.value)}
+                error={errors.location}
+                placeholder={t(lang, "Select city or enter custom location")}
+              />
+              <datalist id="vietnam-locations-list">
+                {locationOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </datalist>
+            </div>
           </div>
 
           {/* Salary Section (EMP-FR-009 with Gross/Net and Negotiable toggle) */}
@@ -1016,11 +1255,16 @@ function JobForm({ mode, jobId }) {
             <div className={FORM_GRID}>
               <Input
                 name="salaryMin"
-                label={t(lang, "Minimum Salary (VND)")}
+                label={
+                  <div className="flex items-center justify-between w-full">
+                    <span>{t(lang, "Minimum Salary (VND)")}</span>
+                    <span className="text-[11px] font-normal text-muted">{lang === "VN" || lang === "VI" ? "Triệu đồng, không thập phân" : "Million format, no decimals"}</span>
+                  </div>
+                }
                 value={form.salaryMin}
                 disabled={form.negotiable}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/(?!^)-|[^\d-]/g, "");
+                  const val = formatVndNumber(e.target.value);
                   set("salaryMin", val);
                   if (form.salaryMax !== "") formik.validateField("salaryMax");
                 }}
@@ -1030,15 +1274,20 @@ function JobForm({ mode, jobId }) {
                   if (form.salaryMax !== "") formik.validateField("salaryMax");
                 }}
                 error={errors.salaryMin}
-                placeholder={t(lang, "e.g. 20000000")}
+                placeholder={t(lang, "e.g. 20,000,000")}
               />
               <Input
                 name="salaryMax"
-                label={t(lang, "Maximum Salary (VND)")}
+                label={
+                  <div className="flex items-center justify-between w-full">
+                    <span>{t(lang, "Maximum Salary (VND)")}</span>
+                    <span className="text-[11px] font-normal text-muted">{lang === "VN" || lang === "VI" ? "Triệu đồng, không thập phân" : "Million format, no decimals"}</span>
+                  </div>
+                }
                 value={form.salaryMax}
                 disabled={form.negotiable}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/(?!^)-|[^\d-]/g, "");
+                  const val = formatVndNumber(e.target.value);
                   set("salaryMax", val);
                   if (form.salaryMin !== "") formik.validateField("salaryMin");
                 }}
@@ -1048,7 +1297,7 @@ function JobForm({ mode, jobId }) {
                   if (form.salaryMin !== "") formik.validateField("salaryMin");
                 }}
                 error={errors.salaryMax}
-                placeholder={t(lang, "e.g. 35000000")}
+                placeholder={t(lang, "e.g. 35,000,000")}
               />
             </div>
 
@@ -1059,18 +1308,28 @@ function JobForm({ mode, jobId }) {
                 onChange={() => set("negotiable", !form.negotiable)}
               />
               {!form.negotiable && (form.salaryMin || form.salaryMax) && (
-                Number(form.salaryMin) < 0 || Number(form.salaryMax) < 0 || (form.salaryMin && form.salaryMax && Number(form.salaryMin) > Number(form.salaryMax)) ? (
-                  <span className="text-xs font-bold text-danger bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                    <Icon name="alert-circle" size={14} />
-                    {Number(form.salaryMin) < 0 || Number(form.salaryMax) < 0
-                      ? t(lang, "Salary cannot be negative")
-                      : t(lang, "Invalid range: Min salary exceeds Max salary")}
-                  </span>
-                ) : (
-                  <span className="text-xs font-bold text-brand bg-brand-subtle px-2.5 py-1 rounded-md">
-                  {form.salaryMin ? Number(form.salaryMin).toLocaleString() : "0"} – {form.salaryMax ? Number(form.salaryMax).toLocaleString() : "—"} VND ({form.salaryType})
-                </span>
-              )
+                (() => {
+                  const nMin = Number(parseVndNumber(form.salaryMin));
+                  const nMax = Number(parseVndNumber(form.salaryMax));
+                  const isMinInvalid = form.salaryMin && (isNaN(nMin) || nMin < 0);
+                  const isMaxInvalid = form.salaryMax && (isNaN(nMax) || nMax < 0);
+                  const isRangeInvalid = form.salaryMin && form.salaryMax && nMin > nMax;
+                  if (isMinInvalid || isMaxInvalid || isRangeInvalid) {
+                    return (
+                      <span className="text-xs font-bold text-danger bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                        <Icon name="alert-circle" size={14} />
+                        {isMinInvalid || isMaxInvalid
+                          ? t(lang, "Salary cannot be negative")
+                          : t(lang, "Invalid range: Min salary exceeds Max salary")}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="text-xs font-bold text-brand bg-brand-subtle px-2.5 py-1 rounded-md">
+                      {form.salaryMin || "0"} – {form.salaryMax || "—"} VND ({form.salaryType})
+                    </span>
+                  );
+                })()
               )}
             </div>
           </div>
@@ -1424,6 +1683,386 @@ function JobForm({ mode, jobId }) {
                 { value: "draft", label: t(lang, "Draft") },
               ]}
             />
+          </div>
+
+          {/* Selection Criteria Setup (Optional) */}
+          <div className="mt-6 rounded-xl border border-line bg-card p-5 shadow-2xs">
+            <div className="border-b border-line pb-3 mb-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Icon name="user-check" size={18} className="text-brand" />
+                  <h3 className="text-base font-bold text-ink">
+                    {lang === "VN" || lang === "VI" ? "Tiêu chí tuyển chọn & Môi trường làm việc" : "Selection Criteria & Work Culture"}
+                  </h3>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-muted">
+                    {lang === "VN" || lang === "VI" ? "Không bắt buộc" : "Optional"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted mt-1">
+                  {lang === "VN" || lang === "VI"
+                    ? "Đánh dấu chọn tiêu chí bạn muốn áp dụng và nhập nội dung mô tả tương ứng"
+                    : "Check the criteria you want to apply and enter the custom description text"}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Attitude Type */}
+              <div className="rounded-lg border border-line/70 bg-sunken/20 p-3.5">
+                <Check
+                  label={
+                    <span className="text-xs font-bold text-ink">
+                      {lang === "VN" || lang === "VI" ? "Thái độ & Tác phong làm việc (Attitude Type)" : "Attitude Type"}
+                    </span>
+                  }
+                  checked={Boolean(checkedCriteria.attitude || form.attitudeType)}
+                  onChange={() => toggleCriterion("attitude", "attitudeType")}
+                />
+                {(checkedCriteria.attitude || Boolean(form.attitudeType)) && (
+                  <div className="mt-2.5 pl-6">
+                    <Input
+                      value={form.attitudeType}
+                      onChange={(e) => set("attitudeType", e.target.value)}
+                      placeholder={
+                        lang === "VN" || lang === "VI"
+                          ? "Nhập mô tả thái độ / tác phong làm việc mong đợi..."
+                          : "Enter expected attitude / work ethic description..."
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Social Type */}
+              <div className="rounded-lg border border-line/70 bg-sunken/20 p-3.5">
+                <Check
+                  label={
+                    <span className="text-xs font-bold text-ink">
+                      {lang === "VN" || lang === "VI" ? "Phong cách giao tiếp & Xã hội (Social Type)" : "Social Type"}
+                    </span>
+                  }
+                  checked={Boolean(checkedCriteria.social || form.socialType)}
+                  onChange={() => toggleCriterion("social", "socialType")}
+                />
+                {(checkedCriteria.social || Boolean(form.socialType)) && (
+                  <div className="mt-2.5 pl-6">
+                    <Input
+                      value={form.socialType}
+                      onChange={(e) => set("socialType", e.target.value)}
+                      placeholder={
+                        lang === "VN" || lang === "VI"
+                          ? "Nhập mô tả phong cách giao tiếp / làm việc nhóm..."
+                          : "Enter expected social / team communication style..."
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Personality Type */}
+              <div className="rounded-lg border border-line/70 bg-sunken/20 p-3.5">
+                <Check
+                  label={
+                    <span className="text-xs font-bold text-ink">
+                      {lang === "VN" || lang === "VI" ? "Đặc điểm tính cách & Tư duy (Personality Type)" : "Personality Type"}
+                    </span>
+                  }
+                  checked={Boolean(checkedCriteria.personality || form.personalityType)}
+                  onChange={() => toggleCriterion("personality", "personalityType")}
+                />
+                {(checkedCriteria.personality || Boolean(form.personalityType)) && (
+                  <div className="mt-2.5 pl-6">
+                    <Input
+                      value={form.personalityType}
+                      onChange={(e) => set("personalityType", e.target.value)}
+                      placeholder={
+                        lang === "VN" || lang === "VI"
+                          ? "Nhập mô tả đặc điểm tính cách / tư duy..."
+                          : "Enter expected personality trait / mindset description..."
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Overtime Willingness */}
+              <div className="rounded-lg border border-line/70 bg-sunken/20 p-3.5">
+                <Check
+                  label={
+                    <span className="text-xs font-bold text-ink">
+                      {lang === "VN" || lang === "VI" ? "Mức độ sẵn sàng làm thêm giờ (Overtime Willingness)" : "Overtime Willingness"}
+                    </span>
+                  }
+                  checked={Boolean(checkedCriteria.overtime || form.overtimeWillingness)}
+                  onChange={() => toggleCriterion("overtime", "overtimeWillingness")}
+                />
+                {(checkedCriteria.overtime || Boolean(form.overtimeWillingness)) && (
+                  <div className="mt-2.5 pl-6">
+                    <Input
+                      value={form.overtimeWillingness}
+                      onChange={(e) => set("overtimeWillingness", e.target.value)}
+                      placeholder={
+                        lang === "VN" || lang === "VI"
+                          ? "Nhập yêu cầu / kỳ vọng về làm thêm giờ..."
+                          : "Enter overtime expectations / flexibility description..."
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Project Work Requirements */}
+              <div className="rounded-lg border border-line/70 bg-sunken/20 p-3.5">
+                <Check
+                  label={
+                    <span className="text-xs font-bold text-ink">
+                      {lang === "VN" || lang === "VI" ? "Yêu cầu công việc dự án cụ thể (Project Work Requirements)" : "Project Work Requirements"}
+                    </span>
+                  }
+                  checked={Boolean(checkedCriteria.project || form.projectWorkReqs)}
+                  onChange={() => toggleCriterion("project", "projectWorkReqs")}
+                />
+                {(checkedCriteria.project || Boolean(form.projectWorkReqs)) && (
+                  <div className="mt-2.5 pl-6">
+                    <textarea
+                      className="w-full resize-y rounded-md border border-line bg-card p-3 font-body text-xs text-ink focus:border-brand focus:outline-none min-h-[80px]"
+                      value={form.projectWorkReqs}
+                      onChange={(e) => set("projectWorkReqs", e.target.value)}
+                      placeholder={
+                        lang === "VN" || lang === "VI"
+                          ? "Mô tả yêu cầu dự án cụ thể, ca làm việc, tiến độ bàn giao hoặc điều kiện môi trường làm việc..."
+                          : "Describe specific project shifts, hybrid cadence, delivery milestones, or unique environment requirements..."
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Screening Questions Builder */}
+          <div className="mt-6 rounded-xl border border-line bg-card p-5 shadow-2xs">
+            <div className="border-b border-line pb-3 mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Icon name="help-circle" size={18} className="text-brand" />
+                  <h3 className="text-base font-bold text-ink">
+                    {lang === "VN" || lang === "VI" ? "Câu hỏi sàng lọc ứng viên (Screening Questions)" : "Custom Screening Questions"}
+                  </h3>
+                  <span className="rounded-full bg-brand-subtle px-2 py-0.5 text-xs font-bold text-brand">
+                    {(form.questions || []).length}
+                  </span>
+                </div>
+                <p className="text-xs text-muted mt-1">
+                  {lang === "VN" || lang === "VI"
+                    ? "Tạo các câu hỏi sàng lọc nhanh. Ứng viên bắt buộc phải trả lời các câu hỏi đánh dấu bắt buộc khi nộp hồ sơ."
+                    : "Add custom screening questions. Candidates must answer required questions before submitting their application."}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => addQuestion()}
+              >
+                <Icon name="plus" size={14} style={{ marginRight: 4 }} />
+                {lang === "VN" || lang === "VI" ? "Thêm câu hỏi mới" : "Add Question"}
+              </Button>
+            </div>
+
+            {/* Quick Preset Buttons */}
+            <div className="mb-4 rounded-lg bg-sunken/40 p-3 border border-line/60">
+              <span className="text-[11px] font-bold text-muted block mb-2">
+                {lang === "VN" || lang === "VI" ? "Mẫu câu hỏi thông dụng (Bấm để thêm nhanh):" : "Preset Question Templates (Click to add):"}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {QUESTION_TEMPLATES.map((tpl, tIdx) => (
+                  <button
+                    key={tIdx}
+                    type="button"
+                    onClick={() => addQuestion(tpl)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-line bg-card px-2.5 py-1 text-xs font-medium text-ink hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                  >
+                    <Icon name="plus-circle" size={12} className="text-brand" />
+                    <span>{tpl.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Questions List */}
+            {(!form.questions || form.questions.length === 0) ? (
+              <div className="rounded-xl border border-dashed border-line bg-sunken/20 p-6 text-center text-xs text-muted">
+                <Icon name="help-circle" size={24} className="mx-auto mb-2 text-faint" />
+                <p className="font-medium text-ink mb-1">
+                  {lang === "VN" || lang === "VI" ? "Chưa có câu hỏi sàng lọc nào" : "No screening questions added yet"}
+                </p>
+                <p className="text-faint">
+                  {lang === "VN" || lang === "VI"
+                    ? "Bấm 'Thêm câu hỏi mới' hoặc chọn mẫu câu hỏi thông dụng ở trên để bắt đầu."
+                    : "Click 'Add Question' or pick from preset templates above to configure screening questions."}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {form.questions.map((q, qIdx) => (
+                  <div
+                    key={q.id || qIdx}
+                    className="rounded-xl border border-line bg-sunken/20 p-4 transition-all hover:border-slate-300"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <span className="inline-flex items-center gap-1 rounded bg-brand-subtle px-2 py-0.5 text-xs font-extrabold text-brand">
+                        #{qIdx + 1}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={qIdx === 0}
+                          onClick={() => moveQuestion(qIdx, -1)}
+                          className="rounded p-1 text-muted hover:bg-card hover:text-ink disabled:opacity-30 cursor-pointer"
+                          title="Move Up"
+                        >
+                          <Icon name="arrow-up" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={qIdx === form.questions.length - 1}
+                          onClick={() => moveQuestion(qIdx, 1)}
+                          className="rounded p-1 text-muted hover:bg-card hover:text-ink disabled:opacity-30 cursor-pointer"
+                          title="Move Down"
+                        >
+                          <Icon name="arrow-down" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeQuestion(qIdx)}
+                          className="rounded p-1 text-danger-fg hover:bg-red-50 cursor-pointer"
+                          title="Remove Question"
+                        >
+                          <Icon name="trash" size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-semibold text-muted block mb-1">
+                          {lang === "VN" || lang === "VI" ? "Nội dung câu hỏi" : "Question Prompt"} <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={q.question || ""}
+                          onChange={(e) => updateQuestion(qIdx, { question: e.target.value })}
+                          placeholder={lang === "VN" || lang === "VI" ? "Ví dụ: Bạn có thể đi làm vào thứ Bảy không?" : "e.g. Do you have experience with TypeScript?"}
+                          className="w-full rounded-md border border-line bg-card px-3 py-2 text-xs font-medium text-ink focus:border-brand focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-muted block mb-1">
+                          {lang === "VN" || lang === "VI" ? "Loại câu trả lời" : "Response Type"}
+                        </label>
+                        <select
+                          value={q.type || "text"}
+                          onChange={(e) => {
+                            const newType = e.target.value;
+                            const patch = { type: newType };
+                            if (newType === "yes_no" && (!q.options || q.options.length === 0)) {
+                              patch.options = ["Yes", "No"];
+                            }
+                            updateQuestion(qIdx, patch);
+                          }}
+                          className="w-full rounded-md border border-line bg-card px-3 py-2 text-xs font-medium text-ink focus:border-brand focus:outline-none"
+                        >
+                          <option value="text">{lang === "VN" || lang === "VI" ? "Văn bản (Đoạn ngắn/dài)" : "Text Answer"}</option>
+                          <option value="yes_no">{lang === "VN" || lang === "VI" ? "Có / Không (Yes / No)" : "Yes / No"}</option>
+                          <option value="choice">{lang === "VN" || lang === "VI" ? "Trắc nghiệm nhiều lựa chọn" : "Multiple Choice"}</option>
+                          <option value="number">{lang === "VN" || lang === "VI" ? "Số (Kinh nghiệm, ngày...)" : "Number / Numeric"}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Options manager for choice questions */}
+                    {q.type === "choice" && (
+                      <div className="mb-3 rounded-lg border border-line/70 bg-card p-3">
+                        <label className="text-xs font-bold text-muted block mb-1.5">
+                          {lang === "VN" || lang === "VI" ? "Các phương án lựa chọn:" : "Choice Options:"}
+                        </label>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {(q.options || []).map((opt, oIdx) => (
+                            <span
+                              key={oIdx}
+                              className="inline-flex items-center gap-1 rounded-md bg-sunken px-2 py-1 text-xs font-medium text-ink"
+                            >
+                              <span>{opt}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeOptionFromQuestion(qIdx, oIdx)}
+                                className="text-muted hover:text-danger cursor-pointer"
+                              >
+                                <Icon name="x" size={12} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            id={`new-opt-${qIdx}`}
+                            placeholder={lang === "VN" || lang === "VI" ? "Nhập phương án và bấm Thêm..." : "Type an option and click Add..."}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addOptionToQuestion(qIdx, e.target.value);
+                                e.target.value = "";
+                              }
+                            }}
+                            className="flex-1 rounded-md border border-line bg-card px-2.5 py-1 text-xs text-ink focus:border-brand focus:outline-none"
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              const input = document.getElementById(`new-opt-${qIdx}`);
+                              if (input) {
+                                addOptionToQuestion(qIdx, input.value);
+                                input.value = "";
+                              }
+                            }}
+                          >
+                            {lang === "VN" || lang === "VI" ? "Thêm lựa chọn" : "Add Option"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Required Toggle */}
+                    <div className="flex items-center justify-between pt-2 border-t border-line/50">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-ink">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(q.required)}
+                          onChange={(e) => updateQuestion(qIdx, { required: e.target.checked })}
+                          className="h-4 w-4 rounded border-line text-brand focus:ring-brand accent-blue-600"
+                        />
+                        <span>
+                          {lang === "VN" || lang === "VI"
+                            ? "Bắt buộc trả lời (Ứng viên không thể nộp đơn nếu bỏ trống)"
+                            : "Mandatory question (Candidate cannot apply without answering)"}
+                        </span>
+                      </label>
+                      {q.required && (
+                        <span className="text-[11px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                          * {lang === "VN" || lang === "VI" ? "Bắt buộc" : "Required"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
 

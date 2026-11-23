@@ -314,25 +314,42 @@ export default function CandidatesPipelineBoard({
 
                         {/* Footer: View PDF & Stage Selector */}
                         <div className="mt-1 flex items-center justify-between gap-2 border-t border-line/60 pt-2 text-[11px]">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openResumeModal(c);
-                            }}
-                            className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                            title={t(
-                              lang,
-                              "Show Uploaded PDF / Candidate CV"
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openResumeModal(c);
+                              }}
+                              className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                              title={t(
+                                lang,
+                                "Show Uploaded PDF / Candidate CV"
+                              )}
+                            >
+                              <Icon name="file-text" size={12} />
+                              <span>
+                                {getResumeFileInfo(c).fileType === "docx"
+                                  ? t(lang, "View CV (Doc)")
+                                  : t(lang, "View PDF")}
+                              </span>
+                            </button>
+
+                            {(c.answers || c.hasAnswers) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openResumeModal(c, "answers");
+                                }}
+                                className="inline-flex items-center gap-1 font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
+                                title={t(lang, "View Screening Question Answers")}
+                              >
+                                <Icon name="help-circle" size={12} />
+                                <span>{t(lang, "Answers")}</span>
+                              </button>
                             )}
-                          >
-                            <Icon name="file-text" size={12} />
-                            <span>
-                              {getResumeFileInfo(c).fileType === "docx"
-                                ? t(lang, "View CV (Doc)")
-                                : t(lang, "View PDF")}
-                            </span>
-                          </button>
+                          </div>
 
                           {manage && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-muted group-hover:text-brand transition-colors">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Icon from "../../../../components/ds/Icon";
 import Button from "../../../../components/ds/Button";
 import { Avatar } from "../../../../components/ds";
@@ -82,6 +82,43 @@ export default function CandidateDetailDrawer({
       setVerificationDocs([]);
     }
   }, [open?.id, fullCand?.stage, open?.stage, open?.name]);
+
+  const screeningQuestionsMap = useMemo(() => {
+    const map = {};
+    const rawList = fullCand?.questions || open?.questions || activeJob?.questions;
+    let qList = [];
+    if (Array.isArray(rawList)) {
+      qList = rawList;
+    } else if (typeof rawList === "string" && rawList.trim()) {
+      try {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed)) qList = parsed;
+      } catch {}
+    }
+    for (const item of qList) {
+      if (item && item.id) {
+        map[item.id] = item.question || item.text || item.label || item.id;
+      }
+    }
+    return map;
+  }, [fullCand?.questions, open?.questions, activeJob?.questions]);
+
+  const candidateAnswers = useMemo(() => {
+    const raw = fullCand?.answers || open?.answers;
+    if (!raw) return null;
+    if (typeof raw === "object") {
+      return Object.keys(raw).length ? raw : null;
+    }
+    if (typeof raw === "string" && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" && Object.keys(parsed).length ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [fullCand?.answers, open?.answers]);
 
   if (!open) return null;
 
@@ -180,6 +217,11 @@ export default function CandidateDetailDrawer({
                   }`,
                 icon: "shield",
               },
+              {
+                key: "answers",
+                label: t(lang, "Screening Answers"),
+                icon: "help-circle",
+              },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -199,6 +241,93 @@ export default function CandidateDetailDrawer({
 
         {/* Drawer Body - Tab Content */}
         <div className="flex-1 p-6 md:p-8 space-y-6">
+          {/* ============================================================== */}
+          {/* TAB 0: SCREENING ANSWERS                                       */}
+          {/* ============================================================== */}
+          {activeTab === "answers" && (
+            <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="rounded-2xl border border-line bg-card p-6 shadow-xs space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-line">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+                    <Icon name="help-circle" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-ink">
+                      {t(lang, "Screening Question Responses")}
+                    </h3>
+                    <p className="text-xs text-muted">
+                      {activeJob?.title || cand.jobTitle || "Job Position"}
+                    </p>
+                  </div>
+                </div>
+
+                {(() => {
+                  let rawAnswers = cand.answers;
+                  if (typeof rawAnswers === "string") {
+                    try { rawAnswers = JSON.parse(rawAnswers); } catch (e) {}
+                  }
+
+                  let rawQuestions = cand.questions || activeJob?.questions || [];
+                  if (typeof rawQuestions === "string") {
+                    try { rawQuestions = JSON.parse(rawQuestions); } catch (e) {}
+                  }
+                  const qMap = {};
+                  if (Array.isArray(rawQuestions)) {
+                    for (const q of rawQuestions) {
+                      if (q && q.id) qMap[q.id] = q.question || q.text || q.label;
+                    }
+                  }
+
+                  if (!rawAnswers || (typeof rawAnswers === "object" && Object.keys(rawAnswers).length === 0)) {
+                    return (
+                      <div className="py-10 text-center text-muted text-xs">
+                        <Icon name="info" size={28} className="mx-auto text-muted/60 mb-2" />
+                        <p>{t(lang, "No screening question answers were recorded for this candidate.")}</p>
+                      </div>
+                    );
+                  }
+
+                  const entries = typeof rawAnswers === "object" ? Object.entries(rawAnswers) : [["answers", rawAnswers]];
+
+                  return (
+                    <div className="space-y-3">
+                      {entries.map(([key, val], idx) => {
+                        let qText = qMap[key] || (typeof val === "object" && val?.question ? val.question : null);
+                        if (!qText) {
+                          qText = !key.startsWith("q_") ? key : `${t(lang, "Question")} ${idx + 1}`;
+                        }
+                        const ansText = typeof val === "object" && val !== null
+                          ? (val.answer !== undefined ? String(val.answer) : JSON.stringify(val))
+                          : String(val);
+
+                        return (
+                          <div
+                            key={key}
+                            className="rounded-xl border border-line bg-sunken/40 p-4 space-y-2 hover:border-emerald-300 transition-colors"
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand text-[11px] font-bold">
+                                {idx + 1}
+                              </span>
+                              <h4 className="text-xs md:text-sm font-bold text-ink leading-snug">
+                                {qText}
+                              </h4>
+                            </div>
+                            <div className="pl-7">
+                              <div className="inline-block rounded-lg border border-line bg-card px-3.5 py-1.5 text-xs md:text-sm font-semibold text-ink shadow-2xs">
+                                {ansText || <span className="text-muted italic">{t(lang, "No response provided")}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* ============================================================== */}
           {/* TAB 1: FULL PROFILE                                            */}
           {/* ============================================================== */}
@@ -499,6 +628,51 @@ export default function CandidateDetailDrawer({
                   </h3>
                   <div className="rounded-xl bg-sunken/40 p-4 text-xs leading-relaxed text-ink/90 whitespace-pre-wrap font-sans italic border border-line/60">
                     "{cand.coverLetter || cand.cover_letter}"
+                  </div>
+                </div>
+              )}
+
+              {/* Screening Questions & Answers */}
+              {candidateAnswers && Object.keys(candidateAnswers).length > 0 && (
+                <div className="rounded-2xl border border-line bg-card p-5 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-muted flex items-center gap-1.5">
+                      <Icon name="help-circle" size={14} className="text-brand" />
+                      <span>{t(lang, "Screening Question Responses")}</span>
+                    </h3>
+                    <span className="text-[11px] font-bold text-muted">
+                      {Object.keys(candidateAnswers).length} {t(lang, "questions answered")}
+                    </span>
+                  </div>
+                  <div className="space-y-3 pt-1">
+                    {Object.entries(candidateAnswers).map(([qKey, ans], idx) => {
+                      const questionText =
+                        screeningQuestionsMap[qKey] ||
+                        (typeof ans === "object" && ans?.question ? ans.question : null) ||
+                        (!qKey.startsWith("q_") ? qKey : `${t(lang, "Question")} ${idx + 1}`);
+
+                      const answerText =
+                        typeof ans === "object" && ans !== null
+                          ? (ans.answer !== undefined ? String(ans.answer) : JSON.stringify(ans))
+                          : String(ans);
+
+                      return (
+                        <div
+                          key={qKey}
+                          className="rounded-xl border border-line/70 bg-sunken/40 p-4 space-y-2 text-xs"
+                        >
+                          <div className="font-bold text-ink flex items-start gap-2">
+                            <span className="text-brand font-black shrink-0">{idx + 1}.</span>
+                            <span>{questionText}</span>
+                          </div>
+                          <div className="pl-5">
+                            <span className="inline-block rounded-lg border border-line bg-card px-3 py-1.5 font-semibold text-ink shadow-2xs">
+                              {answerText}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
