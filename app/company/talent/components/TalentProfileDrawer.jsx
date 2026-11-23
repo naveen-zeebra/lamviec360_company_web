@@ -52,12 +52,8 @@ export default function TalentProfileDrawer({
   const isContactApproved = !!cand.is_contact_approved || cand.contact_status === "approved";
   const allowMessaging = cand.allows_messaging !== false && cand.allow_unsolicited_messages !== false;
   const displayTitle = cand.headline || cand.title || (isVi ? "Chuyên viên" : "Professional");
-  const displayEmail = isContactApproved
-    ? cand.email || cand.masked_email
-    : cand.email || cand.masked_email || "••••••@••••";
-  const displayPhone = isContactApproved
-    ? cand.phone || cand.masked_phone
-    : cand.phone || cand.masked_phone || "••••••••••";
+  const displayEmail = cand.email || cand.unmasked_email || (isVi ? "Chưa cung cấp email" : "Email not provided");
+  const displayPhone = cand.phone || cand.unmasked_phone || (isVi ? "Chưa cung cấp SĐT" : "Phone not provided");
   const skillsList = Array.isArray(cand.key_skills)
     ? cand.key_skills
     : Array.isArray(cand.skills)
@@ -132,21 +128,10 @@ export default function TalentProfileDrawer({
             </span>
           </div>
 
-          {isContactApproved ? (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-              <Icon name="check-circle" size={12} />
-              <span>{isVi ? "Đã chia sẻ thông tin" : "Contact Approved"}</span>
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onRequestContact(cand)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1 rounded-lg transition-colors cursor-pointer"
-            >
-              <Icon name="lock" size={12} />
-              <span>{isVi ? "Yêu cầu chia sẻ liên hệ" : "Request Contact Access"}</span>
-            </button>
-          )}
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+            <Icon name="check-circle" size={12} />
+            <span>{isVi ? "Thông tin liên hệ trực tiếp" : "Direct Contact Access"}</span>
+          </span>
         </div>
 
         {/* Drawer Body */}
@@ -332,13 +317,9 @@ export default function TalentProfileDrawer({
 
             <button
               type="button"
-              onClick={() => onMessage(cand)}
-              disabled={!allowMessaging}
-              className={`px-4 py-2 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 transition-colors shadow-2xs ${
-                allowMessaging
-                  ? "bg-brand text-white hover:bg-brand-hover cursor-pointer"
-                  : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-              }`}
+              disabled={true}
+              className="px-4 py-2 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-75 shadow-2xs select-none"
+              title={isVi ? "Tính năng nhắn tin đang phát triển (Tạm tắt)" : "Direct messaging is currently disabled"}
             >
               <Icon name="mail" size={14} />
               <span>{isVi ? "Gửi lời mời ứng tuyển" : "Send Job Invitation"}</span>

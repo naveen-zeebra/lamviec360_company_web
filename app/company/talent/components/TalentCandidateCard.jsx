@@ -14,9 +14,6 @@ export default function TalentCandidateCard({
 }) {
   const isVi = lang === "VI";
 
-  const isContactApproved = !!candidate.is_contact_approved || candidate.contact_status === "approved";
-  const allowMessaging = candidate.allows_messaging !== false && candidate.allow_unsolicited_messages !== false;
-
   const displayTitle = candidate.headline || candidate.title || (isVi ? "Chuyên viên" : "Professional");
   const skillsList = Array.isArray(candidate.key_skills)
     ? candidate.key_skills
@@ -30,38 +27,40 @@ export default function TalentCandidateCard({
       ? `${Number(candidate.expected_salary).toLocaleString("vi-VN")} VND`
       : null);
 
-  const displayEmail = isContactApproved
-    ? candidate.email || candidate.masked_email
-    : candidate.email || candidate.masked_email || "••••••@••••";
-
-  const displayPhone = isContactApproved
-    ? candidate.phone || candidate.masked_phone
-    : candidate.phone || candidate.masked_phone || "••••••••••";
+  // Directly display candidate email and phone without masking dots
+  const displayEmail = candidate.email || candidate.unmasked_email || (isVi ? "Chưa cung cấp email" : "Email not provided");
+  const displayPhone = candidate.phone || candidate.unmasked_phone || (isVi ? "Chưa cung cấp SĐT" : "Phone not provided");
 
   const expYears = candidate.experience_years !== undefined && candidate.experience_years !== null
     ? Number(candidate.experience_years)
     : 0;
 
+  const displayLocation = [candidate.city, candidate.country]
+    .filter(Boolean)
+    .filter((val, idx, arr) => arr.indexOf(val) === idx)
+    .join(", ") || "Vietnam";
+
   return (
     <div className="rounded-2xl border border-line bg-card p-5 hover:border-brand/40 hover:shadow-md transition-all flex flex-col justify-between gap-4 font-body group">
-      {/* Top Header */}
+      {/* 1. Header: Avatar, Name, Headline, Desired Salary */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <Avatar
             src={candidate.avatar_url || ""}
             name={candidate.name || "Candidate"}
-            size={46}
-            className="shrink-0 border border-line/60 rounded-xl"
+            size={50}
+            className="shrink-0 border border-line/60 rounded-xl shadow-2xs"
           />
           <div className="min-w-0">
-            <h4 className="text-sm font-bold text-ink truncate m-0 group-hover:text-brand transition-colors">
+            <h4 className="text-base font-bold text-ink truncate m-0 group-hover:text-brand transition-colors">
               {candidate.name}
             </h4>
             <p className="text-xs font-semibold text-brand truncate m-0 mt-0.5">
               {displayTitle}
             </p>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px] text-muted">
-              <span className="inline-flex items-center gap-1">
+            {/* Meta Tags: Experience, Location, Education */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted">
+              <span className="inline-flex items-center gap-1 font-medium">
                 <Icon name="briefcase" size={12} className="text-muted/70" />
                 <span>
                   {expYears > 0
@@ -69,12 +68,12 @@ export default function TalentCandidateCard({
                     : isVi ? "Dưới 1 năm" : "< 1 yr exp"}
                 </span>
               </span>
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 font-medium">
                 <Icon name="map-pin" size={12} className="text-muted/70" />
-                <span className="truncate">{candidate.city || candidate.location || "Vietnam"}</span>
+                <span className="truncate">{displayLocation}</span>
               </span>
               {(candidate.education_level || candidate.education) && (
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 font-medium">
                   <Icon name="graduation-cap" size={12} className="text-muted/70" />
                   <span className="truncate">{candidate.education_level || candidate.education}</span>
                 </span>
@@ -83,81 +82,132 @@ export default function TalentCandidateCard({
           </div>
         </div>
 
-        {/* Desired Salary Badge */}
-        {displaySalary ? (
-          <div className="text-right shrink-0">
-            <span className="text-[10px] font-bold text-muted uppercase block">
-              {isVi ? "Mức lương kỳ vọng" : "Desired Salary"}
+        {/* Desired Salary & Status Badge */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          {displaySalary && (
+            <div className="text-right">
+              <span className="text-[10px] font-bold text-muted uppercase block">
+                {isVi ? "Mức lương kỳ vọng" : "Desired Salary"}
+              </span>
+              <span className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-block mt-0.5">
+                {displaySalary}
+              </span>
+            </div>
+          )}
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50/80 border border-emerald-200 px-2 py-0.5 rounded-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>
+              {candidate.job_availability === "actively_looking"
+                ? isVi ? "Đang tìm việc" : "Actively looking"
+                : isVi ? "Mở cơ hội mới" : "Open to work"}
             </span>
-            <span className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-block mt-0.5">
-              {displaySalary}
-            </span>
-          </div>
-        ) : null}
+          </span>
+        </div>
       </div>
 
-      {/* Candidate Bio */}
+      {/* 2. Candidate Bio / Professional Summary */}
       {candidate.bio && (
-        <p className="text-xs text-muted/90 line-clamp-2 m-0 leading-relaxed">
-          {candidate.bio}
-        </p>
+        <div className="rounded-xl border border-line/70 bg-sunken/40 p-3 text-xs leading-relaxed">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1 flex items-center gap-1">
+            <Icon name="file-text" size={11} className="text-brand" />
+            <span>{isVi ? "Giới thiệu bản thân" : "Professional Summary"}</span>
+          </div>
+          <p className="text-xs text-ink/90 m-0 leading-relaxed font-sans whitespace-pre-line">
+            {candidate.bio}
+          </p>
+        </div>
       )}
 
-      {/* Skills Badges */}
+      {/* 3. All Key Competencies & Technical Skills */}
       {skillsList.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {skillsList.slice(0, 6).map((skill, idx) => (
-            <span
-              key={idx}
-              className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-sunken border border-line text-ink"
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+            {isVi ? "Kỹ năng chuyên môn" : "Skills & Competencies"}
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {skillsList.map((skill, idx) => (
+              <span
+                key={idx}
+                className="text-[11px] font-medium px-2.5 py-0.5 rounded-md bg-sunken border border-line text-ink hover:border-brand/40 transition-colors"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. Social & Portfolio Links (if available) */}
+      {(candidate.linkedin_url || candidate.github_url || candidate.portfolio_url) && (
+        <div className="flex items-center gap-2 pt-0.5">
+          {candidate.linkedin_url && (
+            <a
+              href={candidate.linkedin_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md transition-colors"
             >
-              {skill}
-            </span>
-          ))}
-          {skillsList.length > 6 && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sunken text-muted">
-              +{skillsList.length - 6}
-            </span>
+              <Icon name="globe" size={11} />
+              <span>LinkedIn</span>
+            </a>
+          )}
+          {candidate.github_url && (
+            <a
+              href={candidate.github_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:underline bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md transition-colors"
+            >
+              <Icon name="code" size={11} />
+              <span>GitHub</span>
+            </a>
+          )}
+          {candidate.portfolio_url && (
+            <a
+              href={candidate.portfolio_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 hover:underline bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-md transition-colors"
+            >
+              <Icon name="external-link" size={11} />
+              <span>Portfolio</span>
+            </a>
           )}
         </div>
       )}
 
-      {/* Contact Details & Privacy Status */}
-      <div className="p-3 rounded-xl bg-sunken/50 border border-line flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-3 text-muted">
+      {/* 5. Contact Information: Email & Phone directly visible */}
+      <div className="p-3 rounded-xl bg-sunken/60 border border-line flex flex-wrap items-center justify-between gap-2.5 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-ink">
           <span className="inline-flex items-center gap-1.5">
-            <Icon name="mail" size={13} className="text-muted/70" />
-            <span className="font-mono text-[11px]">
+            <Icon name="mail" size={13} className="text-brand shrink-0" />
+            <a
+              href={`mailto:${displayEmail}`}
+              className="font-mono text-xs font-semibold text-ink hover:text-brand hover:underline transition-colors"
+              title={isVi ? "Gửi email cho ứng viên" : "Send email to candidate"}
+            >
               {displayEmail}
-            </span>
+            </a>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <Icon name="phone" size={13} className="text-muted/70" />
-            <span className="font-mono text-[11px]">
+            <Icon name="phone" size={13} className="text-emerald-600 shrink-0" />
+            <a
+              href={`tel:${displayPhone}`}
+              className="font-mono text-xs font-semibold text-ink hover:text-brand hover:underline transition-colors"
+              title={isVi ? "Gọi điện cho ứng viên" : "Call candidate"}
+            >
               {displayPhone}
-            </span>
+            </a>
           </span>
         </div>
 
-        {isContactApproved ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-            <Icon name="check-circle" size={12} />
-            <span>{isVi ? "Đã mở khóa liên hệ" : "Contact Unlocked"}</span>
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onRequestContact(candidate)}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
-            title={isVi ? "Gửi yêu cầu mở khóa thông tin liên hệ" : "Request candidate permission to view contact info"}
-          >
-            <Icon name="lock" size={11} />
-            <span>{isVi ? "Yêu cầu liên hệ" : "Request Contact Info"}</span>
-          </button>
-        )}
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md shrink-0">
+          <Icon name="check-circle" size={11} />
+          <span>{isVi ? "Liên hệ trực tiếp" : "Direct Contact"}</span>
+        </span>
       </div>
 
-      {/* Card Action Buttons */}
+      {/* 6. Card Action Buttons: View Profile & Disabled Message Button */}
       <div className="flex items-center justify-between pt-2 border-t border-line/60 gap-2">
         <button
           type="button"
@@ -169,23 +219,12 @@ export default function TalentCandidateCard({
         </button>
 
         <div className="flex items-center gap-2">
-          {/* Direct Message Button (Gated by candidate preference) */}
+          {/* Direct Message Button (Always Shown, but Click Functionality Disabled) */}
           <button
             type="button"
-            onClick={() => onMessage(candidate)}
-            disabled={!allowMessaging}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 transition-colors shadow-2xs ${
-              allowMessaging
-                ? "bg-brand text-white hover:bg-brand-hover cursor-pointer"
-                : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-            }`}
-            title={
-              allowMessaging
-                ? isVi ? "Gửi tin nhắn hoặc lời mời ứng tuyển" : "Send direct message or job invitation"
-                : isVi
-                ? "Ứng viên đã tắt tính năng nhận tin nhắn chủ động"
-                : "Candidate has disabled unsolicited recruiter messages"
-            }
+            disabled={true}
+            className="px-3.5 py-1.5 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-75 shadow-2xs select-none"
+            title={isVi ? "Tính năng nhắn tin đang phát triển (Tạm tắt)" : "Direct messaging is currently disabled"}
           >
             <Icon name="mail" size={13} />
             <span>{isVi ? "Nhắn tin" : "Message"}</span>
