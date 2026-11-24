@@ -1002,5 +1002,9 @@
   "This Business Registration Number is already registered.": "This Business Registration Number is already registered.",
   "10 or 13 digits (e.g. 0101234567 or 0101234567-001)": "10 or 13 digits (e.g. 0101234567 or 0101234567-001)",
   "e.g. 0101234567": "e.g. 0101234567",
-  "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.": "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices."
+  "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.": "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.",
+  "Company name is required": "Company name is required",
+  "Please fill in all required company details: Company Name and Business Registration Number.": "Please fill in all required company details: Company Name and Business Registration Number.",
+  "Invalid file format. Only PNG, JPG, SVG, and WEBP image files are allowed.": "Invalid file format. Only PNG, JPG, SVG, and WEBP image files are allowed.",
+  "Logo size must not exceed 2MB.": "Logo size must not exceed 2MB."
 }

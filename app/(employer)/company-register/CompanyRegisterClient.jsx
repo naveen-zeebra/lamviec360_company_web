@@ -149,10 +149,29 @@ export default function CompanyRegisterClient() {
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setToast(t(lang, "Logo size must be under 2MB"));
+
+    // Allowed extensions and MIME types
+    const allowedExtensions = [".png", ".jpg", ".jpeg", ".svg", ".webp"];
+    const allowedMimeTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp"];
+
+    const fileName = (file.name || "").toLowerCase();
+    const hasValidExt = allowedExtensions.some((ext) => fileName.endsWith(ext));
+    const hasValidMime = !file.type || allowedMimeTypes.includes(file.type.toLowerCase());
+
+    if (!hasValidExt || !hasValidMime) {
+      setToast(t(lang, "Invalid file format. Only PNG, JPG, SVG, and WEBP image files are allowed."));
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (e.target) e.target.value = "";
       return;
     }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setToast(t(lang, "Logo size must not exceed 2MB."));
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (e.target) e.target.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
       formik.setFieldValue("logo", uploadEvent.target.result);
@@ -189,13 +208,14 @@ export default function CompanyRegisterClient() {
 
   // Step 1 -> Step 2 transition
   const handleNextStep = async () => {
-    formik.setFieldTouched("co", true, false);
-    formik.setFieldTouched("taxId", true, false);
-    formik.setFieldTouched("ind", true, false);
-    formik.setFieldTouched("size", true, false);
-    if (formik.values.website) {
-      formik.setFieldTouched("website", true, false);
-    }
+    formik.setTouched({
+      ...formik.touched,
+      co: true,
+      taxId: true,
+      ind: true,
+      size: true,
+      ...(formik.values.website ? { website: true } : {}),
+    }, false);
 
     try {
       await step1Schema.validate(
@@ -229,7 +249,8 @@ export default function CompanyRegisterClient() {
         err.inner.forEach((validationError) => {
           step1Errors[validationError.path] = validationError.message;
         });
-        formik.setErrors((prev) => ({ ...prev, ...step1Errors }));
+        formik.setErrors({ ...formik.errors, ...step1Errors });
+        setToast(t(lang, "Please fill in all required company details: Company Name and Business Registration Number."));
       }
     }
   };
@@ -352,7 +373,18 @@ export default function CompanyRegisterClient() {
             </div>
           </div>
 
-          <form onSubmit={formik.handleSubmit} noValidate autoComplete="off">
+          <form
+            onSubmit={(e) => {
+              if (step === 1) {
+                e.preventDefault();
+                handleNextStep();
+              } else {
+                formik.handleSubmit(e);
+              }
+            }}
+            noValidate
+            autoComplete="off"
+          >
             {/* Trap decoy inputs: absorbs aggressive browser credential autofill */}
             <div
               aria-hidden="true"

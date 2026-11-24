@@ -1241,5 +1241,9 @@
   "This Business Registration Number is already registered.": "Mã số doanh nghiệp này đã được đăng ký trên hệ thống.",
   "10 or 13 digits (e.g. 0101234567 or 0101234567-001)": "10 hoặc 13 chữ số (VD: 0101234567 hoặc 0101234567-001)",
   "e.g. 0101234567": "VD: 0101234567",
-  "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.": "Mã số doanh nghiệp / Mã số thuế (MST) do cơ quan nhà nước cấp. Gồm 10 chữ số cho doanh nghiệp hoặc 13 chữ số cho chi nhánh."
+  "Official Vietnam Business Registration Number (Mã số thuế / MST). Enter 10 digits for main enterprises or 13 digits for branch offices.": "Mã số doanh nghiệp / Mã số thuế (MST) do cơ quan nhà nước cấp. Gồm 10 chữ số cho doanh nghiệp hoặc 13 chữ số cho chi nhánh.",
+  "Company name is required": "Tên công ty là bắt buộc",
+  "Please fill in all required company details: Company Name and Business Registration Number.": "Vui lòng điền đầy đủ thông tin: Tên công ty và Mã số doanh nghiệp.",
+  "Invalid file format. Only PNG, JPG, SVG, and WEBP image files are allowed.": "Định dạng tệp không hợp lệ. Chỉ chấp nhận tệp hình ảnh PNG, JPG, SVG và WEBP.",
+  "Logo size must not exceed 2MB.": "Kích thước logo không được vượt quá 2MB."
 }
