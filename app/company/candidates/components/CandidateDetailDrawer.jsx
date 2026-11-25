@@ -18,6 +18,8 @@ import {
   setCandidateRating,
   getApplicantVerificationDocuments,
   fetchApplicantDetail,
+  getApplicantMessagesStore,
+  sendApplicantMessageStore,
 } from "../../../../lib/companyStore";
 import { formatBytes } from "../../../../utils/format";
 import RequestPriorEmploymentDocsModal from "./RequestPriorEmploymentDocsModal";
@@ -43,13 +45,18 @@ export default function CandidateDetailDrawer({
   loadData,
   setToast,
 }) {
-  const [activeTab, setActiveTab] = useState("profile"); // 'profile' | 'resume' | 'ai' | 'documents'
+  const [activeTab, setActiveTab] = useState("profile"); // 'profile' | 'resume' | 'ai' | 'documents' | 'answers' | 'messages'
   const [fullCand, setFullCand] = useState(open);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [verificationDocs, setVerificationDocs] = useState([]);
   const [loadingVerificationDocs, setLoadingVerificationDocs] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
   const [isRequestDocModalOpen, setIsRequestDocModalOpen] = useState(false);
+  const [dmLoading, setDmLoading] = useState(false);
+  const [dmThread, setDmThread] = useState(null);
+  const [dmMessages, setDmMessages] = useState([]);
+  const [dmDraft, setDmDraft] = useState("");
+  const [dmSending, setDmSending] = useState(false);
 
   const isShortlistedPlus = (stg) => SHORTLIST_PLUS.includes(stg);
 
@@ -82,6 +89,34 @@ export default function CandidateDetailDrawer({
       setVerificationDocs([]);
     }
   }, [open?.id, fullCand?.stage, open?.stage, open?.name]);
+
+  const loadDirectMessages = async (appId) => {
+    if (!appId) return;
+    setDmLoading(true);
+    try {
+      const res = await getApplicantMessagesStore(appId);
+      setDmThread(res?.thread || null);
+      setDmMessages(Array.isArray(res?.messages) ? res.messages : []);
+      if (res?.thread) {
+        setFullCand((prev) => ({
+          ...(prev || {}),
+          allow_recruiter_dm: !!res.thread.allow_recruiter_dm,
+          dm_opt_in_requested_at: res.thread.dm_opt_in_requested_at || prev?.dm_opt_in_requested_at,
+          unread_dm_count: 0,
+        }));
+      }
+    } catch (err) {
+      console.warn("Could not load direct messages:", err);
+    } finally {
+      setDmLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "messages" && open?.id) {
+      loadDirectMessages(open.id);
+    }
+  }, [activeTab, open?.id]);
 
   const screeningQuestionsMap = useMemo(() => {
     const map = {};
@@ -206,7 +241,7 @@ export default function CandidateDetailDrawer({
           </div>
 
           {/* Navigation Tabs Bar */}
-          <div className="flex items-center gap-1 border-t border-line/70 pt-2 -mb-1">
+          <div className="flex items-center gap-1 border-t border-line/70 pt-2 -mb-1 flex-wrap">
             {[
               { key: "profile", label: t(lang, "Full Profile"), icon: "user" },
               { key: "resume", label: t(lang, "Resume & CV"), icon: "file-text" },
@@ -221,6 +256,11 @@ export default function CandidateDetailDrawer({
                 key: "answers",
                 label: t(lang, "Screening Answers"),
                 icon: "help-circle",
+              },
+              {
+                key: "messages",
+                label: `${t(lang, "Direct Messages")}${(cand.unread_dm_count || 0) > 0 ? ` (${cand.unread_dm_count})` : ""}`,
+                icon: "message-square",
               },
             ].map((tab) => (
               <button
@@ -911,6 +951,134 @@ export default function CandidateDetailDrawer({
               </div>
             </div>
           )}
+
+          {/* ============================================================== */}
+          {/* TAB 5: DIRECT MESSAGES                                         */}
+          {/* ============================================================== */}
+          {activeTab === "messages" && (() => {
+            const allowDm = Boolean(dmThread?.allow_recruiter_dm ?? cand.allow_recruiter_dm);
+
+            const handleSendDm = async (e) => {
+              e.preventDefault();
+              if (!manage || !dmDraft.trim() || !allowDm) return;
+              setDmSending(true);
+              try {
+                const res = await sendApplicantMessageStore(cand.id, dmDraft.trim());
+                if (res?.message) {
+                  setDmMessages((prev) => [...prev, res.message]);
+                }
+                if (res?.thread) setDmThread(res.thread);
+                setDmDraft("");
+                setToast(t(lang, "Direct message sent"));
+              } catch (err) {
+                setToast(err?.message || t(lang, "Failed to send message"));
+              } finally {
+                setDmSending(false);
+              }
+            };
+
+            return (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                <div className="rounded-2xl border border-line bg-card p-5 shadow-xs space-y-4">
+                  {/* Account Policy Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-line">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
+                        allowDm ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
+                      }`}>
+                        <Icon name={allowDm ? "message-square" : "lock"} size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-ink">
+                          {t(lang, "Candidate Direct Messages")}
+                        </h3>
+                        <p className="text-xs text-muted">
+                          {allowDm
+                            ? t(lang, "Direct messaging enabled by candidate's account contact policy.")
+                            : t(lang, "Candidate has not enabled recruiter Direct Messages in their account policy.")}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${
+                      allowDm
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-slate-100 text-slate-600 border-slate-200"
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${allowDm ? "bg-emerald-500" : "bg-slate-400"}`} />
+                      {allowDm ? t(lang, "Messaging Allowed") : t(lang, "Disabled by Candidate Policy")}
+                    </span>
+                  </div>
+
+                  {!allowDm && (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-sunken/50 p-4 text-center text-xs text-muted">
+                      {t(lang, "This candidate did not opt in to recruiter Direct Messages during account registration / privacy settings.")}
+                    </div>
+                  )}
+
+                  {/* Message History Timeline */}
+                  <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                    {dmLoading ? (
+                      <div className="py-8 text-center text-xs text-muted">
+                        <Icon name="loader" size={20} className="animate-spin mx-auto mb-2 text-brand" />
+                        {t(lang, "Loading messages...")}
+                      </div>
+                    ) : dmMessages.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-muted bg-sunken/30 rounded-xl border border-line/60">
+                        {allowDm
+                          ? t(lang, "No direct messages yet. Start the conversation with the candidate below.")
+                          : t(lang, "No messages exchanged.")}
+                      </div>
+                    ) : (
+                      dmMessages.map((m) => {
+                        const isRecruiter = m.sender_role === "recruiter";
+                        return (
+                          <div
+                            key={m.id}
+                            className={`flex flex-col ${isRecruiter ? "items-end" : "items-start"}`}
+                          >
+                            <div
+                              className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-2xs ${
+                                isRecruiter
+                                  ? "bg-brand text-white rounded-br-sm"
+                                  : "bg-sunken border border-line text-ink rounded-bl-sm"
+                              }`}
+                            >
+                              <div className={`text-[10px] font-bold mb-1 ${isRecruiter ? "text-white/80" : "text-muted"}`}>
+                                {m.sender_name} · {m.created_at ? new Date(m.created_at).toLocaleString() : ""}
+                              </div>
+                              <p className="m-0 whitespace-pre-wrap">{m.body}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Composer */}
+                  {allowDm && manage && (
+                    <form onSubmit={handleSendDm} className="pt-3 border-t border-line flex flex-col sm:flex-row gap-2.5">
+                      <textarea
+                        rows={2}
+                        value={dmDraft}
+                        onChange={(e) => setDmDraft(e.target.value)}
+                        placeholder={t(lang, "Write a direct message to the candidate...")}
+                        className="flex-1 rounded-xl border border-line bg-card px-3.5 py-2 text-xs text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand resize-none"
+                      />
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={dmSending || !dmDraft.trim()}
+                        className="shrink-0 self-end sm:self-stretch px-4 text-xs font-bold gap-1.5"
+                      >
+                        <Icon name="send" size={14} />
+                        {dmSending ? t(lang, "Sending...") : t(lang, "Send Message")}
+                      </Button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ============================================================== */}
           {/* TAB 4: VERIFIED DOCUMENTS                                      */}

@@ -23,6 +23,7 @@ import {
   getAuth,
   getCompany,
   syncCompanyWithBackend,
+  MAX_TEAM_COUNT,
 } from "../../../lib/companyStore";
 
 const stat = "flex flex-col gap-1 rounded-xl bg-card border border-line p-4 shadow-2xs";
@@ -126,16 +127,19 @@ function TeamMembersInner() {
   }, [team, invites, lang]);
 
   const summary = useMemo(() => {
+    const active = team.filter((m) => m.status === "Active").length;
     const pending = invites.filter((i) => i.status === "Pending").length;
     const expired = invites.filter((i) => i.status === "Expired").length;
     return {
-      total: team.length + pending,
-      active: team.filter((m) => m.status === "Active").length,
+      total: active + pending,
+      active,
       pending,
       expired,
       inactive: team.filter((m) => m.status === "Inactive").length,
     };
   }, [team, invites]);
+
+  const isTeamAtLimit = summary.total >= MAX_TEAM_COUNT;
 
   // Sole admin check
   const activeAdminsCount = useMemo(() => {
@@ -270,7 +274,21 @@ function TeamMembersInner() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Button variant="primary" onClick={() => setInviteOpen(true)}>
+          {isTeamAtLimit && (
+            <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
+              {lang === "VI" || lang === "VN"
+                ? `Đã đạt giới hạn tối đa ${MAX_TEAM_COUNT} thành viên (Freemium)`
+                : `Max ${MAX_TEAM_COUNT} team members reached (Freemium)`}
+            </span>
+          )}
+          <Button
+            variant="primary"
+            disabled={isTeamAtLimit}
+            onClick={() => {
+              setInviteErr("");
+              setInviteOpen(true);
+            }}
+          >
             <Icon name="user-plus" size={15} style={{ marginRight: 6 }} />
             {t(lang, "Invite Member")}
           </Button>
@@ -280,8 +298,12 @@ function TeamMembersInner() {
       {/* Summary KPI Cards */}
       <div className="mb-6 grid grid-cols-4 gap-3 max-lg:grid-cols-2">
         <div className={stat}>
-          <span className={statLabel}>{t(lang, "Total Workspace Size")}</span>
-          <strong className={statValue}>{summary.total}</strong>
+          <span className={statLabel}>
+            {lang === "VI" || lang === "VN" ? "Số lượng thành viên (Tối đa 6)" : "Workspace Seats (Max 6)"}
+          </span>
+          <strong className={statValue}>
+            {summary.total} <span className="text-sm font-semibold text-muted">/ {MAX_TEAM_COUNT}</span>
+          </strong>
         </div>
         <div className={stat}>
           <span className={statLabel}>{t(lang, "Active Members")}</span>

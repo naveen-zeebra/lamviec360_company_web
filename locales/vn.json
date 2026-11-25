@@ -1270,5 +1270,8 @@
   "Stage updated successfully": "Đã cập nhật giai đoạn thành công",
   "Pipeline stages restored to default": "Đã khôi phục các giai đoạn mặc định",
   "Cannot disable a required core stage": "Không thể tắt giai đoạn cốt lõi bắt buộc",
-  "Interview Scheduled (2-3 rounds)": "Lên lịch phỏng vấn (2-3 vòng)"
+  "Interview Scheduled (2-3 rounds)": "Lên lịch phỏng vấn (2-3 vòng)",
+  "Select city or enter custom location": "Chọn thành phố hoặc nhập địa điểm khác",
+  "Search city or type custom location...": "Tìm thành phố hoặc nhập địa điểm...",
+  "No matching location found": "Không tìm thấy địa điểm phù hợp"
 }

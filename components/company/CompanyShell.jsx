@@ -21,6 +21,7 @@ const NAV = [
   { href: "/company/profile", icon: "building-2", labelKey: "Company Profile", perm: "settings.manage" },
   { href: "/company/jobs", icon: "briefcase", labelKey: "Job Management", perm: "overview.view" },
   { href: "/company/candidates", icon: "users", labelKey: "Candidate Pipeline", perm: "candidates.view" },
+  { href: "/company/messages", icon: "message-square", labelKey: "Direct Messages", perm: "candidates.view" },
   { href: "/company/talent", icon: "search", labelKey: "Talent Search", perm: "talent.search" },
   {
     href: "/company/team",

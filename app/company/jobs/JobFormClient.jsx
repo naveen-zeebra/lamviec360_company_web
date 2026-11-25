@@ -4,7 +4,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button, Input, Select } from "../../../components/ds";
+import { Button, Input, Select, SearchableSelect } from "../../../components/ds";
 import Icon from "../../../components/ds/Icon";
 import Check from "../../../components/ds/Check";
 import Skeleton from "../../../components/ds/Skeleton";
@@ -1209,21 +1209,23 @@ function JobForm({ mode, jobId }) {
               placeholder={t(lang, "Select Job Type")}
             />
             <div className="w-full">
-              <Input
-                list="vietnam-locations-list"
+              <SearchableSelect
+                id="job-location-select"
                 label={<>{t(lang, "Location")} <span className="text-danger">*</span></>}
+                leftIcon="map-pin"
                 value={form.location}
-                onChange={(e) => set("location", e.target.value)}
+                onChange={(val) => set("location", val)}
+                onBlur={() => formik.setFieldTouched("location", true)}
                 error={errors.location}
+                options={locationOptions}
                 placeholder={t(lang, "Select city or enter custom location")}
+                searchPlaceholder={t(lang, "Search city or type custom location...")}
+                emptyText={t(lang, "No matching location found")}
+                customActionLabel={(q) =>
+                  lang === "VN" || lang === "VI" ? `Sử dụng địa điểm "${q}"` : `Use custom location "${q}"`
+                }
+                allowCustom
               />
-              <datalist id="vietnam-locations-list">
-                {locationOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </datalist>
             </div>
           </div>
 

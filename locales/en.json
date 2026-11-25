@@ -1031,5 +1031,8 @@
   "Stage updated successfully": "Stage updated successfully",
   "Pipeline stages restored to default": "Pipeline stages restored to default",
   "Cannot disable a required core stage": "Cannot disable a required core stage",
-  "Interview Scheduled (2-3 rounds)": "Interview Scheduled (2-3 rounds)"
+  "Interview Scheduled (2-3 rounds)": "Interview Scheduled (2-3 rounds)",
+  "Select city or enter custom location": "Select city or enter custom location",
+  "Search city or type custom location...": "Search city or type custom location...",
+  "No matching location found": "No matching location found"
 }
