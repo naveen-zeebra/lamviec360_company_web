@@ -19,10 +19,15 @@ import {
   fetchStageCounts,
   listRejectionTemplates,
   exportCandidatesCsv,
+  getAllConfiguredStages,
+  saveConfiguredStages,
+  resetPipelineStagesToDefault,
+  advanceCandidateInterviewRound,
 } from "../../../lib/companyStore";
 import {
   FIXED_PIPELINE_STAGES,
   SHORTLIST_PLUS,
+  resolvePipelineConfig,
 } from "./components/CandidatesConstants";
 import CandidatesHeader from "./components/CandidatesHeader";
 import CandidatesFilters from "./components/CandidatesFilters";
@@ -34,6 +39,8 @@ import CandidateResumeModal from "./components/CandidateResumeModal";
 import CandidateBulkModal from "./components/CandidateBulkModal";
 import CandidateRejectModal from "./components/CandidateRejectModal";
 import CandidatesJobsOverview from "./components/CandidatesJobsOverview";
+import PipelineStagesModal from "./components/PipelineStagesModal";
+import CandidateScheduleModal from "./components/CandidateScheduleModal";
 
 export { FIXED_PIPELINE_STAGES, PIPELINE_STAGES_CONFIG } from "./components/CandidatesConstants";
 
@@ -114,7 +121,24 @@ export default function CandidatesClient() {
   const [rejectDelayHours, setRejectDelayHours] = useState(0);
   const [toast, setToast] = useToast();
 
+  // Stage Configuration & Interview Schedule States
+  const [configuredStages, setConfiguredStages] = useState([]);
+  const [showStagesModal, setShowStagesModal] = useState(false);
+  const [scheduleCandidate, setScheduleCandidate] = useState(null);
+  const [scheduleData, setScheduleData] = useState({
+    round: "Round 1 - Initial Screening / Technical",
+    roundNumber: 1,
+    format: "video",
+    date: "",
+    time: "10:00",
+    location: "Google Meet",
+    interviewerName: "",
+    interviewerRole: "",
+    notes: "",
+  });
+
   const manage = can(role, "candidates.manage");
+  const isAdmin = can(role, "settings.manage");
   const activeJob = jobs.find((j) => String(j.id) === String(jobFilter)) || null;
   const open = openId
     ? candidates.find((c) => String(c.id) === String(openId)) || getCandidate(openId)
@@ -129,11 +153,12 @@ export default function CandidatesClient() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Initial setup: Jobs, Auth, Privacy
+  // Initial setup: Jobs, Auth, Privacy, Stages
   useEffect(() => {
     setRole(getAuth()?.role || "Company Admin");
     setPrivacy(getSettings()?.privacy || {});
     setTemplates(listRejectionTemplates());
+    setConfiguredStages(getAllConfiguredStages());
 
     // Fetch jobs and candidates for switcher & overview
     import("../../../lib/companyStore").then(({ getStore, syncCompanyWithBackend }) => {
@@ -142,6 +167,7 @@ export default function CandidatesClient() {
       const storeCandidates = store?.candidates || [];
       setJobs(storeJobs);
       setAllCandidates(storeCandidates);
+      setConfiguredStages(getAllConfiguredStages());
 
       if (jobParam && storeJobs.some((j) => String(j.id) === String(jobParam))) {
         setJobFilter(jobParam);
@@ -150,13 +176,16 @@ export default function CandidatesClient() {
       }
       setReady(true);
 
-      syncCompanyWithBackend().then(() => {
+      syncCompanyWithBackend(true).then(() => {
         const updated = getStore();
         setJobs(updated?.jobs || []);
         setAllCandidates(updated?.candidates || []);
+        setConfiguredStages(getAllConfiguredStages());
       }).catch(console.warn);
     });
   }, [jobParam]);
+
+  const pipelineStages = resolvePipelineConfig(configuredStages);
 
   // Load paginated data
   const loadData = useCallback(async () => {
@@ -229,9 +258,79 @@ export default function CandidatesClient() {
   };
 
   const getNextStage = (curr) => {
-    const order = FIXED_PIPELINE_STAGES.filter((s) => s !== "Rejected");
+    const order = (pipelineStages || []).map((s) => s.id).filter((s) => s !== "Rejected");
     const idx = order.indexOf(curr);
     return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
+  };
+
+  const handleSaveStages = async (newStages, renameMapping) => {
+    try {
+      await saveConfiguredStages(newStages, renameMapping);
+      setConfiguredStages(getAllConfiguredStages());
+      setToast(t(lang, "Stage updated successfully"));
+      if (jobFilter) {
+        loadData();
+      }
+    } catch (e) {
+      setToast(e.message || "Failed to save stages");
+    }
+  };
+
+  const handleResetStages = async () => {
+    try {
+      const res = await resetPipelineStagesToDefault();
+      setConfiguredStages(res);
+      setToast(t(lang, "Pipeline stages restored to default"));
+      if (jobFilter) {
+        loadData();
+      }
+    } catch (e) {
+      setToast(e.message || "Failed to reset stages");
+    }
+  };
+
+  const handleAdvanceRound = async (candidateId) => {
+    try {
+      await advanceCandidateInterviewRound(candidateId);
+      setToast(t(lang, "Candidate advanced to next interview round"));
+      loadData();
+    } catch (e) {
+      setToast(e.message || "Failed to advance interview round");
+    }
+  };
+
+  const handleOpenScheduleModal = (candidate) => {
+    const currentRoundNum = candidate?.interview?.roundNumber || (candidate?.interview?.round?.includes("2") ? 2 : (candidate?.interview?.round?.includes("3") ? 3 : 1));
+    const roundTitles = {
+      1: "Round 1 - Initial Screening / Technical",
+      2: "Round 2 - Panel / Deep Dive",
+      3: "Round 3 - Culture Fit / Final",
+    };
+    setScheduleData({
+      round: candidate?.interview?.roundName || candidate?.interview?.round || roundTitles[currentRoundNum] || "Round 1",
+      roundNumber: currentRoundNum,
+      format: candidate?.interview?.mode || "video",
+      date: candidate?.interview?.at ? new Date(candidate.interview.at).toISOString().split("T")[0] : "",
+      time: "10:00",
+      location: candidate?.interview?.location || "Google Meet",
+      interviewerName: "",
+      interviewerRole: "",
+      notes: "",
+    });
+    setScheduleCandidate(candidate);
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!scheduleCandidate) return;
+    try {
+      await scheduleCandidateInterview(scheduleCandidate.id, scheduleData);
+      setScheduleCandidate(null);
+      setToast(t(lang, "Interview scheduled successfully"));
+      loadData();
+    } catch (err) {
+      setToast(err.message || "Failed to schedule interview");
+    }
   };
 
   const handleMoveStage = async (id, stage, prevStage, explicitReason = null) => {
@@ -459,6 +558,8 @@ export default function CandidatesClient() {
             setViewMode={setViewMode}
             loading={loading}
             loadData={loadData}
+            manage={manage}
+            onOpenStagesModal={isAdmin ? () => setShowStagesModal(true) : null}
           />
 
           {/* ── Filters & Search Toolbar ── */}
@@ -485,6 +586,7 @@ export default function CandidatesClient() {
             viewMode={viewMode}
             handleExportCsv={handleExportCsv}
             isExporting={isExporting}
+            pipelineStages={pipelineStages}
           />
 
           {/* ── Undo Banner (5-minute safety window per EMP-FR-019b) ── */}
@@ -553,6 +655,7 @@ export default function CandidatesClient() {
               getNextStage={getNextStage}
               setConfirmBulk={setConfirmBulk}
               runBulk={runBulk}
+              pipelineStages={pipelineStages}
             />
           )}
 
@@ -571,6 +674,10 @@ export default function CandidatesClient() {
               setNoteDraft={setNoteDraft}
               setShowAiExplain={setShowAiExplain}
               openResumeModal={openResumeModal}
+              pipelineStages={pipelineStages}
+              onOpenStagesModal={isAdmin ? () => setShowStagesModal(true) : null}
+              onOpenScheduleModal={handleOpenScheduleModal}
+              onAdvanceRound={handleAdvanceRound}
             />
           )}
 
@@ -649,6 +756,29 @@ export default function CandidatesClient() {
         docViewerZoom={docViewerZoom}
         setDocViewerZoom={setDocViewerZoom}
         setToast={setToast}
+      />
+
+      {/* ── Stage Customization Modal (Company Admin) ── */}
+      <PipelineStagesModal
+        lang={lang}
+        t={t}
+        isOpen={showStagesModal}
+        onClose={() => setShowStagesModal(false)}
+        configuredStages={configuredStages}
+        onSaveStages={handleSaveStages}
+        onResetStages={handleResetStages}
+      />
+
+      {/* ── Interview Scheduling Modal (2-3 rounds) ── */}
+      <CandidateScheduleModal
+        lang={lang}
+        t={t}
+        scheduleCandidate={scheduleCandidate}
+        setScheduleCandidate={setScheduleCandidate}
+        activeJob={activeJob}
+        scheduleData={scheduleData}
+        setScheduleData={setScheduleData}
+        handleScheduleSubmit={handleScheduleSubmit}
       />
 
       {/* Toast Notification */}

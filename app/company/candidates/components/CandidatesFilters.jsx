@@ -36,7 +36,11 @@ export default function CandidatesFilters({
   viewMode,
   handleExportCsv,
   isExporting,
+  pipelineStages = null,
 }) {
+  const displayStages = Array.isArray(pipelineStages) && pipelineStages.length > 0
+    ? pipelineStages.map((s) => s.id)
+    : FIXED_PIPELINE_STAGES;
   const hasActiveFilters =
     activeStage !== "All" ||
     searchQuery ||
@@ -69,10 +73,10 @@ export default function CandidatesFilters({
           </span>
         </button>
 
-        {FIXED_PIPELINE_STAGES.map((stg) => {
+        {displayStages.map((stg) => {
           const count = stageCounts[stg] || 0;
           const isSelected = activeStage === stg;
-          const color = getStageStyle(stg);
+          const color = getStageStyle(stg, pipelineStages);
 
           return (
             <button

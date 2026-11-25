@@ -1,4 +1,4 @@
-import CompanySettingsClient from "./CompanySettingsClient";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Settings | Company Workspace",
@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <CompanySettingsClient />;
+  redirect("/company/settings/security");
 }

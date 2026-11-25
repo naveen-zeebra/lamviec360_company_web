@@ -33,7 +33,20 @@ const NAV = [
     ],
   },
   { href: "/company/billing", icon: "credit-card", labelKey: "Subscription & Billing", perm: "billing.manage" },
-  { href: "/company/settings", icon: "settings", labelKey: "Settings", perm: "settings.manage" },
+  {
+    href: "/company/settings",
+    icon: "settings",
+    labelKey: "Settings",
+    perm: "settings.manage",
+    children: [
+      { href: "/company/settings/security", labelKey: "Security", icon: "shield-check" },
+      { href: "/company/settings/notifications", labelKey: "Notifications", icon: "bell" },
+      { href: "/company/settings/comms-templates", labelKey: "Candidate Comms & Templates", icon: "mail" },
+      { href: "/company/settings/pipeline-stages", labelKey: "Pipeline Stages", icon: "columns" },
+      { href: "/company/settings/privacy", labelKey: "Privacy & Data", icon: "lock" },
+      { href: "/company/settings/account", labelKey: "Account", icon: "user" },
+    ],
+  },
   { href: "/company/support", icon: "life-buoy", labelKey: "Support & Help", perm: "overview.view" },
 ];
 
@@ -68,14 +81,20 @@ export default function CompanyShell({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsedFlyout, setCollapsedFlyout] = useState(null);
-  const isTeamActive = pathname.startsWith("/company/team") || pathname.startsWith("/company/roles");
-  const [teamExpanded, setTeamExpanded] = useState(isTeamActive);
+  const [expandedMenus, setExpandedMenus] = useState(() => ({
+    "/company/team": pathname.startsWith("/company/team") || pathname.startsWith("/company/roles"),
+    "/company/settings": pathname.startsWith("/company/settings"),
+  }));
 
   useEffect(() => {
-    if (isTeamActive) {
-      setTeamExpanded(true);
-    }
-  }, [pathname, isTeamActive]);
+    setExpandedMenus((prev) => ({
+      ...prev,
+      ...(pathname.startsWith("/company/team") || pathname.startsWith("/company/roles")
+        ? { "/company/team": true }
+        : {}),
+      ...(pathname.startsWith("/company/settings") ? { "/company/settings": true } : {}),
+    }));
+  }, [pathname]);
 
   // Initialize and persist desktop sidebar collapsed preference
   useEffect(() => {
@@ -250,7 +269,9 @@ export default function CompanyShell({ children }) {
         <nav className="flex flex-1 flex-col gap-1" aria-label={t(lang, "Workspace navigation")}>
           {visibleNav.map((n) => {
             const hasChildren = Array.isArray(n.children) && n.children.length > 0;
-            const isChildActive = hasChildren && (pathname === "/company/team" || pathname === "/company/roles");
+            const isChildActive =
+              hasChildren && n.children.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"));
+            const isMenuExpanded = Boolean(expandedMenus[n.href]);
             const active = pathname === n.href || pathname.startsWith(n.href + "/") || isChildActive;
             const navActiveStyle = "bg-brand text-white";
             const navIdleStyle = "text-white/70 hover:bg-white/10 hover:text-white hover:no-underline";
@@ -270,7 +291,7 @@ export default function CompanyShell({ children }) {
                           setCollapsedFlyout({ item: n, top: Math.max(16, rect.top) });
                         }
                       } else {
-                        setTeamExpanded((prev) => !prev);
+                        setExpandedMenus((prev) => ({ ...prev, [n.href]: !prev[n.href] }));
                       }
                     }}
                     onMouseEnter={(e) => {
@@ -283,7 +304,7 @@ export default function CompanyShell({ children }) {
                       ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
                       : "gap-[11px] px-[11px] py-2.5"
                       } ${active ? navActiveStyle : navIdleStyle}`}
-                    aria-expanded={sidebarCollapsed ? Boolean(collapsedFlyout) : teamExpanded}
+                    aria-expanded={sidebarCollapsed ? Boolean(collapsedFlyout) : isMenuExpanded}
                   >
                     <div className="flex items-center gap-[11px] min-w-0">
                       <Icon name={n.icon} size={18} />
@@ -293,7 +314,7 @@ export default function CompanyShell({ children }) {
                     </div>
                     {(!sidebarCollapsed || mobileNavOpen) && (
                       <Icon
-                        name={teamExpanded ? "chevron-down" : "chevron-right"}
+                        name={isMenuExpanded ? "chevron-down" : "chevron-right"}
                         size={14}
                         className="opacity-70 transition-transform shrink-0"
                       />
@@ -301,7 +322,7 @@ export default function CompanyShell({ children }) {
                   </button>
 
                   {/* Submenu for Expanded Sidebar & Mobile Drawer */}
-                  {teamExpanded && (!sidebarCollapsed || mobileNavOpen) && (
+                  {isMenuExpanded && (!sidebarCollapsed || mobileNavOpen) && (
                     <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-white/20 pl-2">
                       {n.children.map((child) => {
                         const childActive = pathname === child.href;
@@ -389,22 +410,7 @@ export default function CompanyShell({ children }) {
           })}
         </nav>
 
-        {/* Public Site Link */}
-        <div className="mt-2 border-t border-white/10 pt-2">
-          <Link
-            href="/employers"
-            prefetch={true}
-            title={sidebarCollapsed ? t(lang, "Public site") : undefined}
-            className={`flex items-center rounded-sm text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors no-underline ${sidebarCollapsed
-              ? "min-[901px]:justify-center min-[901px]:p-2.5 max-[900px]:gap-[11px] max-[900px]:px-[11px] max-[900px]:py-2.5"
-              : "gap-[11px] px-[11px] py-2.5"
-              }`}
-            onClick={() => setMobileNavOpen(false)}
-          >
-            <Icon name="arrow-left" size={18} />
-            {(!sidebarCollapsed || mobileNavOpen) && <span>{t(lang, "Public site")}</span>}
-          </Link>
-        </div>
+
       </aside>
 
       {/* Floating Popover Submenu for Desktop Collapsed Mode (Outside <aside> to avoid overflow clipping) */}

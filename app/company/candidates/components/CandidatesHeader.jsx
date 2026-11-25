@@ -16,6 +16,8 @@ export default function CandidatesHeader({
   setViewMode,
   loading,
   loadData,
+  manage = false,
+  onOpenStagesModal = null,
 }) {
   return (
     <div className="rounded-xl border border-line bg-card p-4 shadow-xs space-y-3">
@@ -62,8 +64,19 @@ export default function CandidatesHeader({
               <Icon name="columns" size={13} />
               {t(lang, "Pipeline Board")}
             </button>
-            
           </div>
+
+          {manage && onOpenStagesModal && (
+            <button
+              type="button"
+              onClick={onOpenStagesModal}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card hover:bg-sunken px-2.5 py-1 text-xs font-bold text-ink transition-colors cursor-pointer shadow-2xs"
+              title={t(lang, "Customize Stages")}
+            >
+              <Icon name="settings" size={13} className="text-muted" />
+              <span>{t(lang, "Customize Stages")}</span>
+            </button>
+          )}
 
           <Button
             variant="ghost"

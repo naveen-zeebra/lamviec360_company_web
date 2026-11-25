@@ -52,6 +52,32 @@ export default function CandidateScheduleModal({
             <label className="block text-xs font-bold text-ink mb-1.5">
               {t(lang, "Interview Title / Round Name")}
             </label>
+            <div className="flex gap-1.5 mb-2">
+              {[
+                { r: 1, name: "Round 1", title: "Round 1 - Initial Screening / Technical" },
+                { r: 2, name: "Round 2", title: "Round 2 - Panel / Deep Dive" },
+                { r: 3, name: "Round 3", title: "Round 3 - Culture Fit / Final" },
+              ].map((rd) => (
+                <button
+                  key={rd.r}
+                  type="button"
+                  onClick={() =>
+                    setScheduleData({
+                      ...scheduleData,
+                      round: rd.title,
+                      roundNumber: rd.r,
+                    })
+                  }
+                  className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                    scheduleData.roundNumber === rd.r || scheduleData.round?.startsWith(rd.name)
+                      ? "bg-purple-100 border-purple-300 text-purple-900 shadow-2xs"
+                      : "bg-sunken border-line text-muted hover:text-ink"
+                  }`}
+                >
+                  {t(lang, rd.name)}
+                </button>
+              ))}
+            </div>
             <input
               type="text"
               required
@@ -59,7 +85,7 @@ export default function CandidateScheduleModal({
               onChange={(e) =>
                 setScheduleData({ ...scheduleData, round: e.target.value })
               }
-              placeholder="e.g. First Round Technical & Product Interview"
+              placeholder="e.g. Round 1 - Technical Interview"
               className="w-full rounded-lg border border-line bg-card p-2.5 text-xs text-ink font-semibold focus:border-brand focus:outline-none"
             />
           </div>

@@ -8,6 +8,85 @@ export const SHORTLIST_PLUS = [
   "Post-Hire Tracking",
 ];
 
+export const COLOR_PRESETS = {
+  blue: {
+    color: "blue",
+    border: "border-t-blue-500",
+    dot: "bg-blue-500",
+    bg: "bg-blue-50 text-blue-700 border-blue-200",
+    dropRing: "ring-2 ring-blue-400 border-blue-400 bg-blue-50/50",
+  },
+  amber: {
+    color: "amber",
+    border: "border-t-amber-500",
+    dot: "bg-amber-500",
+    bg: "bg-amber-50 text-amber-700 border-amber-200",
+    dropRing: "ring-2 ring-amber-400 border-amber-400 bg-amber-50/50",
+  },
+  sky: {
+    color: "sky",
+    border: "border-t-sky-500",
+    dot: "bg-sky-500",
+    bg: "bg-sky-50 text-sky-700 border-sky-200",
+    dropRing: "ring-2 ring-sky-400 border-sky-400 bg-sky-50/50",
+  },
+  indigo: {
+    color: "indigo",
+    border: "border-t-indigo-500",
+    dot: "bg-indigo-500",
+    bg: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    dropRing: "ring-2 ring-indigo-400 border-indigo-400 bg-indigo-50/50",
+  },
+  purple: {
+    color: "purple",
+    border: "border-t-purple-500",
+    dot: "bg-purple-500",
+    bg: "bg-purple-50 text-purple-700 border-purple-200",
+    dropRing: "ring-2 ring-purple-400 border-purple-400 bg-purple-50/50",
+  },
+  teal: {
+    color: "teal",
+    border: "border-t-teal-500",
+    dot: "bg-teal-500",
+    bg: "bg-teal-50 text-teal-700 border-teal-200",
+    dropRing: "ring-2 ring-teal-400 border-teal-400 bg-teal-50/50",
+  },
+  emerald: {
+    color: "emerald",
+    border: "border-t-emerald-500",
+    dot: "bg-emerald-500",
+    bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dropRing: "ring-2 ring-emerald-400 border-emerald-400 bg-emerald-50/50",
+  },
+  cyan: {
+    color: "cyan",
+    border: "border-t-cyan-500",
+    dot: "bg-cyan-500",
+    bg: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    dropRing: "ring-2 ring-cyan-400 border-cyan-400 bg-cyan-50/50",
+  },
+  rose: {
+    color: "rose",
+    border: "border-t-rose-500",
+    dot: "bg-rose-500",
+    bg: "bg-rose-50 text-rose-700 border-rose-200",
+    dropRing: "ring-2 ring-rose-400 border-rose-400 bg-rose-50/50",
+  },
+  gray: {
+    color: "gray",
+    border: "border-t-gray-400",
+    dot: "bg-gray-400",
+    bg: "bg-gray-50 text-gray-600 border-gray-200",
+    dropRing: "ring-2 ring-gray-300 border-gray-300 bg-gray-50/50",
+  },
+};
+
+export const INTERVIEW_ROUNDS = [
+  { round: 1, name: "Round 1", label: "Initial Screening / Technical Interview", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+  { round: 2, name: "Round 2", label: "Panel / Deep Dive Interview", badge: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  { round: 3, name: "Round 3", label: "Culture Fit / Final Interview", badge: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+];
+
 export const PIPELINE_STAGES_CONFIG = [
   {
     id: "Applied",
@@ -18,6 +97,7 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-blue-500",
     bg: "bg-blue-50 text-blue-700 border-blue-200",
     dropRing: "ring-2 ring-blue-400 border-blue-400 bg-blue-50/50",
+    required: true,
   },
   {
     id: "Screening",
@@ -28,6 +108,7 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-amber-500",
     bg: "bg-amber-50 text-amber-700 border-amber-200",
     dropRing: "ring-2 ring-amber-400 border-amber-400 bg-amber-50/50",
+    required: true,
   },
   {
     id: "Phone Screening",
@@ -38,6 +119,7 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-sky-500",
     bg: "bg-sky-50 text-sky-700 border-sky-200",
     dropRing: "ring-2 ring-sky-400 border-sky-400 bg-sky-50/50",
+    required: false,
   },
   {
     id: "Shortlisted",
@@ -48,16 +130,19 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-indigo-500",
     bg: "bg-indigo-50 text-indigo-700 border-indigo-200",
     dropRing: "ring-2 ring-indigo-400 border-indigo-400 bg-indigo-50/50",
+    required: true,
   },
   {
     id: "Interview Scheduled",
     labelKey: "Interview Scheduled",
+    subtitleKey: "2-3 rounds",
     icon: "calendar",
     color: "purple",
     border: "border-t-purple-500",
     dot: "bg-purple-500",
     bg: "bg-purple-50 text-purple-700 border-purple-200",
     dropRing: "ring-2 ring-purple-400 border-purple-400 bg-purple-50/50",
+    required: true,
   },
   {
     id: "Offer Sent",
@@ -68,6 +153,7 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-teal-500",
     bg: "bg-teal-50 text-teal-700 border-teal-200",
     dropRing: "ring-2 ring-teal-400 border-teal-400 bg-teal-50/50",
+    required: true,
   },
   {
     id: "Hired",
@@ -78,6 +164,7 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-emerald-500",
     bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
     dropRing: "ring-2 ring-emerald-400 border-emerald-400 bg-emerald-50/50",
+    required: true,
   },
   {
     id: "Post-Hire Tracking",
@@ -88,6 +175,7 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-cyan-500",
     bg: "bg-cyan-50 text-cyan-700 border-cyan-200",
     dropRing: "ring-2 ring-cyan-400 border-cyan-400 bg-cyan-50/50",
+    required: false,
   },
   {
     id: "Rejected",
@@ -98,6 +186,7 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-rose-500",
     bg: "bg-rose-50 text-rose-700 border-rose-200",
     dropRing: "ring-2 ring-rose-400 border-rose-400 bg-rose-50/50",
+    required: true,
   },
   {
     id: "Withdrawn",
@@ -108,8 +197,36 @@ export const PIPELINE_STAGES_CONFIG = [
     dot: "bg-gray-400",
     bg: "bg-gray-50 text-gray-600 border-gray-200",
     dropRing: "ring-2 ring-gray-300 border-gray-300 bg-gray-50/50",
+    required: false,
   },
 ];
+
+export function resolvePipelineConfig(configuredStages) {
+  if (!Array.isArray(configuredStages) || configuredStages.length === 0) {
+    return PIPELINE_STAGES_CONFIG;
+  }
+  const colorKeys = Object.keys(COLOR_PRESETS);
+  return configuredStages
+    .filter((s) => s.enabled !== false)
+    .map((s, idx) => {
+      const id = s.label || s.id;
+      const basePreset = COLOR_PRESETS[s.color] || COLOR_PRESETS[colorKeys[idx % colorKeys.length]] || COLOR_PRESETS.blue;
+      return {
+        id,
+        labelKey: s.label || s.id,
+        subtitleKey: (s.id === "interview_scheduled" || s.label?.toLowerCase().includes("interview")) ? "2-3 rounds" : undefined,
+        icon: s.icon || (id.toLowerCase().includes("interview") ? "calendar" : id.toLowerCase().includes("screen") ? "search" : id.toLowerCase().includes("offer") ? "mail-check" : id.toLowerCase().includes("hire") ? "badge-check" : id.toLowerCase().includes("reject") ? "x-circle" : "inbox"),
+        color: s.color || basePreset.color,
+        border: basePreset.border,
+        dot: basePreset.dot,
+        bg: basePreset.bg,
+        dropRing: basePreset.dropRing,
+        required: Boolean(s.required),
+        isCustom: Boolean(s.isCustom),
+        description: s.description || "",
+      };
+    });
+}
 
 export const FIXED_PIPELINE_STAGES = PIPELINE_STAGES_CONFIG.map((s) => s.id);
 
@@ -135,7 +252,19 @@ export const STAGE_COLORS = Object.fromEntries(
   ])
 );
 
-export function getStageStyle(stage) {
+export function getStageStyle(stage, pipelineConfig = null) {
+  if (Array.isArray(pipelineConfig)) {
+    const found = pipelineConfig.find((c) => c.id === stage || c.labelKey === stage);
+    if (found) {
+      return {
+        bg: found.bg,
+        dot: found.dot,
+        border: found.border,
+        icon: found.icon,
+        dropRing: found.dropRing,
+      };
+    }
+  }
   return (
     STAGE_COLORS[stage] || {
       bg: "bg-slate-50 text-slate-700 border-slate-200",

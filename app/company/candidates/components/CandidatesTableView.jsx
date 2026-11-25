@@ -37,7 +37,11 @@ export default function CandidatesTableView({
   getNextStage,
   setConfirmBulk,
   runBulk,
+  pipelineStages = null,
 }) {
+  const displayStages = Array.isArray(pipelineStages) && pipelineStages.length > 0
+    ? pipelineStages.map((s) => s.id)
+    : FIXED_PIPELINE_STAGES;
   const isPageSelected =
     candidates.length > 0 && candidates.every((c) => selected.includes(c.id));
 
@@ -130,7 +134,7 @@ export default function CandidatesTableView({
                 <option value="" disabled>
                   {t(lang, "Bulk Move to Stage…")}
                 </option>
-                {FIXED_PIPELINE_STAGES.map((s) => (
+                {displayStages.map((s) => (
                   <option key={s} value={s}>
                     {t(lang, s)}
                   </option>
@@ -344,7 +348,7 @@ export default function CandidatesTableView({
                             aria-label={`Change stage for ${c.name}`}
                             className="rounded-lg border border-line bg-card px-2.5 py-1 text-xs font-semibold text-ink shadow-xs focus:border-brand focus:outline-none"
                           >
-                            {FIXED_PIPELINE_STAGES.map((s) => (
+                            {displayStages.map((s) => (
                               <option key={s} value={s}>
                                 {t(lang, s)}
                               </option>

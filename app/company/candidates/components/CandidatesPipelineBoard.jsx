@@ -24,11 +24,19 @@ export default function CandidatesPipelineBoard({
   setNoteDraft,
   setShowAiExplain,
   openResumeModal,
+  pipelineStages = null,
+  onOpenStagesModal = null,
+  onOpenScheduleModal = null,
+  onAdvanceRound = null,
 }) {
   const [collapsedColumns, setCollapsedColumns] = useState({});
   const [columnLimits, setColumnLimits] = useState({});
   const [draggingCandidateId, setDraggingCandidateId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
+
+  const displayStages = Array.isArray(pipelineStages) && pipelineStages.length > 0
+    ? pipelineStages
+    : PIPELINE_STAGES_CONFIG;
 
   const handleDragStart = (e, candidate) => {
     if (!manage) return;
@@ -106,16 +114,29 @@ export default function CandidatesPipelineBoard({
           <span className="text-line-strong">·</span>
           <span>{activeJob?.title}</span>
         </div>
-        {manage && (
-          <span className="inline-flex items-center gap-1 text-[11px] bg-brand-subtle text-brand px-2.5 py-0.5 rounded-full font-bold">
-            <Icon name="grip-vertical" size={12} />
-            {t(lang, "Drag & Drop Enabled")}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {manage && onOpenStagesModal && (
+            <button
+              type="button"
+              onClick={onOpenStagesModal}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card hover:bg-sunken px-2.5 py-1 text-xs font-bold text-ink transition-colors cursor-pointer shadow-2xs"
+              title={t(lang, "Customize Stages")}
+            >
+              <Icon name="settings" size={13} className="text-muted" />
+              <span>{t(lang, "Customize Stages")}</span>
+            </button>
+          )}
+          {manage && (
+            <span className="inline-flex items-center gap-1 text-[11px] bg-brand-subtle text-brand px-2.5 py-0.5 rounded-full font-bold">
+              <Icon name="grip-vertical" size={12} />
+              {t(lang, "Drag & Drop Enabled")}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-6 pt-1 scrollbar-thin">
-        {PIPELINE_STAGES_CONFIG.map((colConfig) => {
+        {displayStages.map((colConfig) => {
           const stg = colConfig.id;
           const isCollapsed = collapsedColumns[stg];
           const stageItems = candidates.filter((c) => c.stage === stg);
@@ -177,12 +198,19 @@ export default function CandidatesPipelineBoard({
                   >
                     <Icon name={colConfig.icon} size={13} />
                   </span>
-                  <h3
-                    className="text-xs font-black uppercase tracking-wider text-ink truncate"
-                    title={t(lang, colConfig.labelKey)}
-                  >
-                    {t(lang, colConfig.labelKey)}
-                  </h3>
+                  <div className="min-w-0">
+                    <h3
+                      className="text-xs font-black uppercase tracking-wider text-ink truncate"
+                      title={t(lang, colConfig.labelKey)}
+                    >
+                      {t(lang, colConfig.labelKey)}
+                    </h3>
+                    {colConfig.subtitleKey && (
+                      <span className="block text-[10px] text-purple-700 font-semibold leading-none mt-0.5">
+                        ({t(lang, colConfig.subtitleKey)})
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span
@@ -311,6 +339,57 @@ export default function CandidatesPipelineBoard({
                             {c.experienceYears} {t(lang, "yrs exp")}
                           </span>
                         </div>
+
+                        {/* Interview Rounds & Status Badge (2-3 rounds tracking) */}
+                        {(c.stage === "Interview Scheduled" || c.interview) && (
+                          <div className="flex items-center justify-between gap-1.5 pt-1 text-[11px] bg-purple-50/70 border border-purple-100 rounded-lg p-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-purple-200/80 text-purple-800 shrink-0 font-bold text-[10px]">
+                                <Icon name="calendar" size={11} />
+                              </span>
+                              <div className="min-w-0">
+                                <span className="block font-bold text-purple-900 text-[11px] truncate">
+                                  {c.interview?.round || "Round 1"}
+                                </span>
+                                {c.interview?.at && (
+                                  <span className="block text-[10px] text-purple-700/80 truncate">
+                                    {new Date(c.interview.at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              {manage && onOpenScheduleModal && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenScheduleModal(c);
+                                  }}
+                                  className="p-1 rounded text-purple-700 hover:text-purple-900 hover:bg-purple-100 transition-colors cursor-pointer"
+                                  title={t(lang, "Schedule / Edit Interview")}
+                                >
+                                  <Icon name="calendar-plus" size={12} />
+                                </button>
+                              )}
+                              {manage && onAdvanceRound && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAdvanceRound(c.id);
+                                  }}
+                                  className="inline-flex items-center gap-0.5 rounded bg-purple-600 hover:bg-purple-700 text-white px-1.5 py-0.5 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                                  title={t(lang, "Advance to Next Round")}
+                                >
+                                  <span>{t(lang, "Advance")}</span>
+                                  <Icon name="chevron-right" size={10} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Footer: View PDF & Stage Selector */}
                         <div className="mt-1 flex items-center justify-between gap-2 border-t border-line/60 pt-2 text-[11px]">
