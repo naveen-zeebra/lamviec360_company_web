@@ -31,7 +31,7 @@ export default function CandidatesHeader({
             className="group inline-flex items-center gap-1.5 rounded-lg border border-line bg-sunken/60 px-3 py-1.5 font-bold text-ink hover:border-brand/40 hover:text-brand hover:bg-card transition-all cursor-pointer shadow-2xs text-xs"
           >
             <Icon name="arrow-left" size={13} className="group-hover:-translate-x-0.5 transition-transform" />
-            <span>{tr(lang, "← Tất cả vị trí", "← All Jobs")}</span>
+            <span>{tr(lang, "Tất cả vị trí", "All Jobs")}</span>
           </button>
         </div>
 

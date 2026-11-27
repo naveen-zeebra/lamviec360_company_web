@@ -128,7 +128,7 @@ export default function CandidateDetailDrawer({
       try {
         const parsed = JSON.parse(rawList);
         if (Array.isArray(parsed)) qList = parsed;
-      } catch {}
+      } catch { }
     }
     for (const item of qList) {
       if (item && item.id) {
@@ -220,6 +220,23 @@ export default function CandidateDetailDrawer({
                   >
                     ★ {cand.matchScore}% Match
                   </span>
+                  {cand.isStalled && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[11px] font-bold text-amber-900">
+                      <Icon name="alert-triangle" size={11} />
+                      {lang === "VN" || lang === "VI"
+                        ? `Tồn đọng (${cand.daysInStage} ngày)`
+                        : `Stalled (${cand.daysInStage}d)`}
+                    </span>
+                  )}
+                  {cand.profileSnapshot && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                      title={t(lang, "Frozen candidate profile snapshot captured at application time")}
+                    >
+                      <Icon name="lock" size={10} />
+                      {t(lang, "Submitted Snapshot")}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-muted font-medium mt-0.5 truncate">
                   {cand.headline ? (
@@ -252,11 +269,11 @@ export default function CandidateDetailDrawer({
                   }`,
                 icon: "shield",
               },
-              {
-                key: "answers",
-                label: t(lang, "Screening Answers"),
-                icon: "help-circle",
-              },
+              // {
+              //   key: "answers",
+              //   label: t(lang, "Screening Answers"),
+              //   icon: "help-circle",
+              // },
               {
                 key: "messages",
                 label: `${t(lang, "Direct Messages")}${(cand.unread_dm_count || 0) > 0 ? ` (${cand.unread_dm_count})` : ""}`,
@@ -304,12 +321,12 @@ export default function CandidateDetailDrawer({
                 {(() => {
                   let rawAnswers = cand.answers;
                   if (typeof rawAnswers === "string") {
-                    try { rawAnswers = JSON.parse(rawAnswers); } catch (e) {}
+                    try { rawAnswers = JSON.parse(rawAnswers); } catch (e) { }
                   }
 
                   let rawQuestions = cand.questions || activeJob?.questions || [];
                   if (typeof rawQuestions === "string") {
-                    try { rawQuestions = JSON.parse(rawQuestions); } catch (e) {}
+                    try { rawQuestions = JSON.parse(rawQuestions); } catch (e) { }
                   }
                   const qMap = {};
                   if (Array.isArray(rawQuestions)) {
@@ -537,10 +554,10 @@ export default function CandidateDetailDrawer({
                 const portfolioList = Array.isArray(cand.portfolio?.items)
                   ? cand.portfolio.items
                   : Array.isArray(cand.portfolioItems)
-                  ? cand.portfolioItems
-                  : Array.isArray(cand.projects)
-                  ? cand.projects
-                  : [];
+                    ? cand.portfolioItems
+                    : Array.isArray(cand.projects)
+                      ? cand.projects
+                      : [];
                 const hasSingleLinkOrFile = !!(cand.portfolio?.url || cand.portfolioUrl || cand.portfolio?.fileName || cand.portfolioFileName);
 
                 if (portfolioList.length === 0 && !hasSingleLinkOrFile) return null;
@@ -983,9 +1000,8 @@ export default function CandidateDetailDrawer({
                   {/* Account Policy Header */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-line">
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
-                        allowDm ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
-                      }`}>
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${allowDm ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
+                        }`}>
                         <Icon name={allowDm ? "message-square" : "lock"} size={20} />
                       </div>
                       <div>
@@ -999,11 +1015,10 @@ export default function CandidateDetailDrawer({
                         </p>
                       </div>
                     </div>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${
-                      allowDm
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-slate-100 text-slate-600 border-slate-200"
-                    }`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${allowDm
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-slate-100 text-slate-600 border-slate-200"
+                      }`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${allowDm ? "bg-emerald-500" : "bg-slate-400"}`} />
                       {allowDm ? t(lang, "Messaging Allowed") : t(lang, "Disabled by Candidate Policy")}
                     </span>
@@ -1037,11 +1052,10 @@ export default function CandidateDetailDrawer({
                             className={`flex flex-col ${isRecruiter ? "items-end" : "items-start"}`}
                           >
                             <div
-                              className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-2xs ${
-                                isRecruiter
-                                  ? "bg-brand text-white rounded-br-sm"
-                                  : "bg-sunken border border-line text-ink rounded-bl-sm"
-                              }`}
+                              className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-2xs ${isRecruiter
+                                ? "bg-brand text-white rounded-br-sm"
+                                : "bg-sunken border border-line text-ink rounded-bl-sm"
+                                }`}
                             >
                               <div className={`text-[10px] font-bold mb-1 ${isRecruiter ? "text-white/80" : "text-muted"}`}>
                                 {m.sender_name} · {m.created_at ? new Date(m.created_at).toLocaleString() : ""}
@@ -1214,7 +1228,7 @@ export default function CandidateDetailDrawer({
           onSuccess={() => {
             getApplicantVerificationDocuments(cand.id, cand.name)
               .then((docs) => setVerificationDocs(docs || []))
-              .catch(() => {});
+              .catch(() => { });
           }}
           lang={lang}
           t={t}

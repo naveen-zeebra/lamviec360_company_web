@@ -37,6 +37,8 @@ export default function CandidatesFilters({
   handleExportCsv,
   isExporting,
   pipelineStages = null,
+  stalledOnly = false,
+  setStalledOnly = null,
 }) {
   const displayStages = Array.isArray(pipelineStages) && pipelineStages.length > 0
     ? pipelineStages.map((s) => s.id)
@@ -46,6 +48,7 @@ export default function CandidatesFilters({
     searchQuery ||
     minScoreFilter !== "0" ||
     expFilter !== "all" ||
+    stalledOnly ||
     sortBy !== "date";
 
   return (
@@ -210,6 +213,30 @@ export default function CandidatesFilters({
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {/* OTH-FR-009: Bottleneck Stalled Filter Toggle */}
+            {setStalledOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStalledOnly(!stalledOnly);
+                  setPage(1);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                  stalledOnly
+                    ? "border-amber-500 bg-amber-500 text-white shadow-xs"
+                    : "border-amber-200 bg-amber-50/70 text-amber-800 hover:bg-amber-100"
+                }`}
+                title={t(lang, "Show candidates stuck in current stage longer than SLA threshold")}
+              >
+                <Icon name="alert-triangle" size={12} />
+                <span>
+                  {lang === "VN" || lang === "VI"
+                    ? `Tồn đọng (>${stageCounts.stalled_threshold_days || 7} ngày)`
+                    : `Stalled (>${stageCounts.stalled_threshold_days || 7}d)`}
+                </span>
+              </button>
+            )}
+
             {/* Export CSV Button */}
             <Button
               variant="secondary"

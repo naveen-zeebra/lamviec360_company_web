@@ -87,6 +87,7 @@ const EMPTY = {
   overtimeWillingness: "",
   projectWorkReqs: "",
   questions: [],
+  allowReapplication: false,
   aiGenerated: false,
   status: "published",
 };
@@ -266,6 +267,7 @@ function normalizeJobData(data) {
           : []),
     description: data.description || data.jd || "",
     status: (data.status || "published").toLowerCase(),
+    allowReapplication: Boolean(data.allowReapplication ?? data.allow_reapplication ?? false),
     aiGenerated: Boolean(data.aiGenerated || data.ai_generated),
   };
 }
@@ -1839,6 +1841,36 @@ function JobForm({ mode, jobId }) {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Reapplication Policy Toggle (OTH-FR-001) */}
+          <div className="mt-6 rounded-xl border border-line bg-card p-5 shadow-2xs">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+                  <Icon name="refresh-cw" size={16} className="text-brand" />
+                  {lang === "VN" || lang === "VI"
+                    ? "Quy định nộp lại hồ sơ (Reapplication Policy)"
+                    : "Reapplication Eligibility Setting"}
+                </h3>
+                <p className="text-xs text-muted mt-1">
+                  {lang === "VN" || lang === "VI"
+                    ? "Cho phép ứng viên đã rút đơn hoặc từng bị từ chối nộp lại hồ sơ ngay cho tin tuyển dụng này (mặc định: tắt, áp dụng thời gian chờ nền tảng)."
+                    : "Allow previously withdrawn or rejected candidates to reapply immediately to this posting (default: off, enforces platform cooldown)."}
+                </p>
+              </div>
+              <Check
+                label={
+                  <span className="text-xs font-bold text-ink">
+                    {lang === "VN" || lang === "VI"
+                      ? "Cho phép ứng viên nộp lại hồ sơ"
+                      : "Allow candidates to reapply"}
+                  </span>
+                }
+                checked={Boolean(form.allowReapplication)}
+                onChange={() => set("allowReapplication", !form.allowReapplication)}
+              />
             </div>
           </div>
 

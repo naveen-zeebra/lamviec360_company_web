@@ -6,8 +6,9 @@ import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import Icon from "../../../components/ds/Icon";
 import { Button } from "../../../components/ds";
+import Toast, { useToast } from "../../../components/ds/Toast";
 import { useLang, t } from "../../../utils/lang";
-import { getCompany, setApprovalStatus } from "../../../lib/companyStore";
+import { getCompany, syncCompanyWithBackend } from "../../../lib/companyStore";
 
 const STEPS = [
   { icon: "mail-check", title: "Email verified", desc: "Your work email is confirmed." },
@@ -19,6 +20,8 @@ export default function CompanyPendingApprovalClient() {
   const [lang, setLang] = useLang();
   const router = useRouter();
   const [company, setCompany] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [toast, setToast] = useToast();
 
   useEffect(() => {
     setCompany(getCompany());
@@ -26,9 +29,23 @@ export default function CompanyPendingApprovalClient() {
 
   const approved = company && company.approvalStatus === "approved";
 
-  const simulateApproval = () => {
-    setApprovalStatus("approved");
-    setCompany(getCompany());
+  const handleCheckStatus = async () => {
+    setChecking(true);
+    try {
+      await syncCompanyWithBackend(true);
+      const latest = getCompany();
+      setCompany(latest);
+      if (latest?.approvalStatus === "approved") {
+        setToast(t(lang, "Your company is approved! Redirecting..."));
+        setTimeout(() => router.push("/company/overview"), 600);
+      } else {
+        setToast(t(lang, "Still under review. Please check back shortly."));
+      }
+    } catch {
+      setToast(t(lang, "Unable to refresh status right now."));
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -86,12 +103,15 @@ export default function CompanyPendingApprovalClient() {
               </Button>
             ) : (
               <>
+                <Button variant="primary" size="lg" style={{ width: "100%", justifyContent: "center" }} onClick={handleCheckStatus} disabled={checking}>
+                  <Icon name="refresh-cw" size={16} className={checking ? "animate-spin" : ""} />
+                  {checking ? t(lang, "Checking status...") : t(lang, "Check Approval Status")}
+                </Button>
                 <Link href="/employer-login">
                   <Button variant="secondary" size="lg" style={{ width: "100%", justifyContent: "center" }}>
                     {t(lang, "Back to sign in")}
                   </Button>
                 </Link>
-
               </>
             )}
           </div>
@@ -102,6 +122,7 @@ export default function CompanyPendingApprovalClient() {
         </div>
       </main>
       <Footer lang={lang} setLang={setLang} app="employer" />
+      <Toast msg={toast} />
     </>
   );
 }

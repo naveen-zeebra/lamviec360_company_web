@@ -131,11 +131,24 @@ export default function CompanyRegisterClient() {
           logo: values.logo || "",
           description: values.description?.trim() || "",
         });
-        const vCode = regRes?.data?.verification_code || regRes?.verification_code;
-        if (vCode && typeof window !== "undefined") {
-          localStorage.setItem("lv360_company_dev_otp", vCode);
+        const vCode = regRes?.data?.verification_code || regRes?.verification_code || regRes?.data?.dev_code;
+        if (typeof window !== "undefined") {
+          if (vCode) {
+            localStorage.setItem("lv360_company_dev_otp", vCode);
+          } else {
+            localStorage.removeItem("lv360_company_dev_otp");
+          }
+          if (regRes?.data?.email_delivered === false && regRes?.data?.warning) {
+            localStorage.setItem("lv360_company_email_warning", regRes.data.warning);
+          } else {
+            localStorage.removeItem("lv360_company_email_warning");
+          }
         }
-        setToast(t(lang, "Sending a verification code…"));
+        setToast(
+          regRes?.data?.email_delivered === false
+            ? regRes?.data?.warning || t(lang, "Verification code logged in local console.")
+            : t(lang, "Sending a verification code…")
+        );
         setTimeout(() => router.push(`/company-verify-email?email=${encodeURIComponent(values.email.trim())}`), 700);
       } catch (error) {
         setStatus(error.message || t(lang, "An account with this work email already exists."));

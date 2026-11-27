@@ -9,7 +9,7 @@ import Icon from "../../../components/ds/Icon";
 import { Button } from "../../../components/ds";
 import OtpInput from "../../../components/ds/OtpInput";
 import Toast, { useToast } from "../../../components/ds/Toast";
-import { useLang, t } from "../../../utils/lang";
+import { useLang, t, tr } from "../../../utils/lang";
 import { getCompany, getAuth, verifyCompanyEmail, resendVerificationCode } from "../../../lib/companyStore";
 
 const RESEND_SECONDS = 45;
@@ -24,17 +24,21 @@ export default function CompanyVerifyEmailClient() {
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [toast, setToast] = useToast();
   const [devCode, setDevCode] = useState("");
+  const [deliveryWarning, setDeliveryWarning] = useState("");
 
   useEffect(() => {
     let storedEmail = "";
     let storedOtp = "";
+    let storedWarning = "";
     if (typeof window !== "undefined") {
       storedEmail = localStorage.getItem("lv360_company_email") || "";
       storedOtp = localStorage.getItem("lv360_company_dev_otp") || "";
+      storedWarning = localStorage.getItem("lv360_company_email_warning") || "";
     }
     const target = queryEmail || storedEmail || getAuth().email || getCompany().email || "";
     setEmail(target);
     if (storedOtp) setDevCode(storedOtp);
+    if (storedWarning) setDeliveryWarning(storedWarning);
   }, [queryEmail]);
 
   useEffect(() => {
@@ -58,6 +62,10 @@ export default function CompanyVerifyEmailClient() {
       setStatus(null);
       try {
         await verifyCompanyEmail(email, values.code.trim());
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("lv360_company_dev_otp");
+          localStorage.removeItem("lv360_company_email_warning");
+        }
         setToast(t(lang, "Work email verified successfully!"));
         setTimeout(() => router.push("/company-pending-approval"), 800);
       } catch (error) {
@@ -72,16 +80,37 @@ export default function CompanyVerifyEmailClient() {
     setSeconds(RESEND_SECONDS);
     try {
       const res = await resendVerificationCode(email);
-      const code = res?.data?.dev_code || res?.dev_code;
-      if (code) {
+      const payload = res?.data || res || {};
+      const code = payload.dev_code || "";
+      if (payload.email_delivered === false) {
+        const warnMsg =
+          payload.warning ||
+          tr(
+            lang,
+            "Không thể gửi email thực lúc này; mã xác thực đã được ghi vào console backend ở chế độ local.",
+            "Email delivery is unavailable right now; verification code was logged to the backend console in local mode."
+          );
+        setDeliveryWarning(warnMsg);
         setDevCode(code);
         if (typeof window !== "undefined") {
-          localStorage.setItem("lv360_company_dev_otp", code);
+          localStorage.setItem("lv360_company_email_warning", warnMsg);
+          if (code) localStorage.setItem("lv360_company_dev_otp", code);
         }
+        setToast(warnMsg);
+      } else {
+        setDeliveryWarning("");
+        setDevCode("");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("lv360_company_email_warning");
+          localStorage.removeItem("lv360_company_dev_otp");
+        }
+        setToast(t(lang, "A new verification code has been sent to your email"));
       }
-      setToast(t(lang, "A new verification code has been sent to your email"));
     } catch (e) {
-      setToast(t(lang, e.message || "Failed to resend code"));
+      setSeconds(0);
+      const msg = e.message || t(lang, "Failed to resend code");
+      setDeliveryWarning(msg);
+      setToast(msg);
     }
   };
 
@@ -100,7 +129,6 @@ export default function CompanyVerifyEmailClient() {
             <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
               {t(lang, "We sent a 6-digit code to")} <strong>{email || t(lang, "your work email")}</strong>.
             </p>
-
           </div>
 
           <form onSubmit={formik.handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>

@@ -48,11 +48,32 @@ export default function CandidatesClient() {
   const [lang] = useLang();
   const params = useSearchParams();
   const jobParam = params.get("job") || "";
+  const viewParam = params.get("view");
 
   // Core state
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState("table"); // 'table' | 'pipeline'
+  const [viewMode, setViewModeState] = useState(() => {
+    if (viewParam === "pipeline" || viewParam === "table") return viewParam;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("lv360_candidates_view_mode");
+        if (saved === "pipeline" || saved === "table") return saved;
+      } catch (_) {}
+    }
+    return "table";
+  });
+  const setViewMode = (mode) => {
+    setViewModeState(mode);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("lv360_candidates_view_mode", mode);
+      } catch (_) {}
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", mode);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
   const [role, setRole] = useState("Viewer");
 
   // Selection & Active Filters
@@ -77,8 +98,15 @@ export default function CandidatesClient() {
     "Offer Sent": 0,
     Hired: 0,
     "Post-Hire Tracking": 0,
+    "On Hold": 0,
     Rejected: 0,
+    Withdrawn: 0,
+    shortlist_min: 5,
+    shortlist_max: 10,
+    stalled_threshold_days: 7,
   });
+
+  const [stalledOnly, setStalledOnly] = useState(false);
 
   const [pagination, setPagination] = useState({
     total: 0,
@@ -218,6 +246,7 @@ export default function CandidatesClient() {
         minScore: minScoreFilter !== "0" ? Number(minScoreFilter) : null,
         minExperience: minExp,
         maxExperience: maxExp,
+        stalledOnly,
         page,
         pageSize: Number(pageSize),
       });
@@ -231,7 +260,7 @@ export default function CandidatesClient() {
     } finally {
       setLoading(false);
     }
-  }, [jobFilter, activeStage, debouncedSearch, sortBy, minScoreFilter, expFilter, page, pageSize]);
+  }, [jobFilter, activeStage, debouncedSearch, sortBy, minScoreFilter, expFilter, stalledOnly, page, pageSize]);
 
   useEffect(() => {
     if (ready && jobFilter) {
@@ -514,6 +543,7 @@ export default function CandidatesClient() {
     setSearchQuery("");
     setMinScoreFilter("0");
     setExpFilter("all");
+    setStalledOnly(false);
     setSortBy("date");
     setPage(1);
   };
@@ -587,7 +617,43 @@ export default function CandidatesClient() {
             handleExportCsv={handleExportCsv}
             isExporting={isExporting}
             pipelineStages={pipelineStages}
+            stalledOnly={stalledOnly}
+            setStalledOnly={setStalledOnly}
           />
+
+          {/* ── OTH-FR-005: Advisory Shortlist Size Guidance ── */}
+          {(() => {
+            const minRec = stageCounts.shortlist_min || 5;
+            const maxRec = stageCounts.shortlist_max || 10;
+            const shortlistedCnt = stageCounts.Shortlisted || 0;
+            const isAboveRange = shortlistedCnt > maxRec;
+            const inRange = shortlistedCnt >= minRec && shortlistedCnt <= maxRec;
+            return (
+              <div
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5 text-xs ${
+                  isAboveRange
+                    ? "border-amber-200 bg-amber-50/70 text-amber-900"
+                    : inRange
+                      ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
+                      : "border-blue-100 bg-blue-50/60 text-blue-900"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon name={inRange ? "check-circle" : "info"} size={15} className="shrink-0" />
+                  <span>
+                    <strong>
+                      {lang === "VN" || lang === "VI" ? "Gợi ý danh sách rút gọn (Shortlist):" : "Recommended Shortlist Size:"}
+                    </strong>{" "}
+                    {minRec}–{maxRec} {lang === "VN" || lang === "VI" ? "ứng viên / vị trí (tham khảo)." : "candidates per position (advisory guidance)."}
+                  </span>
+                </div>
+                <span className="font-bold">
+                  {lang === "VN" || lang === "VI" ? "Hiện tại trong Shortlisted:" : "Currently Shortlisted:"}{" "}
+                  <span className="rounded-md bg-white/80 px-2 py-0.5 border border-current/15">{shortlistedCnt}</span>
+                </span>
+              </div>
+            );
+          })()}
 
           {/* ── Undo Banner (5-minute safety window per EMP-FR-019b) ── */}
           {undo && (

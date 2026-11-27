@@ -340,6 +340,17 @@ export default function CandidatesPipelineBoard({
                           </span>
                         </div>
 
+                        {c.isStalled && (
+                          <div className="inline-flex items-center gap-1.5 self-start rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                            <Icon name="alert-triangle" size={11} className="text-amber-600 shrink-0" />
+                            <span>
+                              {lang === "VN" || lang === "VI"
+                                ? `Tồn đọng (${c.daysInStage} ngày ở giai đoạn này)`
+                                : `Stalled (${c.daysInStage}d in stage)`}
+                            </span>
+                          </div>
+                        )}
+
                         {/* Interview Rounds & Status Badge (2-3 rounds tracking) */}
                         {(c.stage === "Interview Scheduled" || c.interview) && (
                           <div className="flex items-center justify-between gap-1.5 pt-1 text-[11px] bg-purple-50/70 border border-purple-100 rounded-lg p-2">

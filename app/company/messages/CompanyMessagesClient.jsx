@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import RequirePermission from "../../../components/company/RequirePermission";
@@ -33,6 +33,8 @@ export default function CompanyMessagesClient() {
   const [loadingChat, setLoadingChat] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [mobilePane, setMobilePane] = useState(initialAppId ? "chat" : "list");
+  const messagesEndRef = useRef(null);
 
   const loadThreads = async () => {
     setLoadingThreads(true);
@@ -77,6 +79,10 @@ export default function CompanyMessagesClient() {
       loadThreadDetail(selectedAppId);
     }
   }, [selectedAppId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [messages.length, selectedAppId]);
 
   const filteredThreads = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -134,7 +140,7 @@ export default function CompanyMessagesClient() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 rounded-2xl border border-line bg-card shadow-xs overflow-hidden min-h-[600px]">
           {/* Thread list */}
-          <div className="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-line flex flex-col">
+          <div className={`${mobilePane === "chat" ? "hidden lg:flex" : "flex"} lg:col-span-4 border-b lg:border-b-0 lg:border-r border-line flex-col`}>
             <div className="p-3.5 border-b border-line bg-sunken/30">
               <div className="relative">
                 <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -166,7 +172,10 @@ export default function CompanyMessagesClient() {
                     <button
                       key={th.application_id}
                       type="button"
-                      onClick={() => setSelectedAppId(th.application_id)}
+                      onClick={() => {
+                        setSelectedAppId(th.application_id);
+                        setMobilePane("chat");
+                      }}
                       className={`w-full text-left p-3.5 flex items-start gap-3 transition-colors cursor-pointer ${
                         isSelected ? "bg-brand/5 border-l-4 border-l-brand" : "hover:bg-sunken/40"
                       }`}
@@ -203,7 +212,7 @@ export default function CompanyMessagesClient() {
           </div>
 
           {/* Active thread pane */}
-          <div className="lg:col-span-8 flex flex-col bg-card">
+          <div className={`${mobilePane === "list" ? "hidden lg:flex" : "flex"} lg:col-span-8 flex-col bg-card`}>
             {!selectedAppId || !activeThread ? (
               <div className="flex-1 flex flex-col items-center justify-center p-10 text-center text-muted text-xs">
                 <Icon name="message-square" size={32} className="mb-2 text-muted/40" />
@@ -214,6 +223,14 @@ export default function CompanyMessagesClient() {
                 {/* Header */}
                 <div className="p-4 border-b border-line flex flex-wrap items-center justify-between gap-3 bg-sunken/20">
                   <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setMobilePane("list")}
+                      className="lg:hidden inline-flex items-center gap-1 rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-sunken cursor-pointer shrink-0"
+                    >
+                      <Icon name="arrow-left" size={14} />
+                      <span>{t(lang, "Back")}</span>
+                    </button>
                     <Avatar name={activeThread.candidate_name} size={40} />
                     <div className="min-w-0">
                       <h2 className="text-sm font-black text-ink truncate">{activeThread.candidate_name}</h2>
@@ -265,6 +282,7 @@ export default function CompanyMessagesClient() {
                       );
                     })
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Composer */}

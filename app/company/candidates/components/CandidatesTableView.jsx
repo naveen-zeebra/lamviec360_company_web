@@ -305,7 +305,15 @@ export default function CandidatesTableView({
                             </button>
                             <div className="flex items-center gap-2 text-[11px] text-muted truncate">
                               {displayEmail && <span>{displayEmail}</span>}
-
+                              {c.isStalled && (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 shrink-0"
+                                  title={t(lang, "Candidate exceeded stage SLA threshold")}
+                                >
+                                  <Icon name="alert-triangle" size={10} />
+                                  {lang === "VN" || lang === "VI" ? `Chờ ${c.daysInStage}d` : `Stalled ${c.daysInStage}d`}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

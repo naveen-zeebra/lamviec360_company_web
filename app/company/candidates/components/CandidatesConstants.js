@@ -178,6 +178,17 @@ export const PIPELINE_STAGES_CONFIG = [
     required: false,
   },
   {
+    id: "On Hold",
+    labelKey: "On Hold",
+    icon: "pause-circle",
+    color: "amber",
+    border: "border-t-amber-500",
+    dot: "bg-amber-500",
+    bg: "bg-amber-50 text-amber-700 border-amber-200",
+    dropRing: "ring-2 ring-amber-400 border-amber-400 bg-amber-50/50",
+    required: false,
+  },
+  {
     id: "Rejected",
     labelKey: "Rejected",
     icon: "x-circle",

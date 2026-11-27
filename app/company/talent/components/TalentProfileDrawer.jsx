@@ -49,16 +49,17 @@ export default function TalentProfileDrawer({
   if (!isOpen || !candidateSummary) return null;
 
   const cand = profileData || candidateSummary;
-  const isContactApproved = !!cand.is_contact_approved || cand.contact_status === "approved";
   const allowMessaging = cand.allows_messaging !== false && cand.allow_unsolicited_messages !== false;
   const displayTitle = cand.headline || cand.title || (isVi ? "Chuyên viên" : "Professional");
-  const displayEmail = cand.email || cand.unmasked_email || (isVi ? "Chưa cung cấp email" : "Email not provided");
-  const displayPhone = cand.phone || cand.unmasked_phone || (isVi ? "Chưa cung cấp SĐT" : "Phone not provided");
+  const rawEmail = cand.email || cand.unmasked_email || candidateSummary?.email || "";
+  const rawPhone = cand.phone || cand.unmasked_phone || candidateSummary?.phone || "";
+  const displayEmail = rawEmail || (isVi ? "Chưa cung cấp email" : "Email not provided");
+  const displayPhone = rawPhone || (isVi ? "Chưa cung cấp SĐT" : "Phone not provided");
   const skillsList = Array.isArray(cand.key_skills)
     ? cand.key_skills
     : Array.isArray(cand.skills)
-    ? cand.skills
-    : [];
+      ? cand.skills
+      : [];
 
   return (
     <div className="fixed inset-0 z-[200] flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in">
@@ -113,18 +114,36 @@ export default function TalentProfileDrawer({
 
         {/* Contact Security Bar */}
         <div className="px-5 py-3 bg-sunken/60 border-b border-line flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
-          <div className="flex items-center gap-4 text-muted">
+          <div className="flex flex-wrap items-center gap-4 text-muted">
             <span className="inline-flex items-center gap-1.5">
-              <Icon name="mail" size={13} className="text-muted/70" />
-              <span className="font-mono text-xs font-semibold text-ink">
-                {displayEmail}
-              </span>
+              <Icon name="mail" size={13} className="text-brand shrink-0" />
+              {rawEmail ? (
+                <a
+                  href={`mailto:${rawEmail}`}
+                  className="font-mono text-xs font-semibold text-ink hover:text-brand hover:underline transition-colors"
+                >
+                  {rawEmail}
+                </a>
+              ) : (
+                <span className="font-mono text-xs font-semibold text-muted">
+                  {displayEmail}
+                </span>
+              )}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Icon name="phone" size={13} className="text-muted/70" />
-              <span className="font-mono text-xs font-semibold text-ink">
-                {displayPhone}
-              </span>
+              <Icon name="phone" size={13} className="text-emerald-600 shrink-0" />
+              {rawPhone ? (
+                <a
+                  href={`tel:${rawPhone}`}
+                  className="font-mono text-xs font-semibold text-ink hover:text-brand hover:underline transition-colors"
+                >
+                  {rawPhone}
+                </a>
+              ) : (
+                <span className="font-mono text-xs font-semibold text-muted">
+                  {displayPhone}
+                </span>
+              )}
             </span>
           </div>
 
@@ -303,18 +322,7 @@ export default function TalentProfileDrawer({
             {isVi ? "Đóng" : "Close"}
           </button>
 
-          <div className="flex items-center gap-2">
-            {!isContactApproved && (
-              <button
-                type="button"
-                onClick={() => onRequestContact(cand)}
-                className="px-4 py-2 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Icon name="lock" size={13} />
-                <span>{isVi ? "Yêu cầu thông tin liên hệ" : "Request Contact Details"}</span>
-              </button>
-            )}
-
+          <div className="flex items-center gap-2 ">
             <button
               type="button"
               disabled={true}

@@ -16,6 +16,7 @@ const STAGE = {
   "Interview Scheduled": { tone: "warning", icon: "calendar" },
   "Offer Sent": { tone: "success", icon: "gift" },
   Hired: { tone: "success", icon: "check-circle" },
+  "On Hold": { tone: "warning", icon: "pause-circle" },
   Rejected: { tone: "error", icon: "x-circle" },
   Withdrawn: { tone: "neutral", icon: "undo-2" },
 };
@@ -39,6 +40,8 @@ const STAGE_SYNONYMS = {
   "offer sent": "Offer Sent",
   offer_sent: "Offer Sent",
   hired: "Hired",
+  "on hold": "On Hold",
+  on_hold: "On Hold",
   rejected: "Rejected",
   withdrawn: "Withdrawn",
 };
